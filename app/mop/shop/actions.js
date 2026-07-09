@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 
 export async function purchaseReward(rewardId) {
@@ -11,13 +12,15 @@ export async function purchaseReward(rewardId) {
 
   if (!user) return { error: "Не авторизован" };
 
-  const { data: profile } = await supabase
+  const admin = createAdminClient();
+
+  const { data: profile } = await admin
     .from("users")
     .select("balance")
     .eq("id", user.id)
     .single();
 
-  const { data: reward } = await supabase
+  const { data: reward } = await admin
     .from("rewards")
     .select("*")
     .eq("id", rewardId)
@@ -33,14 +36,14 @@ export async function purchaseReward(rewardId) {
 
   const newBalance = profile.balance - reward.price_coins;
 
-  const { error: balanceError } = await supabase
+  const { error: balanceError } = await admin
     .from("users")
     .update({ balance: newBalance })
     .eq("id", user.id);
 
   if (balanceError) return { error: "Ошибка списания баланса" };
 
-  const { error: purchaseError } = await supabase
+  const { error: purchaseError } = await admin
     .from("purchase_requests")
     .insert({
       user_id: user.id,
@@ -51,7 +54,7 @@ export async function purchaseReward(rewardId) {
 
   if (purchaseError) return { error: "Ошибка создания заявки" };
 
-  await supabase.from("transactions").insert({
+  await admin.from("transactions").insert({
     user_id: user.id,
     type: "spend",
     amount_coins: -reward.price_coins,
