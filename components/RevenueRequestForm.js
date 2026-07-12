@@ -11,6 +11,7 @@ export default function RevenueRequestForm() {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
+  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,6 +33,29 @@ export default function RevenueRequestForm() {
       data: { user },
     } = await supabase.auth.getUser();
 
+    let receiptUrl = null;
+
+    if (file) {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("receipts")
+        .upload(path, file);
+
+      if (uploadError) {
+        setLoading(false);
+        setError("Не удалось загрузить фото чека");
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("receipts")
+        .getPublicUrl(path);
+
+      receiptUrl = publicUrlData.publicUrl;
+    }
+
     const { error: insertError } = await supabase
       .from("revenue_requests")
       .insert({
@@ -39,6 +63,7 @@ export default function RevenueRequestForm() {
         amount_kzt: amountNum,
         calculated_coins: coins,
         comment,
+        receipt_url: receiptUrl,
         status: "pending",
       });
 
@@ -51,6 +76,7 @@ export default function RevenueRequestForm() {
 
     setAmount("");
     setComment("");
+    setFile(null);
     setOpen(false);
     router.refresh();
   }
@@ -112,6 +138,19 @@ export default function RevenueRequestForm() {
           rows={2}
           className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
           placeholder="Клиент, номер сделки и т.д."
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">
+          Фото чека (необязательно)
+        </label>
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="w-full text-sm text-gray-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-dark-700 file:text-white"
         />
       </div>
 
