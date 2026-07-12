@@ -51,6 +51,20 @@ export default function RevenueRequestsClient({ requests }) {
               {r.comment && (
                 <p className="text-xs text-gray-500">{r.comment}</p>
               )}
+              {r.receipt_url && (
+                <a
+                  href={r.receipt_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-2"
+                >
+                  <img
+                    src={r.receipt_url}
+                    alt="Чек"
+                    className="h-16 w-16 object-cover rounded-lg border border-dark-600 hover:border-acid-400 transition"
+                  />
+                </a>
+              )}
             </div>
             <div className="flex gap-2 shrink-0">
               <button
