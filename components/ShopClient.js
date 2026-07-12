@@ -17,6 +17,10 @@ const GLOW_BORDERS = {
   red: "border-red-400",
 };
 
+function slugify(text) {
+  return "cat-" + text.replace(/[^a-zA-Zа-яА-Я0-9]+/g, "-").toLowerCase();
+}
+
 export default function ShopClient({ grouped, balance }) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null);
@@ -35,6 +39,16 @@ export default function ShopClient({ grouped, balance }) {
     });
   }
 
+  function scrollToCategory(category) {
+    const el = document.getElementById(slugify(category));
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - 64;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  }
+
+  const categories = Object.keys(grouped);
+
   return (
     <div className="space-y-6">
       {message && (
@@ -49,11 +63,30 @@ export default function ShopClient({ grouped, balance }) {
         </div>
       )}
 
-      {Object.entries(grouped).map(([category, items]) => (
-        <div key={category} className="space-y-3">
+      {/* Липкая панель быстрого перехода по категориям */}
+      <div className="sticky top-0 z-40 -mx-4 px-4 py-2 bg-dark-900/95 backdrop-blur border-b border-dark-600">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => scrollToCategory(category)}
+              className="whitespace-nowrap text-xs bg-dark-800 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300 hover:border-acid-400 hover:text-acid-400 transition"
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {categories.map((category) => (
+        <div
+          key={category}
+          id={slugify(category)}
+          className="space-y-3 scroll-mt-16"
+        >
           <p className="text-sm text-gray-500">{category}</p>
           <div className="grid grid-cols-2 gap-3">
-            {items.map((reward) => {
+            {grouped[category].map((reward) => {
               const canAfford = balance >= reward.price_coins;
               const isConfirming = confirming === reward.id;
 
