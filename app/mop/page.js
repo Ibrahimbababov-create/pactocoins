@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import RevenueRequestForm from "@/components/RevenueRequestForm";
+import BonusRequestForm from "@/components/BonusRequestForm";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -49,6 +50,9 @@ export default async function MopDashboard() {
 
       {/* Заявка на выручку */}
       <RevenueRequestForm />
+
+      {/* Заявка на бонус */}
+      <BonusRequestForm />
 
       {/* Заявки в ожидании */}
       {pendingRequests?.length > 0 && (
