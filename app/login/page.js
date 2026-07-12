@@ -45,7 +45,7 @@ export default function LoginPage() {
 
       setDebug("initData найден, отправляем на сервер...");
 
-      const apiUrl = `${window.location.origin}/api/auth/telegram`;
+      const apiUrl = "https://pactocoins.vercel.app/api/auth/telegram";
 
       fetch(apiUrl, {
         method: "POST",
