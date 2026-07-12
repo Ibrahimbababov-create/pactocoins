@@ -643,3 +643,33 @@ export async function reorderCategories(orderedIds) {
   revalidatePath("/mop/shop");
   return { success: true };
 }
+
+// ---------- Массовое подтверждение/отклонение ----------
+
+export async function bulkApproveRevenue(ids) {
+  for (const id of ids) {
+    await approveRevenueRequest(id);
+  }
+  return { success: true, count: ids.length };
+}
+
+export async function bulkRejectRevenue(ids) {
+  for (const id of ids) {
+    await rejectRevenueRequest(id);
+  }
+  return { success: true, count: ids.length };
+}
+
+export async function bulkApproveBonus(ids) {
+  for (const id of ids) {
+    await approveBonusRequest(id);
+  }
+  return { success: true, count: ids.length };
+}
+
+export async function bulkRejectBonus(ids) {
+  for (const id of ids) {
+    await rejectBonusRequest(id);
+  }
+  return { success: true, count: ids.length };
+}
