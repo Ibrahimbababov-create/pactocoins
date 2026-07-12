@@ -4,6 +4,8 @@ import { useTransition, useState } from "react";
 import {
   approveBonusRequest,
   rejectBonusRequest,
+  bulkApproveBonus,
+  bulkRejectBonus,
   manualAdjustBalance,
   manualAdjustBalanceBulk,
 } from "@/app/admin/actions";
@@ -18,16 +20,20 @@ const statusLabels = {
 export default function BonusRequestsClient({ requests, employees }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   // Одному участнику
   const [singleUserId, setSingleUserId] = useState(employees[0]?.id ?? "");
   const [singleAmount, setSingleAmount] = useState("");
   const [singleReason, setSingleReason] = useState("");
 
-  // Нескольким участникам
-  const [selectedIds, setSelectedIds] = useState([]);
+  // Нескольким участникам (ручное начисление, не путать с заявками)
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [bulkAmount, setBulkAmount] = useState("");
   const [bulkReason, setBulkReason] = useState("");
+
+  const pending = requests.filter((r) => r.status === "pending");
+  const processed = requests.filter((r) => r.status !== "pending");
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -40,6 +46,36 @@ export default function BonusRequestsClient({ requests, employees }) {
 
   function handleReject(id) {
     startTransition(() => rejectBonusRequest(id));
+  }
+
+  function toggleSelected(id) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.length === pending.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(pending.map((r) => r.id));
+    }
+  }
+
+  function handleBulkApprove() {
+    startTransition(async () => {
+      const res = await bulkApproveBonus(selectedIds);
+      showMessage(`Подтверждено: ${res.count}`);
+      setSelectedIds([]);
+    });
+  }
+
+  function handleBulkReject() {
+    startTransition(async () => {
+      const res = await bulkRejectBonus(selectedIds);
+      showMessage(`Отклонено: ${res.count}`);
+      setSelectedIds([]);
+    });
   }
 
   function handleSingleSubmit(e) {
@@ -58,31 +94,32 @@ export default function BonusRequestsClient({ requests, employees }) {
     });
   }
 
-  function toggleSelected(id) {
-    setSelectedIds((prev) =>
+  function toggleEmployeeSelected(id) {
+    setSelectedEmployeeIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }
 
-  function handleBulkSubmit(e) {
+  function handleEmployeeBulkSubmit(e) {
     e.preventDefault();
     const amount = Number(bulkAmount);
-    if (selectedIds.length === 0 || !amount) return;
+    if (selectedEmployeeIds.length === 0 || !amount) return;
 
     startTransition(async () => {
-      const res = await manualAdjustBalanceBulk(selectedIds, amount, bulkReason);
+      const res = await manualAdjustBalanceBulk(
+        selectedEmployeeIds,
+        amount,
+        bulkReason
+      );
       if (res.error) showMessage(res.error, "error");
       else {
         showMessage(`Начислено ${res.count} чел.`);
         setBulkAmount("");
         setBulkReason("");
-        setSelectedIds([]);
+        setSelectedEmployeeIds([]);
       }
     });
   }
-
-  const pending = requests.filter((r) => r.status === "pending");
-  const processed = requests.filter((r) => r.status !== "pending");
 
   return (
     <div className="space-y-6">
@@ -140,7 +177,7 @@ export default function BonusRequestsClient({ requests, employees }) {
 
         {/* Нескольким участникам */}
         <form
-          onSubmit={handleBulkSubmit}
+          onSubmit={handleEmployeeBulkSubmit}
           className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
         >
           <p className="text-sm text-gray-500">
@@ -154,8 +191,8 @@ export default function BonusRequestsClient({ requests, employees }) {
               >
                 <input
                   type="checkbox"
-                  checked={selectedIds.includes(emp.id)}
-                  onChange={() => toggleSelected(emp.id)}
+                  checked={selectedEmployeeIds.includes(emp.id)}
+                  onChange={() => toggleEmployeeSelected(emp.id)}
                 />
                 {emp.name}
               </label>
@@ -179,50 +216,93 @@ export default function BonusRequestsClient({ requests, employees }) {
             disabled={isPending}
             className="w-full bg-acid-400 text-black font-bold rounded-lg py-2.5 text-sm"
           >
-            Начислить выбранным ({selectedIds.length})
+            Начислить выбранным ({selectedEmployeeIds.length})
           </button>
         </form>
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm text-gray-500">
-          Заявки от сотрудников, ожидают подтверждения ({pending.length})
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            Заявки от сотрудников, ожидают подтверждения ({pending.length})
+          </p>
+          {pending.length > 0 && (
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              {selectedIds.length === pending.length
+                ? "Снять выделение"
+                : "Выбрать все"}
+            </button>
+          )}
+        </div>
+
+        {selectedIds.length > 0 && (
+          <div className="flex gap-2 bg-dark-800 border border-acid-400 rounded-xl p-3">
+            <span className="text-sm text-gray-300 flex-1 self-center">
+              Выбрано: {selectedIds.length}
+            </span>
+            <button
+              onClick={handleBulkApprove}
+              disabled={isPending}
+              className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm"
+            >
+              Подтвердить выбранные
+            </button>
+            <button
+              onClick={handleBulkReject}
+              disabled={isPending}
+              className="bg-red-500/20 text-red-400 rounded-lg px-3 py-2 text-sm"
+            >
+              Отклонить выбранные
+            </button>
+          </div>
+        )}
+
         {pending.length === 0 && (
           <p className="text-gray-600 text-sm">Нет новых заявок</p>
         )}
         {pending.map((r) => (
           <div
             key={r.id}
-            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between gap-4"
+            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center gap-3"
           >
-            <div>
-              <p className="font-semibold">{r.users?.name}</p>
-              <p className="text-sm">
-                {BONUS_CATEGORIES[r.category]?.label ?? r.category} →{" "}
-                <span className="text-acid-400 font-bold">
-                  {r.amount_coins} coins
-                </span>
-              </p>
-              {r.comment && (
-                <p className="text-xs text-gray-500">{r.comment}</p>
-              )}
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={() => handleApprove(r.id)}
-                disabled={isPending}
-                className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm"
-              >
-                Подтвердить
-              </button>
-              <button
-                onClick={() => handleReject(r.id)}
-                disabled={isPending}
-                className="bg-red-500/20 text-red-400 rounded-lg px-3 py-2 text-sm"
-              >
-                Отклонить
-              </button>
+            <input
+              type="checkbox"
+              checked={selectedIds.includes(r.id)}
+              onChange={() => toggleSelected(r.id)}
+              className="w-5 h-5 shrink-0"
+            />
+            <div className="flex-1 flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold">{r.users?.name}</p>
+                <p className="text-sm">
+                  {BONUS_CATEGORIES[r.category]?.label ?? r.category} →{" "}
+                  <span className="text-acid-400 font-bold">
+                    {r.amount_coins} coins
+                  </span>
+                </p>
+                {r.comment && (
+                  <p className="text-xs text-gray-500">{r.comment}</p>
+                )}
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => handleApprove(r.id)}
+                  disabled={isPending}
+                  className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm"
+                >
+                  Подтвердить
+                </button>
+                <button
+                  onClick={() => handleReject(r.id)}
+                  disabled={isPending}
+                  className="bg-red-500/20 text-red-400 rounded-lg px-3 py-2 text-sm"
+                >
+                  Отклонить
+                </button>
+              </div>
             </div>
           </div>
         ))}
