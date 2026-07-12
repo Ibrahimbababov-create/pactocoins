@@ -3,6 +3,20 @@
 import { useState, useTransition } from "react";
 import { purchaseReward } from "@/app/mop/shop/actions";
 
+const GLOW_STYLES = {
+  gold: "0 0 24px rgba(250, 204, 21, 0.55)",
+  purple: "0 0 24px rgba(168, 85, 247, 0.55)",
+  cyan: "0 0 24px rgba(34, 211, 238, 0.55)",
+  red: "0 0 24px rgba(248, 113, 113, 0.55)",
+};
+
+const GLOW_BORDERS = {
+  gold: "border-yellow-400",
+  purple: "border-purple-400",
+  cyan: "border-cyan-400",
+  red: "border-red-400",
+};
+
 export default function ShopClient({ grouped, balance }) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null);
@@ -46,7 +60,16 @@ export default function ShopClient({ grouped, balance }) {
               return (
                 <div
                   key={reward.id}
-                  className="bg-dark-800 border border-dark-600 rounded-2xl p-4 flex flex-col justify-between"
+                  className={`bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between ${
+                    reward.highlight_color
+                      ? GLOW_BORDERS[reward.highlight_color]
+                      : "border-dark-600"
+                  }`}
+                  style={
+                    reward.highlight_color
+                      ? { boxShadow: GLOW_STYLES[reward.highlight_color] }
+                      : undefined
+                  }
                 >
                   <div>
                     <p className="font-semibold text-sm leading-tight">
