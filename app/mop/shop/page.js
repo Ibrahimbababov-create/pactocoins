@@ -13,18 +13,31 @@ export default async function ShopPage() {
     .eq("id", user.id)
     .single();
 
+  const { data: categories } = await supabase
+    .from("reward_categories")
+    .select("*")
+    .order("sort_order");
+
   const { data: rewards } = await supabase
     .from("rewards")
     .select("*")
     .eq("is_active", true)
-    .order("category")
     .order("sort_order")
     .order("price_coins");
 
   const grouped = {};
+  categories?.forEach((c) => {
+    grouped[c.name] = [];
+  });
+
   rewards?.forEach((r) => {
     if (!grouped[r.category]) grouped[r.category] = [];
     grouped[r.category].push(r);
+  });
+
+  // Убираем пустые категории из отображения
+  Object.keys(grouped).forEach((key) => {
+    if (grouped[key].length === 0) delete grouped[key];
   });
 
   return (
