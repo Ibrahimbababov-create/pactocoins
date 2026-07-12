@@ -8,6 +8,7 @@ export default async function RewardsAdminPage() {
     .from("rewards")
     .select("*")
     .order("category")
+    .order("sort_order")
     .order("price_coins");
 
   return (
