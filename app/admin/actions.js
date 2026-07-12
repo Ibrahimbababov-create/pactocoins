@@ -83,16 +83,22 @@ export async function manualAdjustBalance(userId, amount, description) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance")
+    .select("balance, total_earned, month_earned")
     .eq("id", userId)
     .single();
 
   const newBalance = profile.balance + amount;
   if (newBalance < 0) return { error: "Баланс не может уйти в минус" };
 
+  const update = { balance: newBalance };
+  if (amount > 0) {
+    update.total_earned = profile.total_earned + amount;
+    update.month_earned = profile.month_earned + amount;
+  }
+
   const { error: updateError } = await admin
     .from("users")
-    .update({ balance: newBalance })
+    .update(update)
     .eq("id", userId);
 
   if (updateError) return { error: updateError.message };
@@ -437,4 +443,48 @@ export async function awardTopPerformers(period) {
   revalidatePath("/admin");
   revalidatePath("/admin/bonus-requests");
   return { success: true, winners: ranked.length };
+}
+
+// ---------- Массовое начисление нескольким сотрудникам одинаковой суммы ----------
+
+export async function manualAdjustBalanceBulk(userIds, amount, description) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  let successCount = 0;
+
+  for (const userId of userIds) {
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance, total_earned, month_earned")
+      .eq("id", userId)
+      .single();
+
+    if (!profile) continue;
+
+    const newBalance = profile.balance + amount;
+    if (newBalance < 0) continue;
+
+    const update = { balance: newBalance };
+    if (amount > 0) {
+      update.total_earned = profile.total_earned + amount;
+      update.month_earned = profile.month_earned + amount;
+    }
+
+    await admin.from("users").update(update).eq("id", userId);
+
+    await admin.from("transactions").insert({
+      user_id: userId,
+      type: amount >= 0 ? "manual_add" : "manual_subtract",
+      amount_coins: amount,
+      description: description || "Массовое начисление",
+    });
+
+    successCount++;
+  }
+
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/bonus-requests");
+  revalidatePath("/admin");
+  return { success: true, count: successCount };
 }
