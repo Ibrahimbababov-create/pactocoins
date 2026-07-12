@@ -26,8 +26,6 @@ export default async function AdminOverview() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Обзор</h1>
 
-      <ResetButton />
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
           <p className="text-xs text-gray-500">Всего МОПов</p>
@@ -74,6 +72,8 @@ export default async function AdminOverview() {
           </div>
         ))}
       </div>
+
+      <ResetButton />
     </div>
   );
 }
