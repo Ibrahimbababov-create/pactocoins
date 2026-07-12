@@ -251,6 +251,8 @@ export async function createReward(formData) {
     category: formData.get("category"),
     price_coins: Number(formData.get("price_coins")),
     description: formData.get("description"),
+    sort_order: Number(formData.get("sort_order")) || 0,
+    highlight_color: formData.get("highlight_color") || null,
     is_active: true,
   });
 
@@ -288,6 +290,8 @@ export async function updateReward(rewardId, formData) {
       category: formData.get("category"),
       price_coins: Number(formData.get("price_coins")),
       description: formData.get("description"),
+      sort_order: Number(formData.get("sort_order")) || 0,
+      highlight_color: formData.get("highlight_color") || null,
     })
     .eq("id", rewardId);
 
