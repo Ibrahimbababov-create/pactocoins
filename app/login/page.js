@@ -45,7 +45,9 @@ export default function LoginPage() {
 
       setDebug("initData найден, отправляем на сервер...");
 
-      fetch("/api/auth/telegram", {
+      const apiUrl = `${window.location.origin}/api/auth/telegram`;
+
+      fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initData: tg.initData }),
