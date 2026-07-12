@@ -22,7 +22,7 @@ const GLOW_STYLES = {
   red: "0 0 24px rgba(248, 113, 113, 0.55)",
 };
 
-export default function RewardsAdminClient({ rewards }) {
+export default function RewardsAdminClient({ rewards, categories }) {
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -74,8 +74,8 @@ export default function RewardsAdminClient({ rewards }) {
       )}
 
       <p className="text-xs text-gray-600">
-        Порядок: чем меньше число — тем выше в списке внутри категории.
-        Например, поставь 999 у "Путёвки", чтобы она была в самом конце.
+        Порядок внутри категории: чем меньше число — тем выше. Порядок самих
+        категорий двигается кнопками ▲▼ выше.
       </p>
 
       {!showCreate ? (
@@ -106,12 +106,17 @@ export default function RewardsAdminClient({ rewards }) {
             placeholder="Название"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
           />
-          <input
+          <select
             name="category"
             required
-            placeholder="Категория"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
-          />
+          >
+            {categories.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <input
             name="price_coins"
             type="number"
@@ -122,7 +127,7 @@ export default function RewardsAdminClient({ rewards }) {
           <input
             name="sort_order"
             type="number"
-            placeholder="Порядок (0 = сначала, 999 = в конце)"
+            placeholder="Порядок внутри категории (0 = сначала)"
             defaultValue={0}
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
           />
@@ -172,11 +177,17 @@ export default function RewardsAdminClient({ rewards }) {
                   defaultValue={r.title}
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 />
-                <input
+                <select
                   name="category"
                   defaultValue={r.category}
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-                />
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
                 <input
                   name="price_coins"
                   type="number"
@@ -187,7 +198,7 @@ export default function RewardsAdminClient({ rewards }) {
                   name="sort_order"
                   type="number"
                   defaultValue={r.sort_order ?? 0}
-                  placeholder="Порядок"
+                  placeholder="Порядок в категории"
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 />
                 <select
