@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
+
+const API_URL = "https://pactocoins.vercel.app/api/auth/telegram";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,9 +16,50 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingTelegram, setCheckingTelegram] = useState(true);
   const [debug, setDebug] = useState("Запуск проверки...");
+  const cancelledRef = useRef(false);
+
+  function doTelegramLogin(initData) {
+    setDebug("initData найден, отправляем на сервер (XHR)...");
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", API_URL, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.withCredentials = true;
+
+    xhr.onload = function () {
+      if (cancelledRef.current) return;
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (data.redirect) {
+          setDebug(`Успех, редирект на ${data.redirect}`);
+          router.push(data.redirect);
+          router.refresh();
+        } else {
+          setDebug(`Сервер вернул ошибку: ${data.error ?? "неизвестно"}`);
+          setCheckingTelegram(false);
+        }
+      } catch (e) {
+        setDebug(
+          `Не удалось разобрать ответ (status ${xhr.status}): ${xhr.responseText.slice(
+            0,
+            200
+          )}`
+        );
+        setCheckingTelegram(false);
+      }
+    };
+
+    xhr.onerror = function () {
+      if (cancelledRef.current) return;
+      setDebug(`Ошибка сети XHR (status ${xhr.status})`);
+      setCheckingTelegram(false);
+    };
+
+    xhr.send(JSON.stringify({ initData }));
+  }
 
   useEffect(() => {
-    let cancelled = false;
+    cancelledRef.current = false;
 
     function attempt(retriesLeft) {
       const tg = window?.Telegram?.WebApp;
@@ -43,51 +86,13 @@ export default function LoginPage() {
         return;
       }
 
-      setDebug("initData найден, отправляем на сервер (XHR)...");
-
-      const apiUrl = "https://pactocoins.vercel.app/api/auth/telegram";
-
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", apiUrl, true);
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.withCredentials = true;
-
-      xhr.onload = function () {
-        if (cancelled) return;
-        try {
-          const data = JSON.parse(xhr.responseText);
-          if (data.redirect) {
-            setDebug(`Успех, редирект на ${data.redirect}`);
-            router.push(data.redirect);
-            router.refresh();
-          } else {
-            setDebug(`Сервер вернул ошибку: ${data.error ?? "неизвестно"}`);
-            setCheckingTelegram(false);
-          }
-        } catch (e) {
-          setDebug(
-            `Не удалось разобрать ответ сервера (status ${xhr.status}): ${xhr.responseText.slice(
-              0,
-              200
-            )}`
-          );
-          setCheckingTelegram(false);
-        }
-      };
-
-      xhr.onerror = function () {
-        if (cancelled) return;
-        setDebug(`Ошибка сети XHR (status ${xhr.status})`);
-        setCheckingTelegram(false);
-      };
-
-      xhr.send(JSON.stringify({ initData: tg.initData }));
+      doTelegramLogin(tg.initData);
     }
 
     attempt(10);
 
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
     };
   }, []);
 
@@ -110,6 +115,16 @@ export default function LoginPage() {
 
     router.refresh();
     router.push("/mop");
+  }
+
+  function handleManualTelegramLogin() {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.initData) {
+      setCheckingTelegram(true);
+      doTelegramLogin(tg.initData);
+    } else {
+      setDebug("Telegram WebApp недоступен на этом экране");
+    }
   }
 
   if (checkingTelegram) {
@@ -135,6 +150,13 @@ export default function LoginPage() {
         <p className="text-center text-xs text-gray-600 mb-4 break-words">
           [диагностика] {debug}
         </p>
+
+        <button
+          onClick={handleManualTelegramLogin}
+          className="w-full bg-[#2AABEE] text-white font-bold rounded-lg py-3 mb-4"
+        >
+          Войти через Telegram
+        </button>
 
         <form
           onSubmit={handleLogin}
