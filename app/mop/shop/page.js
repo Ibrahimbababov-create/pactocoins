@@ -29,4 +29,16 @@ export default async function ShopPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Магазин
+        <h1 className="text-2xl font-bold">Магазин наград</h1>
+        <div className="text-right">
+          <p className="text-xs text-gray-500">Баланс</p>
+          <p className="text-xl font-black text-acid-400">
+            {profile?.balance ?? 0}
+          </p>
+        </div>
+      </div>
+
+      <ShopClient grouped={grouped} balance={profile?.balance ?? 0} />
+    </div>
+  );
+}
