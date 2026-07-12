@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import ResetButton from "@/components/ResetButton";
 
 export default async function AdminOverview() {
   const supabase = createClient();
@@ -24,6 +25,8 @@ export default async function AdminOverview() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Обзор</h1>
+
+      <ResetButton />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
