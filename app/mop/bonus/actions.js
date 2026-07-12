@@ -45,5 +45,6 @@ export async function submitBonusRequest(category, comment, customAmount) {
   if (error) return { error: "Не удалось отправить заявку" };
 
   revalidatePath("/mop");
+  revalidatePath("/admin/bonus-requests");
   return { success: true };
 }
