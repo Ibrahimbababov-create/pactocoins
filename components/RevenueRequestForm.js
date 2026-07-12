@@ -27,6 +27,11 @@ export default function RevenueRequestForm() {
       return;
     }
 
+    if (!file) {
+      setError("Прикрепи фото чека");
+      return;
+    }
+
     setLoading(true);
 
     const {
@@ -143,12 +148,13 @@ export default function RevenueRequestForm() {
 
       <div>
         <label className="block text-sm text-gray-400 mb-1">
-          Фото чека (необязательно)
+          Фото чека (обязательно)
         </label>
         <input
           type="file"
           accept="image/*"
           capture="environment"
+          required
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           className="w-full text-sm text-gray-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-dark-700 file:text-white"
         />
