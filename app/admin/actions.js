@@ -546,3 +546,82 @@ export async function resetUserStats(userId) {
 
   return { success: true };
 }
+
+// ---------- Категории наград ----------
+
+export async function createCategory(name) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const trimmed = (name || "").trim();
+  if (!trimmed) return { error: "Введи название категории" };
+
+  const { data: existing } = await admin
+    .from("reward_categories")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .single();
+
+  const nextOrder = existing ? existing.sort_order + 1 : 0;
+
+  const { error } = await admin
+    .from("reward_categories")
+    .insert({ name: trimmed, sort_order: nextOrder });
+
+  if (error) return { error: "Такая категория уже есть" };
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/mop/shop");
+  return { success: true };
+}
+
+export async function moveCategory(categoryId, direction) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: categories } = await admin
+    .from("reward_categories")
+    .select("*")
+    .order("sort_order");
+
+  const index = categories.findIndex((c) => c.id === categoryId);
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+
+  if (index === -1 || swapIndex < 0 || swapIndex >= categories.length) {
+    return { error: "Некуда двигать" };
+  }
+
+  const current = categories[index];
+  const swapWith = categories[swapIndex];
+
+  await admin
+    .from("reward_categories")
+    .update({ sort_order: swapWith.sort_order })
+    .eq("id", current.id);
+
+  await admin
+    .from("reward_categories")
+    .update({ sort_order: current.sort_order })
+    .eq("id", swapWith.id);
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/mop/shop");
+  return { success: true };
+}
+
+export async function deleteCategory(categoryId) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("reward_categories")
+    .delete()
+    .eq("id", categoryId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/mop/shop");
+  return { success: true };
+}
