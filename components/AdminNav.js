@@ -7,6 +7,7 @@ const items = [
   { href: "/admin", label: "Обзор" },
   { href: "/admin/employees", label: "Сотрудники" },
   { href: "/admin/revenue-requests", label: "Заявки на выручку" },
+  { href: "/admin/bonus-requests", label: "Бонусы" },
   { href: "/admin/purchase-requests", label: "Заявки на покупки" },
   { href: "/admin/rewards", label: "Магазин" },
 ];
