@@ -18,6 +18,7 @@ export default async function ShopPage() {
     .select("*")
     .eq("is_active", true)
     .order("category")
+    .order("sort_order")
     .order("price_coins");
 
   const grouped = {};
