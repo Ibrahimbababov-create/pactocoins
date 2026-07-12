@@ -7,6 +7,21 @@ import {
   toggleRewardActive,
 } from "@/app/admin/actions";
 
+const GLOW_COLORS = [
+  { value: "", label: "Без свечения" },
+  { value: "gold", label: "Золото" },
+  { value: "purple", label: "Фиолет (легендарное)" },
+  { value: "cyan", label: "Бирюза" },
+  { value: "red", label: "Красное" },
+];
+
+const GLOW_STYLES = {
+  gold: "0 0 24px rgba(250, 204, 21, 0.55)",
+  purple: "0 0 24px rgba(168, 85, 247, 0.55)",
+  cyan: "0 0 24px rgba(34, 211, 238, 0.55)",
+  red: "0 0 24px rgba(248, 113, 113, 0.55)",
+};
+
 export default function RewardsAdminClient({ rewards }) {
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
@@ -58,6 +73,11 @@ export default function RewardsAdminClient({ rewards }) {
         </div>
       )}
 
+      <p className="text-xs text-gray-600">
+        Порядок: чем меньше число — тем выше в списке внутри категории.
+        Например, поставь 999 у "Путёвки", чтобы она была в самом конце.
+      </p>
+
       {!showCreate ? (
         <button
           onClick={() => setShowCreate(true)}
@@ -99,6 +119,23 @@ export default function RewardsAdminClient({ rewards }) {
             placeholder="Цена в coins"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
           />
+          <input
+            name="sort_order"
+            type="number"
+            placeholder="Порядок (0 = сначала, 999 = в конце)"
+            defaultValue={0}
+            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+          />
+          <select
+            name="highlight_color"
+            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+          >
+            {GLOW_COLORS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
           <textarea
             name="description"
             placeholder="Описание (необязательно)"
@@ -119,6 +156,11 @@ export default function RewardsAdminClient({ rewards }) {
           <div
             key={r.id}
             className="bg-dark-800 border border-dark-600 rounded-xl p-4"
+            style={
+              r.highlight_color
+                ? { boxShadow: GLOW_STYLES[r.highlight_color] }
+                : undefined
+            }
           >
             {editingId === r.id ? (
               <form
@@ -141,6 +183,24 @@ export default function RewardsAdminClient({ rewards }) {
                   defaultValue={r.price_coins}
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 />
+                <input
+                  name="sort_order"
+                  type="number"
+                  defaultValue={r.sort_order ?? 0}
+                  placeholder="Порядок"
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                />
+                <select
+                  name="highlight_color"
+                  defaultValue={r.highlight_color ?? ""}
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                >
+                  {GLOW_COLORS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
                 <textarea
                   name="description"
                   defaultValue={r.description}
@@ -172,7 +232,13 @@ export default function RewardsAdminClient({ rewards }) {
                     )}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {r.category} · {r.price_coins} coins
+                    {r.category} · {r.price_coins} coins · порядок{" "}
+                    {r.sort_order ?? 0}
+                    {r.highlight_color &&
+                      ` · свечение: ${
+                        GLOW_COLORS.find((c) => c.value === r.highlight_color)
+                          ?.label
+                      }`}
                   </p>
                 </div>
                 <div className="flex gap-2">
