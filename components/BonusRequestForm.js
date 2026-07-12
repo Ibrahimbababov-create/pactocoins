@@ -10,18 +10,23 @@ export default function BonusRequestForm() {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState("attendance");
+  const [customAmount, setCustomAmount] = useState("");
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState(null);
+
+  const meta = BONUS_CATEGORIES[category];
+  const isVariable = meta.amount === null;
 
   function handleSubmit(e) {
     e.preventDefault();
     startTransition(async () => {
-      const res = await submitBonusRequest(category, comment);
+      const res = await submitBonusRequest(category, comment, customAmount);
       if (res.error) {
         setMessage({ type: "error", text: res.error });
       } else {
         setMessage({ type: "success", text: "Заявка отправлена" });
         setComment("");
+        setCustomAmount("");
         setOpen(false);
         router.refresh();
       }
@@ -75,24 +80,47 @@ export default function BonusRequestForm() {
               onChange={(e) => setCategory(e.target.value)}
               className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white"
             >
-              {Object.entries(BONUS_CATEGORIES).map(([key, meta]) => (
+              {Object.entries(BONUS_CATEGORIES).map(([key, m]) => (
                 <option key={key} value={key}>
-                  {meta.label} — {meta.amount} coins
+                  {m.label}
+                  {m.amount !== null ? ` — ${m.amount} coins` : ""}
                 </option>
               ))}
             </select>
           </div>
 
+          {isVariable && (
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">
+                Сколько coins
+              </label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white"
+                placeholder="Например, 500"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-sm text-gray-400 mb-1">
-              Комментарий (необязательно)
+              Комментарий {isVariable && "(обязательно)"}
             </label>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={2}
+              required={isVariable}
               className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white"
-              placeholder="Например: скрин чека, номер сделки"
+              placeholder={
+                isVariable
+                  ? "Опиши, что именно сделал"
+                  : "Например: скрин чека, номер сделки"
+              }
             />
           </div>
 
