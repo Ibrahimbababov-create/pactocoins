@@ -625,3 +625,21 @@ export async function deleteCategory(categoryId) {
   revalidatePath("/mop/shop");
   return { success: true };
 }
+
+// ---------- Полная перестановка категорий (drag-and-drop) ----------
+
+export async function reorderCategories(orderedIds) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  for (let i = 0; i < orderedIds.length; i++) {
+    await admin
+      .from("reward_categories")
+      .update({ sort_order: i })
+      .eq("id", orderedIds[i]);
+  }
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/mop/shop");
+  return { success: true };
+}
