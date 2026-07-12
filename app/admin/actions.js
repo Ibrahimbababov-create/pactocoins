@@ -488,3 +488,57 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
   revalidatePath("/admin");
   return { success: true, count: successCount };
 }
+
+// ---------- Полный сброс тестовых данных ----------
+
+export async function resetAllStats() {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  await admin.from("transactions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin.from("revenue_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin.from("bonus_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin.from("purchase_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+  await admin
+    .from("users")
+    .update({ balance: 0, total_earned: 0, month_earned: 0 })
+    .eq("role", "mop");
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/revenue-requests");
+  revalidatePath("/admin/bonus-requests");
+  revalidatePath("/admin/purchase-requests");
+  revalidatePath("/mop");
+  revalidatePath("/mop/rating");
+
+  return { success: true };
+}
+
+// ---------- Сброс данных одного сотрудника ----------
+
+export async function resetUserStats(userId) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  await admin.from("transactions").delete().eq("user_id", userId);
+  await admin.from("revenue_requests").delete().eq("user_id", userId);
+  await admin.from("bonus_requests").delete().eq("user_id", userId);
+  await admin.from("purchase_requests").delete().eq("user_id", userId);
+
+  await admin
+    .from("users")
+    .update({ balance: 0, total_earned: 0, month_earned: 0 })
+    .eq("id", userId);
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/revenue-requests");
+  revalidatePath("/admin/bonus-requests");
+  revalidatePath("/admin/purchase-requests");
+  revalidatePath("/mop");
+  revalidatePath("/mop/rating");
+
+  return { success: true };
+}
