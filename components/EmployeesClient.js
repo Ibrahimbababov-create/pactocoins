@@ -5,6 +5,7 @@ import {
   createMop,
   updateMop,
   manualAdjustBalance,
+  resetUserStats,
 } from "@/app/admin/actions";
 
 export default function EmployeesClient({ users }) {
@@ -56,6 +57,19 @@ export default function EmployeesClient({ users }) {
         setAdjustAmount("");
         setAdjustReason("");
       }
+    });
+  }
+
+  function handleReset(userId, name) {
+    const confirmed = window.confirm(
+      `Сбросить все данные ${name}? Обнулит баланс, заработок и удалит его историю. Отменить нельзя.`
+    );
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      const res = await resetUserStats(userId);
+      if (res.error) showMessage(res.error, "error");
+      else showMessage("Данные сброшены");
     });
   }
 
@@ -201,6 +215,13 @@ export default function EmployeesClient({ users }) {
                     className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"
                   >
                     Баланс
+                  </button>
+                  <button
+                    onClick={() => handleReset(u.id, u.name)}
+                    disabled={isPending}
+                    className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5"
+                  >
+                    Сбросить
                   </button>
                 </div>
               </div>
