@@ -135,6 +135,7 @@ export default function EmployeesClient({ users }) {
           >
             <option value="mop">МОП</option>
             <option value="admin">Админ</option>
+            <option value="observer">Наблюдатель</option>
           </select>
           <button
             type="submit"
@@ -169,6 +170,7 @@ export default function EmployeesClient({ users }) {
                 >
                   <option value="mop">МОП</option>
                   <option value="admin">Админ</option>
+                  <option value="observer">Наблюдатель</option>
                 </select>
                 <div className="flex gap-2">
                   <button
@@ -192,7 +194,7 @@ export default function EmployeesClient({ users }) {
                   <p className="font-semibold">
                     {u.name}{" "}
                     <span className="text-xs text-gray-500">
-                      ({u.role === "admin" ? "админ" : "МОП"})
+                      ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : "МОП"})
                     </span>
                   </p>
                   <p className="text-xs text-gray-500">{u.email}</p>
