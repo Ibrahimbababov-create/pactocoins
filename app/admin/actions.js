@@ -291,3 +291,150 @@ export async function updateReward(rewardId, formData) {
   revalidatePath("/mop/shop");
   return { success: true };
 }
+
+// ---------- Заявки на бонусы (приход вовремя, план и т.д.) ----------
+
+export async function approveBonusRequest(requestId) {
+  const admin_user = await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: request } = await admin
+    .from("bonus_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (!request || request.status !== "pending") {
+    return { error: "Заявка уже обработана" };
+  }
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("balance, total_earned, month_earned")
+    .eq("id", request.user_id)
+    .single();
+
+  const coins = request.amount_coins;
+
+  await admin
+    .from("users")
+    .update({
+      balance: profile.balance + coins,
+      total_earned: profile.total_earned + coins,
+      month_earned: profile.month_earned + coins,
+    })
+    .eq("id", request.user_id);
+
+  await admin
+    .from("bonus_requests")
+    .update({
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+    })
+    .eq("id", requestId);
+
+  await admin.from("transactions").insert({
+    user_id: request.user_id,
+    type: "earn",
+    amount_coins: coins,
+    description: `Бонус: ${request.category}`,
+    created_by: admin_user.id,
+  });
+
+  revalidatePath("/admin/bonus-requests");
+  revalidatePath("/admin");
+  return { success: true };
+}
+
+export async function rejectBonusRequest(requestId) {
+  const admin_user = await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("bonus_requests")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+    })
+    .eq("id", requestId)
+    .eq("status", "pending");
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/bonus-requests");
+  return { success: true };
+}
+
+// ---------- Автоначисление ТОП-1/2/3 (неделя / месяц) ----------
+
+export async function awardTopPerformers(period) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const now = new Date();
+  let startDate;
+  if (period === "week") {
+    startDate = new Date(now);
+    startDate.setDate(now.getDate() - 7);
+  } else {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  const { data: transactions } = await admin
+    .from("transactions")
+    .select("user_id, amount_coins")
+    .eq("type", "earn")
+    .gte("created_at", startDate.toISOString());
+
+  const totals = {};
+  transactions?.forEach((t) => {
+    totals[t.user_id] = (totals[t.user_id] || 0) + t.amount_coins;
+  });
+
+  const ranked = Object.entries(totals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  if (ranked.length === 0) {
+    return { error: "Нет данных за этот период" };
+  }
+
+  const prizes = period === "week" ? [2000, 1000, 300] : [10000, 5000, 2000];
+  const labels =
+    period === "week"
+      ? ["ТОП-1 недели", "ТОП-2 недели", "ТОП-3 недели"]
+      : ["ТОП-1 месяца", "ТОП-2 месяца", "ТОП-3 месяца"];
+
+  for (let i = 0; i < ranked.length; i++) {
+    const [userId] = ranked[i];
+    const prize = prizes[i];
+
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance, total_earned, month_earned")
+      .eq("id", userId)
+      .single();
+
+    await admin
+      .from("users")
+      .update({
+        balance: profile.balance + prize,
+        total_earned: profile.total_earned + prize,
+        month_earned: profile.month_earned + prize,
+      })
+      .eq("id", userId);
+
+    await admin.from("transactions").insert({
+      user_id: userId,
+      type: "manual_add",
+      amount_coins: prize,
+      description: labels[i],
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/bonus-requests");
+  return { success: true, winners: ranked.length };
+}
