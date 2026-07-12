@@ -1,6 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
+function homeForRole(role) {
+  if (role === "admin") return "/admin";
+  if (role === "observer") return "/observer";
+  return "/mop";
+}
+
 export async function middleware(request) {
   let response = NextResponse.next({ request });
 
@@ -33,13 +39,12 @@ export async function middleware(request) {
   const path = request.nextUrl.pathname;
   const isLoginPage = path === "/login";
   const isAdminPage = path.startsWith("/admin");
+  const isObserverPage = path.startsWith("/observer");
 
-  // Не залогинен — пускаем только на /login
   if (!user && !isLoginPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Залогинен и на /login — увести на дашборд
   if (user && isLoginPage) {
     const { data: profile } = await supabase
       .from("users")
@@ -47,11 +52,11 @@ export async function middleware(request) {
       .eq("id", user.id)
       .single();
 
-    const target = profile?.role === "admin" ? "/admin" : "/mop";
-    return NextResponse.redirect(new URL(target, request.url));
+    return NextResponse.redirect(
+      new URL(homeForRole(profile?.role), request.url)
+    );
   }
 
-  // МОП пытается зайти в /admin — не пускаем
   if (user && isAdminPage) {
     const { data: profile } = await supabase
       .from("users")
@@ -60,7 +65,23 @@ export async function middleware(request) {
       .single();
 
     if (profile?.role !== "admin") {
-      return NextResponse.redirect(new URL("/mop", request.url));
+      return NextResponse.redirect(
+        new URL(homeForRole(profile?.role), request.url)
+      );
+    }
+  }
+
+  if (user && isObserverPage) {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "observer" && profile?.role !== "admin") {
+      return NextResponse.redirect(
+        new URL(homeForRole(profile?.role), request.url)
+      );
     }
   }
 
