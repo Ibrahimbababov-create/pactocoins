@@ -11,7 +11,7 @@ export default function RevenueRequestForm() {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
-  const [file, setFile] = useState(null);
+  const [receiptConfirmed, setReceiptConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,8 +27,8 @@ export default function RevenueRequestForm() {
       return;
     }
 
-    if (!file) {
-      setError("Прикрепи фото чека");
+    if (!receiptConfirmed) {
+      setError("Подтверди, что отправил чек в группу");
       return;
     }
 
@@ -38,29 +38,6 @@ export default function RevenueRequestForm() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    let receiptUrl = null;
-
-    if (file) {
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/${Date.now()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("receipts")
-        .upload(path, file);
-
-      if (uploadError) {
-        setLoading(false);
-        setError("Не удалось загрузить фото чека");
-        return;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from("receipts")
-        .getPublicUrl(path);
-
-      receiptUrl = publicUrlData.publicUrl;
-    }
-
     const { error: insertError } = await supabase
       .from("revenue_requests")
       .insert({
@@ -68,7 +45,7 @@ export default function RevenueRequestForm() {
         amount_kzt: amountNum,
         calculated_coins: coins,
         comment,
-        receipt_url: receiptUrl,
+        receipt_confirmed: true,
         status: "pending",
       });
 
@@ -81,7 +58,7 @@ export default function RevenueRequestForm() {
 
     setAmount("");
     setComment("");
-    setFile(null);
+    setReceiptConfirmed(false);
     setOpen(false);
     router.refresh();
   }
@@ -146,19 +123,17 @@ export default function RevenueRequestForm() {
         />
       </div>
 
-      <div>
-        <label className="block text-sm text-gray-400 mb-1">
-          Фото чека (обязательно)
-        </label>
+      <label className="flex items-start gap-3 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 cursor-pointer">
         <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          required
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="w-full text-sm text-gray-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-dark-700 file:text-white"
+          type="checkbox"
+          checked={receiptConfirmed}
+          onChange={(e) => setReceiptConfirmed(e.target.checked)}
+          className="mt-0.5"
         />
-      </div>
+        <span className="text-sm text-gray-300">
+          Я отправил чек в Telegram-группу
+        </span>
+      </label>
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
