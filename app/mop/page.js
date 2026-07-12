@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import RevenueRequestForm from "@/components/RevenueRequestForm";
 import BonusRequestForm from "@/components/BonusRequestForm";
+import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -14,12 +15,22 @@ export default async function MopDashboard() {
     .eq("id", user.id)
     .single();
 
-  const { data: pendingRequests } = await supabase
+  const { data: pendingRevenue } = await supabase
     .from("revenue_requests")
     .select("*")
     .eq("user_id", user.id)
     .eq("status", "pending")
     .order("created_at", { ascending: false });
+
+  const { data: pendingBonus } = await supabase
+    .from("bonus_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  const hasPending =
+    (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -55,10 +66,11 @@ export default async function MopDashboard() {
       <BonusRequestForm />
 
       {/* Заявки в ожидании */}
-      {pendingRequests?.length > 0 && (
+      {hasPending && (
         <div className="space-y-2">
           <p className="text-sm text-gray-500">Ожидают подтверждения</p>
-          {pendingRequests.map((r) => (
+
+          {pendingRevenue?.map((r) => (
             <div
               key={r.id}
               className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
@@ -68,6 +80,26 @@ export default async function MopDashboard() {
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸
                 </p>
                 <p className="text-xs text-gray-500">{r.comment}</p>
+              </div>
+              <span className="text-xs bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full">
+                Ожидает
+              </span>
+            </div>
+          ))}
+
+          {pendingBonus?.map((r) => (
+            <div
+              key={r.id}
+              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
+            >
+              <div>
+                <p className="font-semibold">
+                  {BONUS_CATEGORIES[r.category]?.label ?? r.category}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {r.amount_coins} coins
+                  {r.comment ? ` · ${r.comment}` : ""}
+                </p>
               </div>
               <span className="text-xs bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full">
                 Ожидает
