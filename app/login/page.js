@@ -43,19 +43,19 @@ export default function LoginPage() {
         return;
       }
 
-      setDebug("initData найден, отправляем на сервер...");
+      setDebug("initData найден, отправляем на сервер (XHR)...");
 
       const apiUrl = "https://pactocoins.vercel.app/api/auth/telegram";
 
-      fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData: tg.initData }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (cancelled) return;
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", apiUrl, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.withCredentials = true;
 
+      xhr.onload = function () {
+        if (cancelled) return;
+        try {
+          const data = JSON.parse(xhr.responseText);
           if (data.redirect) {
             setDebug(`Успех, редирект на ${data.redirect}`);
             router.push(data.redirect);
@@ -64,12 +64,24 @@ export default function LoginPage() {
             setDebug(`Сервер вернул ошибку: ${data.error ?? "неизвестно"}`);
             setCheckingTelegram(false);
           }
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          setDebug(`Ошибка запроса: ${err.message}`);
+        } catch (e) {
+          setDebug(
+            `Не удалось разобрать ответ сервера (status ${xhr.status}): ${xhr.responseText.slice(
+              0,
+              200
+            )}`
+          );
           setCheckingTelegram(false);
-        });
+        }
+      };
+
+      xhr.onerror = function () {
+        if (cancelled) return;
+        setDebug(`Ошибка сети XHR (status ${xhr.status})`);
+        setCheckingTelegram(false);
+      };
+
+      xhr.send(JSON.stringify({ initData: tg.initData }));
     }
 
     attempt(10);
