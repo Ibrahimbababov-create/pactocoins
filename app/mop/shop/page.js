@@ -16,7 +16,8 @@ export default async function ShopPage() {
   const { data: categories } = await supabase
     .from("reward_categories")
     .select("*")
-    .order("sort_order");
+    .order("sort_order")
+    .order("name");
 
   const { data: rewards } = await supabase
     .from("rewards")
