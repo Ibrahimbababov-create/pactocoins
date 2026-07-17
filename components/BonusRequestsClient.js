@@ -323,6 +323,11 @@ export default function BonusRequestsClient({ requests, employees }) {
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category} ·{" "}
                   {r.amount_coins} coins
                 </p>
+                <p className="text-xs text-gray-600">
+                  {new Date(
+                    r.reviewed_at || r.created_at
+                  ).toLocaleString("ru-RU")}
+                </p>
               </div>
               <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>
                 {meta.label}
