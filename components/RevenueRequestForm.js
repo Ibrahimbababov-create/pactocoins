@@ -1,23 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase-browser";
+import { submitRevenueRequest } from "@/app/mop/revenue/actions";
 
 export default function RevenueRequestForm() {
   const router = useRouter();
-  const supabase = createClient();
+  const [isPending, startTransition] = useTransition();
 
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [receiptConfirmed, setReceiptConfirmed] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const coins = amount ? Math.floor(Number(amount) / 1000) : 0;
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
@@ -32,35 +31,20 @@ export default function RevenueRequestForm() {
       return;
     }
 
-    setLoading(true);
+    startTransition(async () => {
+      const res = await submitRevenueRequest(amountNum, comment, receiptConfirmed);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
 
-    const { error: insertError } = await supabase
-      .from("revenue_requests")
-      .insert({
-        user_id: user.id,
-        amount_kzt: amountNum,
-        calculated_coins: coins,
-        comment,
-        receipt_confirmed: true,
-        status: "pending",
-      });
-
-    setLoading(false);
-
-    if (insertError) {
-      setError("Не удалось отправить заявку");
-      return;
-    }
-
-    setAmount("");
-    setComment("");
-    setReceiptConfirmed(false);
-    setOpen(false);
-    router.refresh();
+      setAmount("");
+      setComment("");
+      setReceiptConfirmed(false);
+      setOpen(false);
+      router.refresh();
+    });
   }
 
   if (!open) {
@@ -139,10 +123,10 @@ export default function RevenueRequestForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={isPending}
         className="w-full bg-acid-400 text-black font-bold rounded-lg py-3 hover:bg-acid-500 transition disabled:opacity-50"
       >
-        {loading ? "Отправляем..." : "Отправить на подтверждение"}
+        {isPending ? "Отправляем..." : "Отправить на подтверждение"}
       </button>
     </form>
   );
