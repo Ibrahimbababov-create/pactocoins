@@ -43,7 +43,7 @@ export default async function PurchasesPage() {
                 <p className="font-semibold">{p.rewards?.title}</p>
                 <p className="text-xs text-gray-500">
                   {p.price_coins} coins ·{" "}
-                  {new Date(p.created_at).toLocaleDateString("ru-RU")}
+                  {new Date(p.created_at).toLocaleString("ru-RU")}
                 </p>
               </div>
               <span
