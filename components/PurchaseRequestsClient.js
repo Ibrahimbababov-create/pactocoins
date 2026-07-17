@@ -35,6 +35,9 @@ export default function PurchaseRequestsClient({ purchases }) {
               <p className="text-sm text-gray-500">
                 {p.users?.name} · {p.price_coins} coins
               </p>
+              <p className="text-xs text-gray-600">
+                {new Date(p.created_at).toLocaleString("ru-RU")}
+              </p>
             </div>
             <select
               defaultValue={p.status}
