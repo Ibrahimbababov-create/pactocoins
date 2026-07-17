@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   createMop,
   updateMop,
@@ -204,6 +205,12 @@ export default function EmployeesClient({ users }) {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <Link
+                    href={`/admin/employees/${u.id}`}
+                    className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"
+                  >
+                    История
+                  </Link>
                   <button
                     onClick={() => setEditingId(u.id)}
                     className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"
