@@ -53,7 +53,7 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
       `Коинов: ${coins}\n` +
       (comment ? `Комментарий: ${comment}\n` : "");
 
-    await sendTelegramMessage(groupChatId, text, {
+    const tgResult = await sendTelegramMessage(groupChatId, text, {
       inline_keyboard: [
         [
           { text: "✅ Подтвердить", callback_data: `approve_rev:${inserted.id}` },
@@ -61,6 +61,10 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
         ],
       ],
     });
+
+    console.log("TELEGRAM_SEND_RESULT", JSON.stringify(tgResult));
+  } else {
+    console.log("TELEGRAM_GROUP_CHAT_ID is not set");
   }
 
   revalidatePath("/mop");
