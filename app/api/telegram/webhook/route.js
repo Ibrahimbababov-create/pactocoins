@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import {
   approveRevenueRequestInternal,
   rejectRevenueRequestInternal,
+  approveBonusRequestInternal,
+  rejectBonusRequestInternal,
 } from "@/lib/telegramApprovals";
 import { editTelegramMessage, answerCallbackQuery } from "@/lib/telegramBot";
 
@@ -19,19 +21,26 @@ export async function POST(request) {
 
   const [action, requestId] = data.split(":");
 
-  if (action === "approve_rev" || action === "reject_rev") {
-    const result =
-      action === "approve_rev"
-        ? await approveRevenueRequestInternal(requestId)
-        : await rejectRevenueRequestInternal(requestId);
+  const actionMap = {
+    approve_rev: approveRevenueRequestInternal,
+    reject_rev: rejectRevenueRequestInternal,
+    approve_bonus: approveBonusRequestInternal,
+    reject_bonus: rejectBonusRequestInternal,
+  };
+
+  const handler = actionMap[action];
+
+  if (handler) {
+    const result = await handler(requestId);
 
     if (result.error) {
       await answerCallbackQuery(callback.id, result.error);
       return NextResponse.json({ ok: true });
     }
 
-    const resultLabel =
-      action === "approve_rev" ? "✅ Подтверждено" : "❌ Отклонено";
+    const resultLabel = action.startsWith("approve")
+      ? "✅ Подтверждено"
+      : "❌ Отклонено";
 
     const actorName =
       callback.from.first_name +
