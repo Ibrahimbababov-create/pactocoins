@@ -7,6 +7,19 @@ export default async function MessagesListPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const homeHref =
+    profile?.role === "admin"
+      ? "/admin"
+      : profile?.role === "observer"
+      ? "/observer"
+      : "/mop";
+
   const { data: allUsers } = await supabase
     .from("users")
     .select("id, name")
@@ -43,6 +56,9 @@ export default async function MessagesListPage() {
 
   return (
     <div className="space-y-4">
+      <Link href={homeHref} className="text-gray-500 text-sm">
+        ← На главную
+      </Link>
       <h1 className="text-2xl font-bold">Сообщения</h1>
 
       <Link
