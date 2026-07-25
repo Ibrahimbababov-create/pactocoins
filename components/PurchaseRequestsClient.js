@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useState } from "react";
 import { updatePurchaseStatus } from "@/app/admin/actions";
 
 const statuses = [
@@ -12,19 +12,49 @@ const statuses = [
 
 export default function PurchaseRequestsClient({ purchases }) {
   const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState(null);
+  const [localStatuses, setLocalStatuses] = useState({});
+
+  function showMessage(text, type = "success") {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 4000);
+  }
 
   function handleChange(id, newStatus) {
-    startTransition(() => updatePurchaseStatus(id, newStatus));
+    const previousStatus = localStatuses[id] ?? purchases.find((p) => p.id === id)?.status;
+
+    setLocalStatuses((prev) => ({ ...prev, [id]: newStatus }));
+
+    startTransition(async () => {
+      const res = await updatePurchaseStatus(id, newStatus);
+      if (res?.error) {
+        setLocalStatuses((prev) => ({ ...prev, [id]: previousStatus }));
+        showMessage(res.error, "error");
+      }
+    });
   }
 
   return (
     <div className="space-y-2">
+      {message && (
+        <div
+          className={`rounded-xl p-3 text-sm text-center ${
+            message.type === "error"
+              ? "bg-red-500/10 text-red-400"
+              : "bg-acid-400/10 text-acid-400"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
       {purchases.length === 0 && (
         <p className="text-gray-500 text-sm">Заявок пока нет</p>
       )}
 
       {purchases.map((p) => {
-        const meta = statuses.find((s) => s.value === p.status);
+        const currentStatus = localStatuses[p.id] ?? p.status;
+        const meta = statuses.find((s) => s.value === currentStatus);
         return (
           <div
             key={p.id}
@@ -40,7 +70,7 @@ export default function PurchaseRequestsClient({ purchases }) {
               </p>
             </div>
             <select
-              defaultValue={p.status}
+              value={currentStatus}
               disabled={isPending}
               onChange={(e) => handleChange(p.id, e.target.value)}
               className={`text-xs rounded-full px-3 py-1.5 border-none ${meta?.color}`}

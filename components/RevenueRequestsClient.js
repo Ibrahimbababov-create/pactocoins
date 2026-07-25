@@ -18,13 +18,28 @@ export default function RevenueRequestsClient({ requests }) {
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState([]);
   const [message, setMessage] = useState(null);
+  const [hiddenIds, setHiddenIds] = useState(new Set());
 
-  const pending = requests.filter((r) => r.status === "pending");
+  const pending = requests.filter(
+    (r) => r.status === "pending" && !hiddenIds.has(r.id)
+  );
   const processed = requests.filter((r) => r.status !== "pending");
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
+  }
+
+  function hide(ids) {
+    setHiddenIds((prev) => new Set([...prev, ...ids]));
+  }
+
+  function unhide(ids) {
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
   }
 
   function toggleSelected(id) {
@@ -42,33 +57,67 @@ export default function RevenueRequestsClient({ requests }) {
   }
 
   function handleApprove(id) {
-    startTransition(() => approveRevenueRequest(id));
+    hide([id]);
+    startTransition(async () => {
+      const res = await approveRevenueRequest(id);
+      if (res?.error) {
+        unhide([id]);
+        showMessage(res.error, "error");
+      }
+    });
   }
 
   function handleReject(id) {
-    startTransition(() => rejectRevenueRequest(id));
+    hide([id]);
+    startTransition(async () => {
+      const res = await rejectRevenueRequest(id);
+      if (res?.error) {
+        unhide([id]);
+        showMessage(res.error, "error");
+      }
+    });
   }
 
   function handleBulkApprove() {
+    const ids = selectedIds;
+    hide(ids);
+    setSelectedIds([]);
     startTransition(async () => {
-      const res = await bulkApproveRevenue(selectedIds);
-      showMessage(`Подтверждено: ${res.count}`);
-      setSelectedIds([]);
+      const res = await bulkApproveRevenue(ids);
+      if (res?.error) {
+        unhide(ids);
+        showMessage(res.error, "error");
+      } else {
+        showMessage(`Подтверждено: ${res.count}`);
+      }
     });
   }
 
   function handleBulkReject() {
+    const ids = selectedIds;
+    hide(ids);
+    setSelectedIds([]);
     startTransition(async () => {
-      const res = await bulkRejectRevenue(selectedIds);
-      showMessage(`Отклонено: ${res.count}`);
-      setSelectedIds([]);
+      const res = await bulkRejectRevenue(ids);
+      if (res?.error) {
+        unhide(ids);
+        showMessage(res.error, "error");
+      } else {
+        showMessage(`Отклонено: ${res.count}`);
+      }
     });
   }
 
   return (
     <div className="space-y-6">
       {message && (
-        <div className="rounded-xl p-3 text-sm text-center bg-acid-400/10 text-acid-400">
+        <div
+          className={`rounded-xl p-3 text-sm text-center ${
+            message.type === "error"
+              ? "bg-red-500/10 text-red-400"
+              : "bg-acid-400/10 text-acid-400"
+          }`}
+        >
           {message.text}
         </div>
       )}

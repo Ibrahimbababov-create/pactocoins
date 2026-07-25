@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { sendMessage } from "@/app/messages/actions";
@@ -14,22 +14,44 @@ export default function MessageThread({
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [localMessages, setLocalMessages] = useState(initialMessages);
+  const lastPropCountRef = useRef(initialMessages.length);
+
+  useEffect(() => {
+    if (initialMessages.length !== lastPropCountRef.current) {
+      lastPropCountRef.current = initialMessages.length;
+      setLocalMessages(initialMessages);
+    }
+  }, [initialMessages]);
 
   async function handleSend(e) {
     e.preventDefault();
-    if (!content.trim()) return;
+    const text = content.trim();
+    if (!text) return;
 
-    setSending(true);
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage = {
+      id: tempId,
+      sender_id: currentUserId,
+      content: text,
+      created_at: new Date().toISOString(),
+      _pending: true,
+    };
+
+    setLocalMessages((prev) => [...prev, optimisticMessage]);
+    setContent("");
     setError("");
-    const res = await sendMessage(otherUser?.id, content);
+    setSending(true);
+
+    const res = await sendMessage(otherUser?.id, text);
     setSending(false);
 
     if (res.error) {
+      setLocalMessages((prev) => prev.filter((m) => m.id !== tempId));
       setError(res.error);
       return;
     }
 
-    setContent("");
     router.refresh();
   }
 
@@ -43,13 +65,13 @@ export default function MessageThread({
       </div>
 
       <div className="space-y-2">
-        {initialMessages.length === 0 && (
+        {localMessages.length === 0 && (
           <p className="text-gray-600 text-sm text-center py-8">
             Сообщений пока нет
           </p>
         )}
 
-        {initialMessages.map((m) => {
+        {localMessages.map((m) => {
           const isMine = m.sender_id === currentUserId;
 
           return (
@@ -59,9 +81,12 @@ export default function MessageThread({
                 isMine
                   ? "ml-auto bg-acid-400 text-black"
                   : "bg-dark-800 border border-dark-600 text-white"
-              }`}
+              } ${m._pending ? "opacity-50" : ""}`}
             >
               <p className="whitespace-pre-wrap break-words">{m.content}</p>
+              {m._pending && (
+                <p className="text-[10px] mt-1 opacity-70">отправляется...</p>
+              )}
             </div>
           );
         })}

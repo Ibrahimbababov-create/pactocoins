@@ -24,6 +24,7 @@ export default function BonusRequestsClient({ requests, employees }) {
   const [message, setMessage] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [exemptMap, setExemptMap] = useState({});
+  const [hiddenIds, setHiddenIds] = useState(new Set());
 
   // Одному участнику
   const [singleUserId, setSingleUserId] = useState(employees[0]?.id ?? "");
@@ -37,7 +38,9 @@ export default function BonusRequestsClient({ requests, employees }) {
   const [bulkReason, setBulkReason] = useState("");
   const [bulkExempt, setBulkExempt] = useState(false);
 
-  const pending = requests.filter((r) => r.status === "pending");
+  const pending = requests.filter(
+    (r) => r.status === "pending" && !hiddenIds.has(r.id)
+  );
   const processed = requests.filter((r) => r.status !== "pending");
 
   function showMessage(text, type = "success") {
@@ -45,13 +48,39 @@ export default function BonusRequestsClient({ requests, employees }) {
     setTimeout(() => setMessage(null), 4000);
   }
 
+  function hide(ids) {
+    setHiddenIds((prev) => new Set([...prev, ...ids]));
+  }
+
+  function unhide(ids) {
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }
+
   function handleApprove(id) {
     const exempt = !!exemptMap[id];
-    startTransition(() => approveBonusRequestExempt(id, exempt));
+    hide([id]);
+    startTransition(async () => {
+      const res = await approveBonusRequestExempt(id, exempt);
+      if (res?.error) {
+        unhide([id]);
+        showMessage(res.error, "error");
+      }
+    });
   }
 
   function handleReject(id) {
-    startTransition(() => rejectBonusRequest(id));
+    hide([id]);
+    startTransition(async () => {
+      const res = await rejectBonusRequest(id);
+      if (res?.error) {
+        unhide([id]);
+        showMessage(res.error, "error");
+      }
+    });
   }
 
   function toggleSelected(id) {
@@ -69,18 +98,32 @@ export default function BonusRequestsClient({ requests, employees }) {
   }
 
   function handleBulkApprove() {
+    const ids = selectedIds;
+    hide(ids);
+    setSelectedIds([]);
     startTransition(async () => {
-      const res = await bulkApproveBonus(selectedIds);
-      showMessage(`Подтверждено: ${res.count}`);
-      setSelectedIds([]);
+      const res = await bulkApproveBonus(ids);
+      if (res?.error) {
+        unhide(ids);
+        showMessage(res.error, "error");
+      } else {
+        showMessage(`Подтверждено: ${res.count}`);
+      }
     });
   }
 
   function handleBulkReject() {
+    const ids = selectedIds;
+    hide(ids);
+    setSelectedIds([]);
     startTransition(async () => {
-      const res = await bulkRejectBonus(selectedIds);
-      showMessage(`Отклонено: ${res.count}`);
-      setSelectedIds([]);
+      const res = await bulkRejectBonus(ids);
+      if (res?.error) {
+        unhide(ids);
+        showMessage(res.error, "error");
+      } else {
+        showMessage(`Отклонено: ${res.count}`);
+      }
     });
   }
 

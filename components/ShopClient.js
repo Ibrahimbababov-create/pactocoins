@@ -25,16 +25,27 @@ export default function ShopClient({ grouped, balance }) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null);
   const [message, setMessage] = useState(null);
+  const [displayBalance, setDisplayBalance] = useState(balance);
+  const [purchasedIds, setPurchasedIds] = useState(new Set());
 
   function handleBuy(reward) {
+    setConfirming(null);
+    setDisplayBalance((prev) => prev - reward.price_coins);
+    setPurchasedIds((prev) => new Set([...prev, reward.id]));
+
     startTransition(async () => {
       const res = await purchaseReward(reward.id);
       if (res.error) {
+        setDisplayBalance((prev) => prev + reward.price_coins);
+        setPurchasedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(reward.id);
+          return next;
+        });
         setMessage({ type: "error", text: res.error });
       } else {
         setMessage({ type: "success", text: `Куплено: ${reward.title}` });
       }
-      setConfirming(null);
       setTimeout(() => setMessage(null), 3000);
     });
   }
@@ -51,6 +62,16 @@ export default function ShopClient({ grouped, balance }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Магазин наград</h1>
+        <div className="text-right">
+          <p className="text-xs text-gray-500">Баланс</p>
+          <p className="text-xl font-black text-acid-400">
+            {displayBalance}
+          </p>
+        </div>
+      </div>
+
       {message && (
         <div
           className={`rounded-xl p-3 text-sm text-center ${
@@ -87,7 +108,8 @@ export default function ShopClient({ grouped, balance }) {
           <p className="text-sm text-gray-500">{category}</p>
           <div className="grid grid-cols-2 gap-3">
             {grouped[category].map((reward) => {
-              const canAfford = balance >= reward.price_coins;
+              const isPurchased = purchasedIds.has(reward.id);
+              const canAfford = displayBalance >= reward.price_coins;
               const isConfirming = confirming === reward.id;
 
               return (
@@ -120,7 +142,11 @@ export default function ShopClient({ grouped, balance }) {
                       {reward.price_coins} coins
                     </p>
 
-                    {!isConfirming ? (
+                    {isPurchased ? (
+                      <div className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400">
+                        ✅ Куплено
+                      </div>
+                    ) : !isConfirming ? (
                       <button
                         disabled={!canAfford}
                         onClick={() => setConfirming(reward.id)}
