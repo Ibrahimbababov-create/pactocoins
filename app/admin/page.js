@@ -29,7 +29,6 @@ export default async function AdminOverview() {
         <h1 className="text-2xl font-bold">Обзор</h1>
         <Link
           href="/mop"
-          target="_blank"
           className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
         >
           👁 Открыть как МОП
