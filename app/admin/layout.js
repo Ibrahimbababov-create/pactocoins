@@ -36,7 +36,7 @@ export default async function AdminLayout({ children }) {
           </h1>
           <div className="flex items-center gap-4">
             <Link
-              href="/admin/messages"
+              href="/messages"
               className="relative text-gray-400 text-sm"
             >
               ✉ Сообщения
