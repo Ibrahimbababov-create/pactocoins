@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import Link from "next/link";
 import ResetButton from "@/components/ResetButton";
 
 export default async function AdminOverview() {
@@ -24,7 +25,16 @@ export default async function AdminOverview() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Обзор</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Обзор</h1>
+        <Link
+          href="/mop"
+          target="_blank"
+          className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
+        >
+          👁 Открыть как МОП
+        </Link>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">

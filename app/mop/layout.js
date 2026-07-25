@@ -12,6 +12,12 @@ export default async function MopLayout({ children }) {
 
   if (!user) redirect("/login");
 
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
   const { count: unreadCount } = await supabase
     .from("messages")
     .select("*", { count: "exact", head: true })
@@ -20,6 +26,14 @@ export default async function MopLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-dark-900 pb-20">
+      {profile?.role === "admin" && (
+        <div className="bg-acid-400 text-black text-sm font-bold px-4 py-2 flex items-center justify-between gap-2">
+          <span>👁 Просмотр как МОП</span>
+          <Link href="/admin" className="underline">
+            Вернуться в админку
+          </Link>
+        </div>
+      )}
       <div className="max-w-lg mx-auto px-4 pt-6">
         <div className="flex justify-end items-center gap-4 mb-2">
           <Link href="/messages" className="relative text-gray-400 text-sm">
