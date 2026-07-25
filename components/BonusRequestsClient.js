@@ -2,13 +2,15 @@
 
 import { useTransition, useState } from "react";
 import {
-  approveBonusRequest,
   rejectBonusRequest,
   bulkApproveBonus,
   bulkRejectBonus,
-  manualAdjustBalance,
-  manualAdjustBalanceBulk,
 } from "@/app/admin/actions";
+import {
+  manualAdjustBalanceExempt,
+  manualAdjustBalanceBulkExempt,
+  approveBonusRequestExempt,
+} from "@/app/admin/ratingExemptActions";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 
 const statusLabels = {
@@ -21,16 +23,19 @@ export default function BonusRequestsClient({ requests, employees }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [exemptMap, setExemptMap] = useState({});
 
   // Одному участнику
   const [singleUserId, setSingleUserId] = useState(employees[0]?.id ?? "");
   const [singleAmount, setSingleAmount] = useState("");
   const [singleReason, setSingleReason] = useState("");
+  const [singleExempt, setSingleExempt] = useState(false);
 
-  // Нескольким участникам (ручное начисление, не путать с заявками)
+  // Нескольким участникам
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [bulkAmount, setBulkAmount] = useState("");
   const [bulkReason, setBulkReason] = useState("");
+  const [bulkExempt, setBulkExempt] = useState(false);
 
   const pending = requests.filter((r) => r.status === "pending");
   const processed = requests.filter((r) => r.status !== "pending");
@@ -41,7 +46,8 @@ export default function BonusRequestsClient({ requests, employees }) {
   }
 
   function handleApprove(id) {
-    startTransition(() => approveBonusRequest(id));
+    const exempt = !!exemptMap[id];
+    startTransition(() => approveBonusRequestExempt(id, exempt));
   }
 
   function handleReject(id) {
@@ -84,12 +90,18 @@ export default function BonusRequestsClient({ requests, employees }) {
     if (!singleUserId || !amount) return;
 
     startTransition(async () => {
-      const res = await manualAdjustBalance(singleUserId, amount, singleReason);
+      const res = await manualAdjustBalanceExempt(
+        singleUserId,
+        amount,
+        singleReason,
+        singleExempt
+      );
       if (res.error) showMessage(res.error, "error");
       else {
         showMessage("Начислено");
         setSingleAmount("");
         setSingleReason("");
+        setSingleExempt(false);
       }
     });
   }
@@ -106,10 +118,11 @@ export default function BonusRequestsClient({ requests, employees }) {
     if (selectedEmployeeIds.length === 0 || !amount) return;
 
     startTransition(async () => {
-      const res = await manualAdjustBalanceBulk(
+      const res = await manualAdjustBalanceBulkExempt(
         selectedEmployeeIds,
         amount,
-        bulkReason
+        bulkReason,
+        bulkExempt
       );
       if (res.error) showMessage(res.error, "error");
       else {
@@ -117,6 +130,7 @@ export default function BonusRequestsClient({ requests, employees }) {
         setBulkAmount("");
         setBulkReason("");
         setSelectedEmployeeIds([]);
+        setBulkExempt(false);
       }
     });
   }
@@ -166,6 +180,14 @@ export default function BonusRequestsClient({ requests, employees }) {
             placeholder="За что"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
           />
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={singleExempt}
+              onChange={(e) => setSingleExempt(e.target.checked)}
+            />
+            Не учитывать в рейтинге (ДР и т.п.)
+          </label>
           <button
             type="submit"
             disabled={isPending}
@@ -211,6 +233,14 @@ export default function BonusRequestsClient({ requests, employees }) {
             placeholder="За что"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
           />
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={bulkExempt}
+              onChange={(e) => setBulkExempt(e.target.checked)}
+            />
+            Не учитывать в рейтинге (ДР и т.п.)
+          </label>
           <button
             type="submit"
             disabled={isPending}
@@ -286,6 +316,19 @@ export default function BonusRequestsClient({ requests, employees }) {
                 {r.comment && (
                   <p className="text-xs text-gray-500">{r.comment}</p>
                 )}
+                <label className="flex items-center gap-2 text-xs text-gray-500 mt-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!exemptMap[r.id]}
+                    onChange={(e) =>
+                      setExemptMap((prev) => ({
+                        ...prev,
+                        [r.id]: e.target.checked,
+                      }))
+                    }
+                  />
+                  Не в рейтинг (ДР и т.п.)
+                </label>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button
@@ -322,11 +365,6 @@ export default function BonusRequestsClient({ requests, employees }) {
                 <p className="text-sm text-gray-500">
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category} ·{" "}
                   {r.amount_coins} coins
-                </p>
-                <p className="text-xs text-gray-600">
-                  {new Date(
-                    r.reviewed_at || r.created_at
-                  ).toLocaleString("ru-RU")}
                 </p>
               </div>
               <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>
