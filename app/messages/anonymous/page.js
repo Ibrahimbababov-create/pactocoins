@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import AnonymousMessageForm from "@/components/AnonymousMessageForm";
+import AnonymousMessagesList from "@/components/AnonymousMessagesList";
 import Link from "next/link";
 
 export default async function AnonymousMessagesPage() {
@@ -41,20 +42,10 @@ export default async function AnonymousMessagesPage() {
             Кто отправил — не видно никому, включая администратора.
           </p>
 
-          {messages?.length === 0 && (
-            <p className="text-gray-600 text-sm">Пока пусто</p>
-          )}
-          {messages?.map((m) => (
-            <div
-              key={m.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-4"
-            >
-              <p className="text-sm whitespace-pre-wrap">{m.content}</p>
-              <p className="text-xs text-gray-600 mt-2">
-                {new Date(m.created_at).toLocaleString("ru-RU")}
-              </p>
-            </div>
-          ))}
+          <AnonymousMessagesList
+            messages={messages}
+            canDelete={profile?.role === "admin"}
+          />
         </div>
       )}
     </div>
