@@ -9,6 +9,7 @@ export default function MessageThread({
   currentUserId,
   otherUser,
   initialMessages,
+  backHref = "/mop/messages",
 }) {
   const router = useRouter();
   const [content, setContent] = useState("");
@@ -37,7 +38,7 @@ export default function MessageThread({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Link href="/mop/messages" className="text-gray-500 text-sm">
+        <Link href={backHref} className="text-gray-500 text-sm">
           ←
         </Link>
         <h1 className="text-xl font-bold">{otherUser?.name}</h1>
