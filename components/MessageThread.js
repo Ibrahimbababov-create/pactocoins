@@ -3,17 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { sendMessage } from "@/app/mop/messages/actions";
+import { sendMessage } from "@/app/messages/actions";
 
 export default function MessageThread({
   currentUserId,
   otherUser,
   initialMessages,
-  backHref = "/mop/messages",
 }) {
   const router = useRouter();
   const [content, setContent] = useState("");
-  const [anonymous, setAnonymous] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
@@ -23,7 +21,7 @@ export default function MessageThread({
 
     setSending(true);
     setError("");
-    const res = await sendMessage(otherUser?.id, content, anonymous);
+    const res = await sendMessage(otherUser?.id, content);
     setSending(false);
 
     if (res.error) {
@@ -38,7 +36,7 @@ export default function MessageThread({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Link href={backHref} className="text-gray-500 text-sm">
+        <Link href="/messages" className="text-gray-500 text-sm">
           ←
         </Link>
         <h1 className="text-xl font-bold">{otherUser?.name}</h1>
@@ -53,7 +51,6 @@ export default function MessageThread({
 
         {initialMessages.map((m) => {
           const isMine = m.sender_id === currentUserId;
-          const showAnon = m.is_anonymous && !isMine;
 
           return (
             <div
@@ -64,9 +61,6 @@ export default function MessageThread({
                   : "bg-dark-800 border border-dark-600 text-white"
               }`}
             >
-              {showAnon && (
-                <p className="text-xs opacity-60 mb-0.5">Аноним</p>
-              )}
               <p className="whitespace-pre-wrap break-words">{m.content}</p>
             </div>
           );
@@ -84,23 +78,13 @@ export default function MessageThread({
 
         {error && <p className="text-red-400 text-xs">{error}</p>}
 
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={anonymous}
-              onChange={(e) => setAnonymous(e.target.checked)}
-            />
-            Отправить анонимно
-          </label>
-          <button
-            type="submit"
-            disabled={sending}
-            className="bg-acid-400 text-black font-bold rounded-lg px-5 py-2 text-sm disabled:opacity-50"
-          >
-            {sending ? "..." : "Отправить"}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={sending}
+          className="w-full bg-acid-400 text-black font-bold rounded-lg py-3 text-sm disabled:opacity-50"
+        >
+          {sending ? "..." : "Отправить"}
+        </button>
       </form>
     </div>
   );
