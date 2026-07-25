@@ -17,7 +17,8 @@ export default async function AdminRating() {
   const { data: transactions } = await supabase
     .from("transactions")
     .select("user_id, amount_coins, description, type, created_at")
-    .in("user_id", userIds);
+    .in("user_id", userIds)
+    .eq("rating_exempt", false);
 
   return (
     <div className="space-y-4">
