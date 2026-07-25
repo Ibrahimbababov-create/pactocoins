@@ -7,19 +7,51 @@ import {
 } from "@/lib/telegramApprovals";
 import { editTelegramMessage, answerCallbackQuery } from "@/lib/telegramBot";
 
+const COIN_ACTIONS = new Set([
+  "approve_rev",
+  "reject_rev",
+  "approve_bonus",
+  "reject_bonus",
+]);
+
+async function forwardToSalesBot(update) {
+  const baseUrl = process.env.SALES_BOT_URL;
+  if (!baseUrl) return;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    await fetch(`${baseUrl}/process`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": process.env.SALES_BOT_SECRET || "",
+      },
+      body: JSON.stringify(update),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    console.error("Failed to forward update to sales-bot:", err);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function POST(request) {
   const update = await request.json();
 
   const callback = update.callback_query;
-  if (!callback) {
+  const data = callback?.data || "";
+  const [action, requestId] = data.split(":");
+
+  if (!callback || !COIN_ACTIONS.has(action)) {
+    await forwardToSalesBot(update);
     return NextResponse.json({ ok: true });
   }
 
   const chatId = callback.message.chat.id;
   const messageId = callback.message.message_id;
-  const data = callback.data || "";
-
-  const [action, requestId] = data.split(":");
 
   const actionMap = {
     approve_rev: approveRevenueRequestInternal,
