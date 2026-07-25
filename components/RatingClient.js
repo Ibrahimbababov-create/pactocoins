@@ -8,41 +8,73 @@ const CATEGORY_TABS = [
   { key: "bonus", label: "Достижения" },
 ];
 
-const PERIODS = [
-  { key: "day", label: "За день" },
-  { key: "week", label: "За неделю" },
-  { key: "month", label: "За месяц" },
-];
-
 function classify(desc) {
   if (desc?.startsWith("Выручка подтверждена")) return "revenue";
   if (desc?.startsWith("Бонус:") || desc?.startsWith("ТОП-")) return "bonus";
   return "other";
 }
 
-function inPeriod(dateStr, period) {
-  const d = new Date(dateStr);
-  const now = new Date();
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
-  if (period === "day") {
-    return d.toDateString() === now.toDateString();
+function endOfWeek(date) {
+  const start = startOfWeek(date);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+function startOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date) {
+  const d = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function formatRange(start, end, mode) {
+  if (mode === "month") {
+    return start.toLocaleDateString("ru-RU", {
+      month: "long",
+      year: "numeric",
+    });
   }
-  if (period === "week") {
-    const weekAgo = new Date(now);
-    weekAgo.setDate(now.getDate() - 7);
-    return d >= weekAgo;
-  }
-  if (period === "month") {
-    return (
-      d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-    );
-  }
-  return true;
+  const sameMonth = start.getMonth() === end.getMonth();
+  const startStr = start.toLocaleDateString(
+    "ru-RU",
+    sameMonth ? { day: "numeric" } : { day: "numeric", month: "long" }
+  );
+  const endStr = end.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return `${startStr} – ${endStr}`;
 }
 
 export default function RatingClient({ currentUserId, users, transactions }) {
   const [tab, setTab] = useState("overall");
-  const [period, setPeriod] = useState("month");
+  const [periodMode, setPeriodMode] = useState("week");
+  const [pickedDate, setPickedDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+
+  const range = useMemo(() => {
+    const d = new Date(pickedDate + "T00:00:00");
+    if (periodMode === "week") {
+      return { start: startOfWeek(d), end: endOfWeek(d) };
+    }
+    return { start: startOfMonth(d), end: endOfMonth(d) };
+  }, [pickedDate, periodMode]);
 
   const ranking = useMemo(() => {
     const totals = {};
@@ -52,7 +84,8 @@ export default function RatingClient({ currentUserId, users, transactions }) {
 
     transactions.forEach((t) => {
       if (t.amount_coins <= 0) return;
-      if (!inPeriod(t.created_at, period)) return;
+      const created = new Date(t.created_at);
+      if (created < range.start || created > range.end) return;
 
       const cat = classify(t.description);
 
@@ -66,7 +99,21 @@ export default function RatingClient({ currentUserId, users, transactions }) {
     return users
       .map((u) => ({ id: u.id, name: u.name, value: totals[u.id] || 0 }))
       .sort((a, b) => b.value - a.value);
-  }, [tab, period, users, transactions]);
+  }, [tab, range, users, transactions]);
+
+  function shiftPeriod(direction) {
+    const d = new Date(pickedDate + "T00:00:00");
+    if (periodMode === "week") {
+      d.setDate(d.getDate() + direction * 7);
+    } else {
+      d.setMonth(d.getMonth() + direction);
+    }
+    setPickedDate(d.toISOString().slice(0, 10));
+  }
+
+  function goToday() {
+    setPickedDate(new Date().toISOString().slice(0, 10));
+  }
 
   return (
     <div className="space-y-4">
@@ -84,17 +131,53 @@ export default function RatingClient({ currentUserId, users, transactions }) {
         ))}
       </div>
 
-      <select
-        value={period}
-        onChange={(e) => setPeriod(e.target.value)}
-        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm"
-      >
-        {PERIODS.map((p) => (
-          <option key={p.key} value={p.key}>
+      <div className="flex gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
+        {[
+          { key: "week", label: "Неделя" },
+          { key: "month", label: "Месяц" },
+        ].map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setPeriodMode(p.key)}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+              periodMode === p.key ? "bg-acid-400 text-black" : "text-gray-400"
+            }`}
+          >
             {p.label}
-          </option>
+          </button>
         ))}
-      </select>
+      </div>
+
+      <div className="bg-dark-800 border border-dark-600 rounded-xl p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => shiftPeriod(-1)}
+            className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
+          >
+            ←
+          </button>
+          <input
+            type="date"
+            value={pickedDate}
+            onChange={(e) => setPickedDate(e.target.value)}
+            className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+          />
+          <button
+            onClick={() => shiftPeriod(1)}
+            className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
+          >
+            →
+          </button>
+        </div>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500 capitalize">
+            {formatRange(range.start, range.end, periodMode)}
+          </p>
+          <button onClick={goToday} className="text-xs text-acid-400">
+            Сегодня
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-2">
         {ranking.map((u, i) => {
