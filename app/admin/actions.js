@@ -65,10 +65,11 @@ export async function updateMop(userId, formData) {
 
   const name = formData.get("name");
   const role = formData.get("role");
+  const birthday = formData.get("birthday") || null;
 
   const { error } = await admin
     .from("users")
-    .update({ name, role })
+    .update({ name, role, birthday })
     .eq("id", userId);
 
   if (error) return { error: error.message };

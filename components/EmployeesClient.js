@@ -173,6 +173,17 @@ export default function EmployeesClient({ users }) {
                   <option value="admin">Админ</option>
                   <option value="observer">Наблюдатель</option>
                 </select>
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">
+                    День рождения
+                  </span>
+                  <input
+                    type="date"
+                    name="birthday"
+                    defaultValue={u.birthday ?? ""}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </label>
                 <div className="flex gap-2">
                   <button
                     type="submit"

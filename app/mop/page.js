@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import RevenueRequestForm from "@/components/RevenueRequestForm";
 import BonusRequestForm from "@/components/BonusRequestForm";
 import RulesAccordion from "@/components/RulesAccordion";
+import BirthdayProfile from "@/components/BirthdayProfile";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 
 export default async function MopDashboard() {
@@ -59,6 +60,8 @@ export default async function MopDashboard() {
           </div>
         </div>
       </div>
+
+      <BirthdayProfile birthday={profile?.birthday} />
 
       {/* Заявка на выручку */}
       <RevenueRequestForm />
