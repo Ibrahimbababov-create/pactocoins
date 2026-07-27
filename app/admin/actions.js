@@ -227,6 +227,7 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
       type: "manual_add",
       amount_coins: purchase.price_coins,
       description: "Возврат за отклонённую покупку",
+      rating_exempt: true,
     });
   }
 
