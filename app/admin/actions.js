@@ -549,6 +549,57 @@ export async function resetUserStats(userId) {
   return { success: true };
 }
 
+// ---------- Удаление сотрудника ----------
+
+export async function deleteEmployee(userId) {
+  const admin_user = await requireAdmin();
+  if (userId === admin_user.id) {
+    return { error: "Нельзя удалить самого себя" };
+  }
+
+  const admin = createAdminClient();
+
+  // Снимаем ссылки там, где это чужие записи (например, этот
+  // человек как админ когда-то подтверждал чужую заявку) —
+  // сами записи не трогаем, просто убираем ссылку на удаляемого.
+  await admin
+    .from("revenue_requests")
+    .update({ reviewed_by: null })
+    .eq("reviewed_by", userId);
+  await admin
+    .from("bonus_requests")
+    .update({ reviewed_by: null })
+    .eq("reviewed_by", userId);
+  await admin
+    .from("transactions")
+    .update({ created_by: null })
+    .eq("created_by", userId);
+
+  // Удаляем всё, что принадлежит самому этому человеку.
+  await admin.from("transactions").delete().eq("user_id", userId);
+  await admin.from("revenue_requests").delete().eq("user_id", userId);
+  await admin.from("bonus_requests").delete().eq("user_id", userId);
+  await admin.from("purchase_requests").delete().eq("user_id", userId);
+  await admin.from("anonymous_messages").delete().eq("sender_id", userId);
+  await admin
+    .from("messages")
+    .delete()
+    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+
+  // Удаление аккаунта входа каскадом удалит и строку в public.users.
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/revenue-requests");
+  revalidatePath("/admin/bonus-requests");
+  revalidatePath("/admin/purchase-requests");
+  revalidatePath("/mop/rating");
+
+  return { success: true };
+}
+
 // ---------- Категории наград ----------
 
 export async function createCategory(name) {

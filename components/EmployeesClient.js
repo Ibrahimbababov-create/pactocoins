@@ -7,6 +7,7 @@ import {
   updateMop,
   manualAdjustBalance,
   resetUserStats,
+  deleteEmployee,
 } from "@/app/admin/actions";
 
 export default function EmployeesClient({ users }) {
@@ -71,6 +72,24 @@ export default function EmployeesClient({ users }) {
       const res = await resetUserStats(userId);
       if (res.error) showMessage(res.error, "error");
       else showMessage("Данные сброшены");
+    });
+  }
+
+  function handleDelete(userId, name) {
+    const confirmed = window.confirm(
+      `Удалить ${name} насовсем? Он потеряет доступ к сайту, вся его история, сообщения и заявки будут удалены. Отменить нельзя.`
+    );
+    if (!confirmed) return;
+
+    const doubleConfirmed = window.confirm(
+      `Точно-точно? Это последнее подтверждение — ${name} будет удалён без возможности восстановить.`
+    );
+    if (!doubleConfirmed) return;
+
+    startTransition(async () => {
+      const res = await deleteEmployee(userId);
+      if (res.error) showMessage(res.error, "error");
+      else showMessage(`${name} удалён`);
     });
   }
 
@@ -242,6 +261,13 @@ export default function EmployeesClient({ users }) {
                     className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5"
                   >
                     Сбросить
+                  </button>
+                  <button
+                    onClick={() => handleDelete(u.id, u.name)}
+                    disabled={isPending}
+                    className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5"
+                  >
+                    Удалить
                   </button>
                 </div>
               </div>
