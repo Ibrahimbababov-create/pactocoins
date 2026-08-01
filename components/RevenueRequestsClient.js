@@ -19,6 +19,8 @@ export default function RevenueRequestsClient({ requests }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [message, setMessage] = useState(null);
   const [hiddenIds, setHiddenIds] = useState(new Set());
+  const [dateOverrides, setDateOverrides] = useState({});
+  const [dateEditingId, setDateEditingId] = useState(null);
 
   const pending = requests.filter(
     (r) => r.status === "pending" && !hiddenIds.has(r.id)
@@ -57,9 +59,10 @@ export default function RevenueRequestsClient({ requests }) {
   }
 
   function handleApprove(id) {
+    const earnedAtDate = dateOverrides[id] || undefined;
     hide([id]);
     startTransition(async () => {
-      const res = await approveRevenueRequest(id);
+      const res = await approveRevenueRequest(id, earnedAtDate);
       if (res?.error) {
         unhide([id]);
         showMessage(res.error, "error");
@@ -168,8 +171,9 @@ export default function RevenueRequestsClient({ requests }) {
         {pending.map((r) => (
           <div
             key={r.id}
-            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center gap-3"
+            className="bg-dark-800 border border-dark-600 rounded-xl p-4 space-y-2"
           >
+            <div className="flex items-center gap-3">
             <input
               type="checkbox"
               checked={selectedIds.includes(r.id)}
@@ -212,6 +216,45 @@ export default function RevenueRequestsClient({ requests }) {
                 </button>
               </div>
             </div>
+            </div>
+
+            <div className="pl-8">
+              {dateEditingId === r.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={dateOverrides[r.id] || ""}
+                    onChange={(e) =>
+                      setDateOverrides((prev) => ({
+                        ...prev,
+                        [r.id]: e.target.value,
+                      }))
+                    }
+                    className="bg-dark-700 border border-dark-600 rounded-lg px-2 py-1 text-xs text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setDateEditingId(null)}
+                    className="text-xs text-gray-500 hover:text-white"
+                  >
+                    Ок
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDateEditingId(r.id)}
+                  className="text-xs text-gray-500 hover:text-gray-300"
+                >
+                  📅{" "}
+                  {dateOverrides[r.id]
+                    ? `Засчитать датой: ${new Date(
+                        dateOverrides[r.id]
+                      ).toLocaleDateString("ru-RU")}`
+                    : "Задать другую дату (для рейтинга)"}
+                </button>
+              )}
+              </div>
           </div>
         ))}
       </div>

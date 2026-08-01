@@ -118,7 +118,7 @@ export async function manualAdjustBalance(userId, amount, description) {
 
 // ---------- Заявки на выручку ----------
 
-export async function approveRevenueRequest(requestId) {
+export async function approveRevenueRequest(requestId, earnedAtDate) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
@@ -160,7 +160,7 @@ export async function approveRevenueRequest(requestId) {
     })
     .eq("id", requestId);
 
-  await admin.from("transactions").insert({
+  const transactionPayload = {
     user_id: request.user_id,
     type: "earn",
     amount_coins: coins,
@@ -168,10 +168,24 @@ export async function approveRevenueRequest(requestId) {
       "ru-RU"
     )} ₸`,
     created_by: admin_user.id,
-  });
+  };
+
+  // Если админ вручную указал дату оплаты (например, деньги пришли
+  // в выходные, а подтверждают только в понедельник) — датируем
+  // транзакцию этим днём, чтобы она попала в правильную неделю/месяц
+  // в рейтинге, а не в текущую.
+  if (earnedAtDate) {
+    const parsed = new Date(`${earnedAtDate}T12:00:00`);
+    if (!isNaN(parsed)) {
+      transactionPayload.created_at = parsed.toISOString();
+    }
+  }
+
+  await admin.from("transactions").insert(transactionPayload);
 
   revalidatePath("/admin/revenue-requests");
   revalidatePath("/admin");
+  revalidatePath("/mop/rating");
   return { success: true };
 }
 
