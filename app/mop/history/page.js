@@ -1,11 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
-
-const typeLabels = {
-  earn: { label: "Начисление", color: "text-acid-400", sign: "+" },
-  manual_add: { label: "Бонус от админа", color: "text-acid-400", sign: "+" },
-  spend: { label: "Покупка награды", color: "text-red-400", sign: "" },
-  manual_subtract: { label: "Списание", color: "text-red-400", sign: "" },
-};
+import HistoryClient from "@/components/HistoryClient";
+import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 
 export default async function HistoryPage() {
   const supabase = createClient();
@@ -19,45 +14,43 @@ export default async function HistoryPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
+  const { data: revenueRequests } = await supabase
+    .from("revenue_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  const { data: bonusRequests } = await supabase
+    .from("bonus_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  const requests = [
+    ...(revenueRequests ?? []).map((r) => ({
+      id: `rev-${r.id}`,
+      status: r.status,
+      created_at: r.created_at,
+      comment: r.comment,
+      label: `Выручка: ${r.amount_kzt.toLocaleString("ru-RU")} ₸ → ${
+        r.calculated_coins
+      } coins`,
+    })),
+    ...(bonusRequests ?? []).map((r) => ({
+      id: `bonus-${r.id}`,
+      status: r.status,
+      created_at: r.created_at,
+      comment: r.comment,
+      label: `${BONUS_CATEGORIES[r.category]?.label ?? r.category} → ${
+        r.amount_coins
+      } coins`,
+    })),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">История операций</h1>
-
-      <div className="space-y-2">
-        {transactions?.length === 0 && (
-          <p className="text-gray-500 text-sm">Операций пока нет</p>
-        )}
-
-        {transactions?.map((t) => {
-          const meta = typeLabels[t.type] ?? {
-            label: t.type,
-            color: "text-white",
-            sign: "",
-          };
-          const isNegative = t.amount_coins < 0;
-
-          return (
-            <div
-              key={t.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
-            >
-              <div>
-                <p className="font-semibold">{meta.label}</p>
-                {t.description && (
-                  <p className="text-xs text-gray-500">{t.description}</p>
-                )}
-                <p className="text-xs text-gray-600">
-                  {new Date(t.created_at).toLocaleString("ru-RU")}
-                </p>
-              </div>
-              <span className={`font-bold ${meta.color}`}>
-                {isNegative ? "" : "+"}
-                {t.amount_coins}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <h1 className="text-2xl font-bold">История</h1>
+      <HistoryClient transactions={transactions ?? []} requests={requests} />
     </div>
   );
 }
