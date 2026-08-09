@@ -35,6 +35,9 @@ export default async function AdminLayout({ children }) {
             <span className="text-gray-500 font-normal text-sm">admin</span>
           </h1>
           <div className="flex items-center gap-4">
+            <Link href="/funds" className="text-gray-400 text-sm">
+              🐷 Копилки
+            </Link>
             <Link
               href="/messages"
               className="relative text-gray-400 text-sm"

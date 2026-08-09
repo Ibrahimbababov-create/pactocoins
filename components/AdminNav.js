@@ -11,6 +11,7 @@ const items = [
   { href: "/admin/bonus-requests", label: "Бонусы" },
   { href: "/admin/purchase-requests", label: "Заявки на покупки" },
   { href: "/admin/rewards", label: "Магазин" },
+  { href: "/admin/funds", label: "Копилки" },
   { href: "/admin/merge-accounts", label: "Слияние аккаунтов" },
 ];
 

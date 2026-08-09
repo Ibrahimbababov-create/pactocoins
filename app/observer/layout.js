@@ -29,6 +29,9 @@ export default async function ObserverLayout({ children }) {
             </span>
           </h1>
           <div className="flex items-center gap-4">
+            <Link href="/funds" className="text-gray-400 text-sm">
+              🐷 Копилки
+            </Link>
             <Link
               href="/messages"
               className="relative text-gray-400 text-sm"
