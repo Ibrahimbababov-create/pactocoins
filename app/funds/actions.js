@@ -23,19 +23,43 @@ async function requireAdmin() {
   return user;
 }
 
-export async function createFund(title, description, goalCoins) {
+export async function createFund(formData) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
-  if (!title || !title.trim()) return { error: "Укажи название" };
+  const title = (formData.get("title")?.toString() || "").trim();
+  const description = (formData.get("description")?.toString() || "").trim();
+  const goal = Number(formData.get("goalCoins"));
+  const photo = formData.get("photo");
 
-  const goal = Number(goalCoins);
+  if (!title) return { error: "Укажи название" };
   if (!goal || goal <= 0) return { error: "Укажи цель больше нуля" };
 
+  let imageUrl = null;
+  const hasPhoto = photo && typeof photo === "object" && photo.size > 0;
+
+  if (hasPhoto) {
+    const bytes = Buffer.from(await photo.arrayBuffer());
+    const ext = (photo.name?.split(".").pop() || "jpg").toLowerCase();
+    const path = `${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await admin.storage
+      .from("fund-photos")
+      .upload(path, bytes, { contentType: photo.type || "image/jpeg" });
+
+    if (uploadError) return { error: `Фото: ${uploadError.message}` };
+
+    const { data: publicUrlData } = admin.storage
+      .from("fund-photos")
+      .getPublicUrl(path);
+    imageUrl = publicUrlData.publicUrl;
+  }
+
   const { error } = await admin.from("funds").insert({
-    title: title.trim(),
-    description: description?.trim() || null,
+    title,
+    description: description || null,
     goal_coins: goal,
+    image_url: imageUrl,
     created_by: admin_user.id,
   });
 

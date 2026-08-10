@@ -86,6 +86,15 @@ export default function FundsClient({ funds, contributions, balance }) {
             key={fund.id}
             className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
           >
+            {fund.image_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={fund.image_url}
+                alt={fund.title}
+                className="w-full h-40 rounded-xl object-cover"
+              />
+            )}
+
             <div>
               <p className="font-bold text-lg">{fund.title}</p>
               {fund.description && (
