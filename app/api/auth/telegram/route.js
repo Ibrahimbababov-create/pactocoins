@@ -61,6 +61,7 @@ export async function POST(request) {
       balance: 0,
       total_earned: 0,
       month_earned: 0,
+      telegram_id: tgUser.id,
     });
 
     const retry = await supabase.auth.signInWithPassword({ email, password });
