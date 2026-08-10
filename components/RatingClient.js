@@ -85,8 +85,11 @@ export default function RatingClient({ currentUserId, users, transactions }) {
 
     transactions.forEach((t) => {
       if (t.amount_coins <= 0) return;
-      const created = new Date(t.created_at);
-      if (created < range.start || created > range.end) return;
+
+      if (periodMode !== "all") {
+        const created = new Date(t.created_at);
+        if (created < range.start || created > range.end) return;
+      }
 
       const cat = classify(t.description);
 
@@ -105,7 +108,7 @@ export default function RatingClient({ currentUserId, users, transactions }) {
         totalEarned: u.total_earned ?? 0,
       }))
       .sort((a, b) => b.value - a.value);
-  }, [tab, range, users, transactions]);
+  }, [tab, range, periodMode, users, transactions]);
 
   function shiftPeriod(direction) {
     const d = new Date(pickedDate + "T00:00:00");
@@ -141,6 +144,7 @@ export default function RatingClient({ currentUserId, users, transactions }) {
         {[
           { key: "week", label: "Неделя" },
           { key: "month", label: "Месяц" },
+          { key: "all", label: "Всё время" },
         ].map((p) => (
           <button
             key={p.key}
@@ -154,36 +158,38 @@ export default function RatingClient({ currentUserId, users, transactions }) {
         ))}
       </div>
 
-      <div className="bg-dark-800 border border-dark-600 rounded-xl p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => shiftPeriod(-1)}
-            className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
-          >
-            ←
-          </button>
-          <input
-            type="date"
-            value={pickedDate}
-            onChange={(e) => setPickedDate(e.target.value)}
-            className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-          />
-          <button
-            onClick={() => shiftPeriod(1)}
-            className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
-          >
-            →
-          </button>
+      {periodMode !== "all" && (
+        <div className="bg-dark-800 border border-dark-600 rounded-xl p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => shiftPeriod(-1)}
+              className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
+            >
+              ←
+            </button>
+            <input
+              type="date"
+              value={pickedDate}
+              onChange={(e) => setPickedDate(e.target.value)}
+              className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+            />
+            <button
+              onClick={() => shiftPeriod(1)}
+              className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
+            >
+              →
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500 capitalize">
+              {formatRange(range.start, range.end, periodMode)}
+            </p>
+            <button onClick={goToday} className="text-xs text-acid-400">
+              Сегодня
+            </button>
+          </div>
         </div>
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500 capitalize">
-            {formatRange(range.start, range.end, periodMode)}
-          </p>
-          <button onClick={goToday} className="text-xs text-acid-400">
-            Сегодня
-          </button>
-        </div>
-      </div>
+      )}
 
       <div className="space-y-2">
         {ranking.map((u, i) => {
