@@ -461,6 +461,8 @@ export async function awardTopPerformers(period) {
       })
       .eq("id", userId);
 
+    await checkAndApplyLevelUp(userId, admin);
+
     await admin.from("transactions").insert({
       user_id: userId,
       type: "manual_add",
@@ -502,6 +504,10 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
 
     await admin.from("users").update(update).eq("id", userId);
 
+    if (amount > 0) {
+      await checkAndApplyLevelUp(userId, admin);
+    }
+
     await admin.from("transactions").insert({
       user_id: userId,
       type: amount >= 0 ? "manual_add" : "manual_subtract",
@@ -531,7 +537,7 @@ export async function resetAllStats() {
 
   await admin
     .from("users")
-    .update({ balance: 0, total_earned: 0, month_earned: 0 })
+    .update({ balance: 0, total_earned: 0, month_earned: 0, last_level_id: 1 })
     .eq("role", "mop");
 
   revalidatePath("/admin");
@@ -558,7 +564,7 @@ export async function resetUserStats(userId) {
 
   await admin
     .from("users")
-    .update({ balance: 0, total_earned: 0, month_earned: 0 })
+    .update({ balance: 0, total_earned: 0, month_earned: 0, last_level_id: 1 })
     .eq("id", userId);
 
   revalidatePath("/admin");
