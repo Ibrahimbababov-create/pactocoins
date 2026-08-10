@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
+import { checkAndApplyLevelUp } from "@/lib/levelUp";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -54,6 +55,10 @@ export async function manualAdjustBalanceExempt(
 
   if (updateError) return { error: updateError.message };
 
+  if (amount > 0) {
+    await checkAndApplyLevelUp(userId, admin);
+  }
+
   await admin.from("transactions").insert({
     user_id: userId,
     type: amount >= 0 ? "manual_add" : "manual_subtract",
@@ -98,6 +103,10 @@ export async function manualAdjustBalanceBulkExempt(
     }
 
     await admin.from("users").update(update).eq("id", userId);
+
+    if (amount > 0) {
+      await checkAndApplyLevelUp(userId, admin);
+    }
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -147,6 +156,8 @@ export async function approveBonusRequestExempt(requestId, ratingExempt) {
       month_earned: profile.month_earned + coins,
     })
     .eq("id", request.user_id);
+
+  await checkAndApplyLevelUp(request.user_id, admin);
 
   await admin
     .from("bonus_requests")
