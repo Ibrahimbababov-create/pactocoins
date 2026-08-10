@@ -36,6 +36,9 @@ export default async function MopLayout({ children }) {
       )}
       <div className="max-w-lg mx-auto px-4 pt-6">
         <div className="flex justify-end items-center gap-4 mb-2">
+          <Link href="/levels" className="text-gray-400 text-sm">
+            🏆 Звания
+          </Link>
           <Link href="/funds" className="text-gray-400 text-sm">
             🐷 Копилки
           </Link>
