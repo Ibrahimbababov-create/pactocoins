@@ -9,7 +9,7 @@ export default async function ObserverRating() {
 
   const { data: users } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, total_earned")
     .eq("role", "mop");
 
   const userIds = users?.map((u) => u.id) ?? [];
