@@ -167,3 +167,67 @@ export async function contributeToFund(fundId, amount) {
   revalidatePath("/mop");
   return { success: true };
 }
+
+// Тихий возврат всего, что конкретный человек внёс в конкретную
+// копилку — только админ. Взносы удаляются из fund_contributions
+// целиком, поэтому в публичном списке "кто сколько внёс" никаких
+// следов не остаётся. Сам человек увидит возврат в своей истории
+// операций (это его собственные деньги — от него не скрываем).
+export async function refundContribution(fundId, userId) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: fund } = await admin
+    .from("funds")
+    .select("title")
+    .eq("id", fundId)
+    .single();
+
+  const { data: contributions } = await admin
+    .from("fund_contributions")
+    .select("amount_coins")
+    .eq("fund_id", fundId)
+    .eq("user_id", userId);
+
+  if (!contributions || contributions.length === 0) {
+    return { error: "Взносов не найдено" };
+  }
+
+  const total = contributions.reduce((sum, c) => sum + c.amount_coins, 0);
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("balance")
+    .eq("id", userId)
+    .single();
+
+  if (!profile) return { error: "Пользователь не найден" };
+
+  const { error: balanceError } = await admin
+    .from("users")
+    .update({ balance: profile.balance + total })
+    .eq("id", userId);
+
+  if (balanceError) return { error: balanceError.message };
+
+  const { error: deleteError } = await admin
+    .from("fund_contributions")
+    .delete()
+    .eq("fund_id", fundId)
+    .eq("user_id", userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  await admin.from("transactions").insert({
+    user_id: userId,
+    type: "manual_add",
+    amount_coins: total,
+    description: `Возврат взноса в копилку: ${fund?.title ?? ""}`,
+    rating_exempt: true,
+  });
+
+  revalidatePath("/funds");
+  revalidatePath("/admin/funds");
+  revalidatePath("/mop");
+  return { success: true, amount: total };
+}

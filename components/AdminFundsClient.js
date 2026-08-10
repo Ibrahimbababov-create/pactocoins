@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { createFund, closeFund } from "@/app/funds/actions";
+import { createFund, closeFund, refundContribution } from "@/app/funds/actions";
 
 const statusMeta = {
   active: { label: "Активна", color: "bg-acid-400/10 text-acid-400" },
@@ -39,6 +39,19 @@ export default function AdminFundsClient({ funds, contributions }) {
       const res = await closeFund(fundId);
       if (res.error) showMessage(res.error, "error");
       else showMessage("Копилка закрыта");
+    });
+  }
+
+  function handleRefund(fundId, userId, name) {
+    const confirmed = window.confirm(
+      `Тихо вернуть ${name} всё, что он внёс в эту копилку? Никто больше этого не увидит.`
+    );
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      const res = await refundContribution(fundId, userId);
+      if (res.error) showMessage(res.error, "error");
+      else showMessage(`Возвращено: ${res.amount}`);
     });
   }
 
@@ -113,11 +126,14 @@ export default function AdminFundsClient({ funds, contributions }) {
 
           const byUser = {};
           fundContributions.forEach((c) => {
-            const name = c.users?.name ?? "?";
-            byUser[name] = (byUser[name] ?? 0) + c.amount_coins;
+            const key = c.user_id;
+            if (!byUser[key]) {
+              byUser[key] = { name: c.users?.name ?? "?", amount: 0 };
+            }
+            byUser[key].amount += c.amount_coins;
           });
           const leaderboard = Object.entries(byUser).sort(
-            (a, b) => b[1] - a[1]
+            (a, b) => b[1].amount - a[1].amount
           );
 
           return (
@@ -163,15 +179,26 @@ export default function AdminFundsClient({ funds, contributions }) {
 
               {leaderboard.length > 0 && (
                 <div className="space-y-1 pt-2 border-t border-dark-600">
-                  {leaderboard.map(([name, amount]) => (
+                  {leaderboard.map(([userId, u]) => (
                     <div
-                      key={name}
-                      className="flex items-center justify-between text-xs text-gray-400"
+                      key={userId}
+                      className="flex items-center justify-between text-xs text-gray-400 gap-2"
                     >
-                      <span>{name}</span>
-                      <span className="text-acid-400 font-semibold">
-                        {amount}
-                      </span>
+                      <span>{u.name}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-acid-400 font-semibold">
+                          {u.amount}
+                        </span>
+                        <button
+                          onClick={() =>
+                            handleRefund(fund.id, userId, u.name)
+                          }
+                          disabled={isPending}
+                          className="text-gray-500 hover:text-red-400"
+                        >
+                          Вернуть
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

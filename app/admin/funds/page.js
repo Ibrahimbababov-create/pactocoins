@@ -14,7 +14,7 @@ export default async function AdminFundsPage() {
   const { data: contributions } = fundIds.length
     ? await supabase
         .from("fund_contributions")
-        .select("fund_id, amount_coins, users(name)")
+        .select("fund_id, user_id, amount_coins, users(name)")
         .in("fund_id", fundIds)
         .order("amount_coins", { ascending: false })
     : { data: [] };
