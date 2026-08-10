@@ -45,7 +45,8 @@ export async function GET(request) {
         groupChatId,
         pdf,
         `pactocoins-week-${label}.pdf`,
-        `📊 Отчёт за неделю ${label}`
+        `📊 Отчёт за неделю ${label}`,
+        "application/pdf"
       );
       summary.weeklyReportSent = true;
     } catch (err) {
@@ -65,7 +66,8 @@ export async function GET(request) {
         groupChatId,
         pdf,
         `pactocoins-${label.replace(" ", "-")}.pdf`,
-        `📊 Отчёт за ${label}`
+        `📊 Отчёт за ${label}`,
+        "application/pdf"
       );
       summary.monthlyReportSent = true;
     } catch (err) {

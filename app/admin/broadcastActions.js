@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { sendTelegramMessage } from "@/lib/telegramBot";
+import { sendTelegramMessage, sendTelegramDocument } from "@/lib/telegramBot";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -23,10 +23,24 @@ async function requireAdmin() {
   return user;
 }
 
-export async function broadcastMessage(text) {
+export async function broadcastMessage(formData) {
   await requireAdmin();
 
-  if (!text || !text.trim()) return { error: "Пустое сообщение" };
+  const text = (formData.get("text")?.toString() || "").trim();
+  const file = formData.get("file");
+  const hasFile = file && typeof file === "object" && file.size > 0;
+
+  if (!text && !hasFile) return { error: "Добавь текст или файл" };
+
+  let fileBytes = null;
+  let fileName = null;
+  let fileType = null;
+
+  if (hasFile) {
+    fileBytes = Buffer.from(await file.arrayBuffer());
+    fileName = file.name || "file";
+    fileType = file.type || "application/octet-stream";
+  }
 
   const admin = createAdminClient();
   const { data: users } = await admin
@@ -39,7 +53,16 @@ export async function broadcastMessage(text) {
 
   for (const u of users ?? []) {
     try {
-      const res = await sendTelegramMessage(u.telegram_id, text.trim());
+      const res = hasFile
+        ? await sendTelegramDocument(
+            u.telegram_id,
+            fileBytes,
+            fileName,
+            text || undefined,
+            fileType
+          )
+        : await sendTelegramMessage(u.telegram_id, text);
+
       if (res?.ok) {
         sent++;
       } else {
