@@ -1,14 +1,19 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { broadcastMessage, sendTestBroadcast } from "@/app/admin/broadcastActions";
+import {
+  broadcastMessage,
+  sendTestBroadcast,
+  sendToEmployee,
+} from "@/app/admin/broadcastActions";
 
-export default function BroadcastClient() {
+export default function BroadcastClient({ employees = [] }) {
   const [isPending, startTransition] = useTransition();
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
   const fileInputRef = useRef(null);
 
   function clearFile() {
@@ -35,6 +40,30 @@ export default function BroadcastClient() {
         setMessage({ type: "error", text: res.error });
       } else {
         setMessage({ type: "success", text: "Тест отправлен тебе в Telegram" });
+      }
+    });
+  }
+
+  function handleSendToEmployee() {
+    if (!selectedUserId || (!text.trim() && !file)) return;
+
+    const employee = employees.find((e) => e.id === selectedUserId);
+    const confirmed = window.confirm(
+      `Отправить это сообщение в Telegram: ${employee?.name ?? "выбранному сотруднику"}?`
+    );
+    if (!confirmed) return;
+
+    setResult(null);
+    setMessage(null);
+
+    startTransition(async () => {
+      const formData = buildFormData();
+      formData.append("userId", selectedUserId);
+      const res = await sendToEmployee(formData);
+      if (res.error) {
+        setMessage({ type: "error", text: res.error });
+      } else {
+        setMessage({ type: "success", text: `Отправлено: ${res.name}` });
       }
     });
   }
@@ -121,6 +150,35 @@ export default function BroadcastClient() {
           className="flex-1 bg-acid-400 text-black font-bold rounded-lg py-3 text-sm disabled:opacity-50"
         >
           {isPending ? "Отправляем..." : "Отправить всем"}
+        </button>
+      </div>
+
+      <div className="flex gap-2 items-center pt-2 border-t border-dark-600">
+        <select
+          value={selectedUserId}
+          onChange={(e) => setSelectedUserId(e.target.value)}
+          className="flex-1 bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-acid-400"
+        >
+          <option value="">Написать конкретному сотруднику...</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleSendToEmployee}
+          disabled={isPending || !selectedUserId || (!text.trim() && !file)}
+          className="flex-1 bg-acid-400 text-black font-bold rounded-lg py-3 text-sm disabled:opacity-50"
+        >
+          {isPending
+            ? "Отправляем..."
+            : selectedUserId
+            ? `Отправить: ${employees.find((e) => e.id === selectedUserId)?.name ?? ""}`
+            : "Отправить сотруднику"}
         </button>
       </div>
     </div>

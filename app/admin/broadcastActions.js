@@ -79,6 +79,45 @@ export async function sendTestBroadcast(formData) {
   }
 }
 
+export async function sendToEmployee(formData) {
+  await requireAdmin();
+
+  const userId = formData.get("userId")?.toString();
+  if (!userId) return { error: "Выбери сотрудника" };
+
+  const parsed = await parseBroadcastForm(formData);
+  if (parsed.error) return parsed;
+  const { text, hasFile, fileBytes, fileName, fileType } = parsed;
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("users")
+    .select("name, telegram_id")
+    .eq("id", userId)
+    .single();
+
+  if (!profile?.telegram_id) {
+    return { error: "У этого сотрудника нет telegram_id — он ни разу не заходил через бота" };
+  }
+
+  try {
+    const res = hasFile
+      ? await sendTelegramDocument(
+          profile.telegram_id,
+          fileBytes,
+          fileName,
+          text || undefined,
+          fileType
+        )
+      : await sendTelegramMessage(profile.telegram_id, text);
+
+    if (!res?.ok) return { error: res?.description || "Telegram отклонил отправку" };
+    return { success: true, name: profile.name };
+  } catch (err) {
+    return { error: String(err) };
+  }
+}
+
 export async function broadcastMessage(formData) {
   await requireAdmin();
 
