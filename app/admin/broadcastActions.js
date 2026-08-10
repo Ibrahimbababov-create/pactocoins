@@ -23,9 +23,7 @@ async function requireAdmin() {
   return user;
 }
 
-export async function broadcastMessage(formData) {
-  await requireAdmin();
-
+async function parseBroadcastForm(formData) {
   const text = (formData.get("text")?.toString() || "").trim();
   const file = formData.get("file");
   const hasFile = file && typeof file === "object" && file.size > 0;
@@ -41,6 +39,52 @@ export async function broadcastMessage(formData) {
     fileName = file.name || "file";
     fileType = file.type || "application/octet-stream";
   }
+
+  return { text, hasFile, fileBytes, fileName, fileType };
+}
+
+export async function sendTestBroadcast(formData) {
+  const admin_user = await requireAdmin();
+
+  const parsed = await parseBroadcastForm(formData);
+  if (parsed.error) return parsed;
+  const { text, hasFile, fileBytes, fileName, fileType } = parsed;
+
+  const supabase = createClient();
+  const { data: profile } = await supabase
+    .from("users")
+    .select("telegram_id")
+    .eq("id", admin_user.id)
+    .single();
+
+  if (!profile?.telegram_id) {
+    return { error: "У твоего аккаунта нет telegram_id — зайди в приложение через бота хотя бы раз" };
+  }
+
+  try {
+    const res = hasFile
+      ? await sendTelegramDocument(
+          profile.telegram_id,
+          fileBytes,
+          fileName,
+          text || undefined,
+          fileType
+        )
+      : await sendTelegramMessage(profile.telegram_id, text);
+
+    if (!res?.ok) return { error: res?.description || "Telegram отклонил отправку" };
+    return { success: true };
+  } catch (err) {
+    return { error: String(err) };
+  }
+}
+
+export async function broadcastMessage(formData) {
+  await requireAdmin();
+
+  const parsed = await parseBroadcastForm(formData);
+  if (parsed.error) return parsed;
+  const { text, hasFile, fileBytes, fileName, fileType } = parsed;
 
   const admin = createAdminClient();
   const { data: users } = await admin

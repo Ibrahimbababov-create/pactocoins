@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { broadcastMessage } from "@/app/admin/broadcastActions";
+import { broadcastMessage, sendTestBroadcast } from "@/app/admin/broadcastActions";
 
 export default function BroadcastClient() {
   const [isPending, startTransition] = useTransition();
@@ -16,6 +16,29 @@ export default function BroadcastClient() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  function buildFormData() {
+    const formData = new FormData();
+    formData.append("text", text);
+    if (file) formData.append("file", file);
+    return formData;
+  }
+
+  function handleTest() {
+    if (!text.trim() && !file) return;
+
+    setResult(null);
+    setMessage(null);
+
+    startTransition(async () => {
+      const res = await sendTestBroadcast(buildFormData());
+      if (res.error) {
+        setMessage({ type: "error", text: res.error });
+      } else {
+        setMessage({ type: "success", text: "Тест отправлен тебе в Telegram" });
+      }
+    });
+  }
+
   function handleSend() {
     if (!text.trim() && !file) return;
 
@@ -27,12 +50,8 @@ export default function BroadcastClient() {
     setResult(null);
     setMessage(null);
 
-    const formData = new FormData();
-    formData.append("text", text);
-    if (file) formData.append("file", file);
-
     startTransition(async () => {
-      const res = await broadcastMessage(formData);
+      const res = await broadcastMessage(buildFormData());
       if (res.error) {
         setMessage({ type: "error", text: res.error });
       } else {
@@ -46,7 +65,13 @@ export default function BroadcastClient() {
   return (
     <div className="space-y-4">
       {message && (
-        <div className="rounded-xl p-3 text-sm text-center bg-red-500/10 text-red-400">
+        <div
+          className={`rounded-xl p-3 text-sm text-center ${
+            message.type === "error"
+              ? "bg-red-500/10 text-red-400"
+              : "bg-acid-400/10 text-acid-400"
+          }`}
+        >
           {message.text}
         </div>
       )}
@@ -75,24 +100,29 @@ export default function BroadcastClient() {
         {file && (
           <div className="flex items-center justify-between bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-400">
             <span>📎 {file.name}</span>
-            <button
-              type="button"
-              onClick={clearFile}
-              className="text-red-400"
-            >
+            <button type="button" onClick={clearFile} className="text-red-400">
               Убрать
             </button>
           </div>
         )}
       </div>
 
-      <button
-        onClick={handleSend}
-        disabled={isPending || (!text.trim() && !file)}
-        className="w-full bg-acid-400 text-black font-bold rounded-lg py-3 text-sm disabled:opacity-50"
-      >
-        {isPending ? "Отправляем..." : "Отправить всем"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={handleTest}
+          disabled={isPending || (!text.trim() && !file)}
+          className="flex-1 bg-dark-700 text-white font-bold rounded-lg py-3 text-sm disabled:opacity-50"
+        >
+          {isPending ? "..." : "Тест себе"}
+        </button>
+        <button
+          onClick={handleSend}
+          disabled={isPending || (!text.trim() && !file)}
+          className="flex-1 bg-acid-400 text-black font-bold rounded-lg py-3 text-sm disabled:opacity-50"
+        >
+          {isPending ? "Отправляем..." : "Отправить всем"}
+        </button>
+      </div>
     </div>
   );
 }
