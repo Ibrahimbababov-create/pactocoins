@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
+import { checkAndApplyLevelUp } from "@/lib/levelUp";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -60,6 +61,8 @@ export async function mergeAccounts(oldUserId, newUserId) {
       month_earned: newUser.month_earned + oldUser.month_earned,
     })
     .eq("id", newUserId);
+
+  await checkAndApplyLevelUp(newUserId, admin);
 
   // Переносим всю историю и заявки на новый id
   await admin
