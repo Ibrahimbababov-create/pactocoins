@@ -73,9 +73,7 @@ export default async function LevelsPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                {level.reward
-                  ? `🎁 Награда: ${level.reward.toLocaleString("ru-RU")} coins`
-                  : "🎁 Скоро объявим"}
+                🎁 Награда будет объявлена в следующем обновлении
               </p>
             </div>
           );
