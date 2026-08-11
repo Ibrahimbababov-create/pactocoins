@@ -70,6 +70,51 @@ export async function createFund(formData) {
   return { success: true };
 }
 
+export async function updateFund(fundId, formData) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const title = (formData.get("title")?.toString() || "").trim();
+  const description = (formData.get("description")?.toString() || "").trim();
+  const goal = Number(formData.get("goalCoins"));
+  const photo = formData.get("photo");
+
+  if (!title) return { error: "Укажи название" };
+  if (!goal || goal <= 0) return { error: "Укажи цель больше нуля" };
+
+  const update = {
+    title,
+    description: description || null,
+    goal_coins: goal,
+  };
+
+  const hasPhoto = photo && typeof photo === "object" && photo.size > 0;
+  if (hasPhoto) {
+    const bytes = Buffer.from(await photo.arrayBuffer());
+    const ext = (photo.name?.split(".").pop() || "jpg").toLowerCase();
+    const path = `${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await admin.storage
+      .from("fund-photos")
+      .upload(path, bytes, { contentType: photo.type || "image/jpeg" });
+
+    if (uploadError) return { error: `Фото: ${uploadError.message}` };
+
+    const { data: publicUrlData } = admin.storage
+      .from("fund-photos")
+      .getPublicUrl(path);
+    update.image_url = publicUrlData.publicUrl;
+  }
+
+  const { error } = await admin.from("funds").update(update).eq("id", fundId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/funds");
+  revalidatePath("/admin/funds");
+  return { success: true };
+}
+
 export async function closeFund(fundId) {
   await requireAdmin();
   const admin = createAdminClient();

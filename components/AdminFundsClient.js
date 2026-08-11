@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { createFund, closeFund, refundContribution } from "@/app/funds/actions";
+import {
+  createFund,
+  updateFund,
+  closeFund,
+  refundContribution,
+} from "@/app/funds/actions";
 
 const statusMeta = {
   active: { label: "Активна", color: "bg-acid-400/10 text-acid-400" },
@@ -12,6 +17,7 @@ const statusMeta = {
 export default function AdminFundsClient({ funds, contributions }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const formRef = useRef(null);
 
   function showMessage(text, type = "success") {
@@ -27,6 +33,17 @@ export default function AdminFundsClient({ funds, contributions }) {
       } else {
         showMessage("Копилка создана");
         formRef.current?.reset();
+      }
+    });
+  }
+
+  function handleUpdate(fundId, formData) {
+    startTransition(async () => {
+      const res = await updateFund(fundId, formData);
+      if (res.error) showMessage(res.error, "error");
+      else {
+        showMessage("Копилка обновлена");
+        setEditingId(null);
       }
     });
   }
@@ -141,41 +158,103 @@ export default function AdminFundsClient({ funds, contributions }) {
               key={fund.id}
               className="bg-dark-800 border border-dark-600 rounded-xl p-4 space-y-3"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  {fund.image_url && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={fund.image_url}
-                      alt=""
-                      className="w-12 h-12 rounded-lg object-cover shrink-0"
+              {editingId === fund.id ? (
+                <form
+                  action={(fd) => handleUpdate(fund.id, fd)}
+                  className="space-y-2"
+                >
+                  <input
+                    name="title"
+                    defaultValue={fund.title}
+                    placeholder="Название"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                  <input
+                    name="description"
+                    defaultValue={fund.description ?? ""}
+                    placeholder="Описание (необязательно)"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                  <input
+                    name="goalCoins"
+                    type="number"
+                    min="1"
+                    defaultValue={fund.goal_coins}
+                    placeholder="Цель, coins"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                  <label className="block space-y-1">
+                    <span className="text-xs text-gray-500">
+                      Новое фото (необязательно, заменит текущее)
+                    </span>
+                    <input
+                      name="photo"
+                      type="file"
+                      accept="image/*"
+                      className="w-full text-sm text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-dark-700 file:text-white file:text-xs"
                     />
-                  )}
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">{fund.title}</p>
-                    <p className="text-xs text-gray-500">
-                      {current.toLocaleString("ru-RU")} /{" "}
-                      {fund.goal_coins.toLocaleString("ru-RU")} coins
-                    </p>
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="flex-1 bg-acid-400 text-black font-bold rounded-lg py-2 text-sm disabled:opacity-50"
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(null)}
+                      className="flex-1 bg-dark-700 text-gray-400 rounded-lg py-2 text-sm"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {fund.image_url && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={fund.image_url}
+                        alt=""
+                        className="w-12 h-12 rounded-lg object-cover shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{fund.title}</p>
+                      <p className="text-xs text-gray-500">
+                        {current.toLocaleString("ru-RU")} /{" "}
+                        {fund.goal_coins.toLocaleString("ru-RU")} coins
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className={`text-xs px-3 py-1 rounded-full ${meta.color}`}
+                    >
+                      {meta.label}
+                    </span>
+                    <button
+                      onClick={() => setEditingId(fund.id)}
+                      disabled={isPending}
+                      className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"
+                    >
+                      Изменить
+                    </button>
+                    {fund.status === "active" && (
+                      <button
+                        onClick={() => handleClose(fund.id, fund.title)}
+                        disabled={isPending}
+                        className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5"
+                      >
+                        Закрыть
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={`text-xs px-3 py-1 rounded-full ${meta.color}`}
-                  >
-                    {meta.label}
-                  </span>
-                  {fund.status === "active" && (
-                    <button
-                      onClick={() => handleClose(fund.id, fund.title)}
-                      disabled={isPending}
-                      className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5"
-                    >
-                      Закрыть
-                    </button>
-                  )}
-                </div>
-              </div>
+              )}
 
               {leaderboard.length > 0 && (
                 <div className="space-y-1 pt-2 border-t border-dark-600">
