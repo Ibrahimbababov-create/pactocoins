@@ -4,8 +4,10 @@ import RevenueRequestForm from "@/components/RevenueRequestForm";
 import BonusRequestForm from "@/components/BonusRequestForm";
 import RulesAccordion from "@/components/RulesAccordion";
 import BirthdayProfile from "@/components/BirthdayProfile";
+import GoalWidget from "@/components/GoalWidget";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { LEVELS, getLevelForAmount } from "@/lib/levels";
+import { currentMonthEndAlmaty } from "@/lib/timezone";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -35,6 +37,28 @@ export default async function MopDashboard() {
 
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
+
+  const goalDeadline = currentMonthEndAlmaty();
+  const { data: fetchedGoal } = await supabase
+    .from("user_goals")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("deadline", goalDeadline)
+    .maybeSingle();
+
+  let currentGoal = fetchedGoal;
+  if (
+    currentGoal?.status === "active" &&
+    (profile?.balance ?? 0) >= currentGoal.target_amount
+  ) {
+    const { data: achievedGoal } = await supabase
+      .from("user_goals")
+      .update({ status: "achieved", updated_at: new Date().toISOString() })
+      .eq("id", currentGoal.id)
+      .select()
+      .single();
+    if (achievedGoal) currentGoal = achievedGoal;
+  }
 
   const totalEarned = profile?.total_earned ?? 0;
   const currentLevel = getLevelForAmount(totalEarned);
@@ -76,6 +100,8 @@ export default async function MopDashboard() {
           </div>
         </div>
       </div>
+
+      <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
 
       <Link
         href="/levels"
