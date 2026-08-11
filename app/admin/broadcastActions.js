@@ -2,7 +2,11 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { sendTelegramMessage, sendTelegramDocument } from "@/lib/telegramBot";
+import {
+  sendTelegramMessage,
+  sendTelegramPhoto,
+  sendTelegramDocument,
+} from "@/lib/telegramBot";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -43,6 +47,14 @@ async function parseBroadcastForm(formData) {
   return { text, hasFile, fileBytes, fileName, fileType };
 }
 
+// Картинки шлём через sendPhoto (превью в чате), остальные файлы — sendDocument
+function sendFile(chatId, { fileBytes, fileName, fileType }, caption) {
+  if (fileType?.startsWith("image/")) {
+    return sendTelegramPhoto(chatId, fileBytes, caption, fileType);
+  }
+  return sendTelegramDocument(chatId, fileBytes, fileName, caption, fileType);
+}
+
 export async function sendTestBroadcast(formData) {
   const admin_user = await requireAdmin();
 
@@ -63,12 +75,10 @@ export async function sendTestBroadcast(formData) {
 
   try {
     const res = hasFile
-      ? await sendTelegramDocument(
+      ? await sendFile(
           profile.telegram_id,
-          fileBytes,
-          fileName,
-          text || undefined,
-          fileType
+          { fileBytes, fileName, fileType },
+          text || undefined
         )
       : await sendTelegramMessage(profile.telegram_id, text);
 
@@ -102,12 +112,10 @@ export async function sendToEmployee(formData) {
 
   try {
     const res = hasFile
-      ? await sendTelegramDocument(
+      ? await sendFile(
           profile.telegram_id,
-          fileBytes,
-          fileName,
-          text || undefined,
-          fileType
+          { fileBytes, fileName, fileType },
+          text || undefined
         )
       : await sendTelegramMessage(profile.telegram_id, text);
 
@@ -137,12 +145,10 @@ export async function broadcastMessage(formData) {
   for (const u of users ?? []) {
     try {
       const res = hasFile
-        ? await sendTelegramDocument(
+        ? await sendFile(
             u.telegram_id,
-            fileBytes,
-            fileName,
-            text || undefined,
-            fileType
+            { fileBytes, fileName, fileType },
+            text || undefined
           )
         : await sendTelegramMessage(u.telegram_id, text);
 
