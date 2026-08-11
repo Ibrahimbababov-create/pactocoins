@@ -47,6 +47,20 @@ export default async function AdminOverview({ searchParams }) {
   const totalSpent =
     spentPurchases?.reduce((sum, p) => sum + p.price_coins, 0) ?? 0;
 
+  const { data: funds } = await supabase
+    .from("funds")
+    .select("id, title, status")
+    .order("created_at", { ascending: false });
+
+  const { data: fundContributions } = await supabase
+    .from("fund_contributions")
+    .select("fund_id, amount_coins");
+
+  const fundTotals = {};
+  fundContributions?.forEach((c) => {
+    fundTotals[c.fund_id] = (fundTotals[c.fund_id] ?? 0) + c.amount_coins;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -95,6 +109,23 @@ export default async function AdminOverview({ searchParams }) {
           вернулись)
         </p>
       </div>
+
+      {funds && funds.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-500">Копилки — сколько закинули</p>
+          {funds.map((f) => (
+            <div
+              key={f.id}
+              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
+            >
+              <p className="font-semibold truncate">{f.title}</p>
+              <p className="font-bold text-acid-400 shrink-0">
+                {(fundTotals[f.id] ?? 0).toLocaleString("ru-RU")} coins
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-2">
         <p className="text-sm text-gray-500">Рейтинг по балансу</p>
