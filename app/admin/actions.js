@@ -269,10 +269,25 @@ export async function createReward(formData) {
   await requireAdmin();
   const admin = createAdminClient();
 
+  const isVariable = formData.get("is_variable") === "on";
+  const rateCoins = Number(formData.get("rate_coins"));
+  const rateKzt = Number(formData.get("rate_kzt"));
+  const priceCoins = Number(formData.get("price_coins"));
+
+  if (isVariable && (!rateCoins || rateCoins <= 0 || !rateKzt || rateKzt <= 0)) {
+    return { error: "Укажи курс: сколько coins за сколько тенге" };
+  }
+  if (!isVariable && (!priceCoins || priceCoins <= 0)) {
+    return { error: "Укажи цену в coins" };
+  }
+
   const { error } = await admin.from("rewards").insert({
     title: formData.get("title"),
     category: formData.get("category"),
-    price_coins: Number(formData.get("price_coins")),
+    price_coins: isVariable ? null : priceCoins,
+    is_variable: isVariable,
+    rate_coins: isVariable ? rateCoins : null,
+    rate_kzt: isVariable ? rateKzt : null,
     description: formData.get("description"),
     sort_order: Number(formData.get("sort_order")) || 0,
     highlight_color: formData.get("highlight_color") || null,
@@ -306,12 +321,27 @@ export async function updateReward(rewardId, formData) {
   await requireAdmin();
   const admin = createAdminClient();
 
+  const isVariable = formData.get("is_variable") === "on";
+  const rateCoins = Number(formData.get("rate_coins"));
+  const rateKzt = Number(formData.get("rate_kzt"));
+  const priceCoins = Number(formData.get("price_coins"));
+
+  if (isVariable && (!rateCoins || rateCoins <= 0 || !rateKzt || rateKzt <= 0)) {
+    return { error: "Укажи курс: сколько coins за сколько тенге" };
+  }
+  if (!isVariable && (!priceCoins || priceCoins <= 0)) {
+    return { error: "Укажи цену в coins" };
+  }
+
   const { error } = await admin
     .from("rewards")
     .update({
       title: formData.get("title"),
       category: formData.get("category"),
-      price_coins: Number(formData.get("price_coins")),
+      price_coins: isVariable ? null : priceCoins,
+      is_variable: isVariable,
+      rate_coins: isVariable ? rateCoins : null,
+      rate_kzt: isVariable ? rateKzt : null,
       description: formData.get("description"),
       sort_order: Number(formData.get("sort_order")) || 0,
       highlight_color: formData.get("highlight_color") || null,

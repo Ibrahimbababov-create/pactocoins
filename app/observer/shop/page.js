@@ -73,7 +73,9 @@ export default async function ObserverShop() {
                   </p>
                 )}
                 <p className="text-acid-400 font-bold mt-3">
-                  {reward.price_coins} coins
+                  {reward.is_variable
+                    ? `${reward.rate_coins} coins за ${reward.rate_kzt} ₸`
+                    : `${reward.price_coins} coins`}
                 </p>
               </div>
             ))}

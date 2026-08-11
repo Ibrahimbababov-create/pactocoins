@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { purchaseReward } from "@/app/mop/shop/actions";
+import { purchaseReward, purchaseVariableReward } from "@/app/mop/shop/actions";
 
 const GLOW_STYLES = {
   gold: "0 0 24px rgba(250, 204, 21, 0.55)",
@@ -27,6 +27,8 @@ export default function ShopClient({ grouped, balance }) {
   const [message, setMessage] = useState(null);
   const [displayBalance, setDisplayBalance] = useState(balance);
   const [purchasedIds, setPurchasedIds] = useState(new Set());
+  const [kztInputs, setKztInputs] = useState({});
+  const [confirmingVariable, setConfirmingVariable] = useState(null);
 
   function handleBuy(reward) {
     setConfirming(null);
@@ -45,6 +47,37 @@ export default function ShopClient({ grouped, balance }) {
         setMessage({ type: "error", text: res.error });
       } else {
         setMessage({ type: "success", text: `Куплено: ${reward.title}` });
+      }
+      setTimeout(() => setMessage(null), 3000);
+    });
+  }
+
+  function handleBuyVariable(reward) {
+    const kzt = Number(kztInputs[reward.id]);
+    if (!kzt || kzt <= 0) return;
+
+    const coins = Math.ceil((kzt * reward.rate_coins) / reward.rate_kzt);
+
+    setConfirmingVariable(null);
+    setDisplayBalance((prev) => prev - coins);
+    setPurchasedIds((prev) => new Set([...prev, reward.id]));
+
+    startTransition(async () => {
+      const res = await purchaseVariableReward(reward.id, kzt);
+      if (res.error) {
+        setDisplayBalance((prev) => prev + coins);
+        setPurchasedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(reward.id);
+          return next;
+        });
+        setMessage({ type: "error", text: res.error });
+      } else {
+        setMessage({
+          type: "success",
+          text: `Куплено: ${reward.title} — ${kzt.toLocaleString("ru-RU")} ₸`,
+        });
+        setKztInputs((prev) => ({ ...prev, [reward.id]: "" }));
       }
       setTimeout(() => setMessage(null), 3000);
     });
@@ -109,8 +142,18 @@ export default function ShopClient({ grouped, balance }) {
           <div className="grid grid-cols-2 gap-3">
             {grouped[category].map((reward) => {
               const isPurchased = purchasedIds.has(reward.id);
-              const canAfford = displayBalance >= reward.price_coins;
               const isConfirming = confirming === reward.id;
+
+              const kztValue = kztInputs[reward.id] ?? "";
+              const computedCoins = reward.is_variable
+                ? Math.ceil(
+                    (Number(kztValue) * reward.rate_coins) / reward.rate_kzt
+                  )
+                : 0;
+              const canAfford = reward.is_variable
+                ? Number(kztValue) > 0 && displayBalance >= computedCoins
+                : displayBalance >= reward.price_coins;
+              const isConfirmingVariable = confirmingVariable === reward.id;
 
               return (
                 <div
@@ -138,38 +181,101 @@ export default function ShopClient({ grouped, balance }) {
                   </div>
 
                   <div className="mt-3">
-                    <p className="text-acid-400 font-bold">
-                      {reward.price_coins} coins
-                    </p>
+                    {reward.is_variable ? (
+                      <>
+                        <p className="text-xs text-gray-500 mb-1.5">
+                          {reward.rate_coins} coins за каждые{" "}
+                          {reward.rate_kzt} ₸
+                        </p>
 
-                    {isPurchased ? (
-                      <div className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400">
-                        ✅ Куплено
-                      </div>
-                    ) : !isConfirming ? (
-                      <button
-                        disabled={!canAfford}
-                        onClick={() => setConfirming(reward.id)}
-                        className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
-                      >
-                        {canAfford ? "Купить" : "Не хватает"}
-                      </button>
+                        {isPurchased ? (
+                          <div className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400">
+                            ✅ Куплено
+                          </div>
+                        ) : !isConfirmingVariable ? (
+                          <>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              value={kztValue}
+                              onChange={(e) =>
+                                setKztInputs((prev) => ({
+                                  ...prev,
+                                  [reward.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="Сумма в ₸"
+                              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-acid-400"
+                            />
+                            {Number(kztValue) > 0 && (
+                              <p className="text-acid-400 text-xs font-bold mt-1">
+                                = {computedCoins} coins
+                              </p>
+                            )}
+                            <button
+                              disabled={!canAfford}
+                              onClick={() => setConfirmingVariable(reward.id)}
+                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+                            >
+                              {Number(kztValue) > 0 && !canAfford
+                                ? "Не хватает"
+                                : "Купить"}
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleBuyVariable(reward)}
+                              disabled={isPending}
+                              className="flex-1 rounded-lg py-2 text-xs font-bold bg-acid-400 text-black"
+                            >
+                              Точно? ({computedCoins} coins)
+                            </button>
+                            <button
+                              onClick={() => setConfirmingVariable(null)}
+                              className="flex-1 rounded-lg py-2 text-xs bg-dark-700 text-gray-400"
+                            >
+                              Отмена
+                            </button>
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div className="flex gap-1 mt-2">
-                        <button
-                          onClick={() => handleBuy(reward)}
-                          disabled={isPending}
-                          className="flex-1 rounded-lg py-2 text-xs font-bold bg-acid-400 text-black"
-                        >
-                          Точно?
-                        </button>
-                        <button
-                          onClick={() => setConfirming(null)}
-                          className="flex-1 rounded-lg py-2 text-xs bg-dark-700 text-gray-400"
-                        >
-                          Отмена
-                        </button>
-                      </div>
+                      <>
+                        <p className="text-acid-400 font-bold">
+                          {reward.price_coins} coins
+                        </p>
+
+                        {isPurchased ? (
+                          <div className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400">
+                            ✅ Куплено
+                          </div>
+                        ) : !isConfirming ? (
+                          <button
+                            disabled={!canAfford}
+                            onClick={() => setConfirming(reward.id)}
+                            className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+                          >
+                            {canAfford ? "Купить" : "Не хватает"}
+                          </button>
+                        ) : (
+                          <div className="flex gap-1 mt-2">
+                            <button
+                              onClick={() => handleBuy(reward)}
+                              disabled={isPending}
+                              className="flex-1 rounded-lg py-2 text-xs font-bold bg-acid-400 text-black"
+                            >
+                              Точно?
+                            </button>
+                            <button
+                              onClick={() => setConfirming(null)}
+                              className="flex-1 rounded-lg py-2 text-xs bg-dark-700 text-gray-400"
+                            >
+                              Отмена
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

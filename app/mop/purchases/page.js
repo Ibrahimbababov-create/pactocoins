@@ -42,8 +42,11 @@ export default async function PurchasesPage() {
               <div>
                 <p className="font-semibold">{p.rewards?.title}</p>
                 <p className="text-xs text-gray-500">
-                  {p.price_coins} coins ·{" "}
-                  {new Date(p.created_at).toLocaleString("ru-RU")}
+                  {p.price_coins} coins
+                  {p.kzt_amount
+                    ? ` (${p.kzt_amount.toLocaleString("ru-RU")} ₸)`
+                    : ""}{" "}
+                  · {new Date(p.created_at).toLocaleString("ru-RU")}
                 </p>
               </div>
               <span

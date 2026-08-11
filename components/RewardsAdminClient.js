@@ -27,6 +27,8 @@ export default function RewardsAdminClient({ rewards, categories }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState(null);
+  const [createIsVariable, setCreateIsVariable] = useState(false);
+  const [editIsVariable, setEditIsVariable] = useState(false);
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -40,6 +42,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
       else {
         showMessage("Награда добавлена");
         setShowCreate(false);
+        setCreateIsVariable(false);
       }
     });
   }
@@ -117,13 +120,45 @@ export default function RewardsAdminClient({ rewards, categories }) {
               </option>
             ))}
           </select>
-          <input
-            name="price_coins"
-            type="number"
-            required
-            placeholder="Цена в coins"
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
-          />
+          <label className="flex items-center gap-2 text-sm text-gray-400">
+            <input
+              type="checkbox"
+              name="is_variable"
+              checked={createIsVariable}
+              onChange={(e) => setCreateIsVariable(e.target.checked)}
+            />
+            Сотрудник сам вводит сумму в ₸ (например, пополнение Steam)
+          </label>
+
+          {createIsVariable ? (
+            <div className="flex items-center gap-2">
+              <input
+                name="rate_coins"
+                type="number"
+                required
+                placeholder="Coins"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+              />
+              <span className="text-gray-500 text-sm whitespace-nowrap">
+                за каждые
+              </span>
+              <input
+                name="rate_kzt"
+                type="number"
+                required
+                placeholder="₸"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+              />
+            </div>
+          ) : (
+            <input
+              name="price_coins"
+              type="number"
+              required
+              placeholder="Цена в coins"
+              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+            />
+          )}
           <input
             name="sort_order"
             type="number"
@@ -188,12 +223,44 @@ export default function RewardsAdminClient({ rewards, categories }) {
                     </option>
                   ))}
                 </select>
-                <input
-                  name="price_coins"
-                  type="number"
-                  defaultValue={r.price_coins}
-                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-                />
+                <label className="flex items-center gap-2 text-xs text-gray-400">
+                  <input
+                    type="checkbox"
+                    name="is_variable"
+                    checked={editIsVariable}
+                    onChange={(e) => setEditIsVariable(e.target.checked)}
+                  />
+                  Сотрудник сам вводит сумму в ₸
+                </label>
+
+                {editIsVariable ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      name="rate_coins"
+                      type="number"
+                      defaultValue={r.rate_coins ?? ""}
+                      placeholder="Coins"
+                      className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                    />
+                    <span className="text-gray-500 text-xs whitespace-nowrap">
+                      за каждые
+                    </span>
+                    <input
+                      name="rate_kzt"
+                      type="number"
+                      defaultValue={r.rate_kzt ?? ""}
+                      placeholder="₸"
+                      className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    name="price_coins"
+                    type="number"
+                    defaultValue={r.price_coins ?? ""}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                )}
                 <input
                   name="sort_order"
                   type="number"
@@ -243,8 +310,11 @@ export default function RewardsAdminClient({ rewards, categories }) {
                     )}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {r.category} · {r.price_coins} coins · порядок{" "}
-                    {r.sort_order ?? 0}
+                    {r.category} ·{" "}
+                    {r.is_variable
+                      ? `${r.rate_coins} coins за каждые ${r.rate_kzt} ₸`
+                      : `${r.price_coins} coins`}{" "}
+                    · порядок {r.sort_order ?? 0}
                     {r.highlight_color &&
                       ` · свечение: ${
                         GLOW_COLORS.find((c) => c.value === r.highlight_color)
@@ -254,7 +324,10 @@ export default function RewardsAdminClient({ rewards, categories }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setEditingId(r.id)}
+                    onClick={() => {
+                      setEditIsVariable(r.is_variable ?? false);
+                      setEditingId(r.id);
+                    }}
                     className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"
                   >
                     Изменить
