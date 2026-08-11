@@ -1,8 +1,14 @@
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import ResetButton from "@/components/ResetButton";
+import MonthPicker from "@/components/MonthPicker";
+import {
+  monthRangeAlmaty,
+  currentMonthKeyAlmaty,
+  recentMonthKeysAlmaty,
+} from "@/lib/timezone";
 
-export default async function AdminOverview() {
+export default async function AdminOverview({ searchParams }) {
   const supabase = createClient();
 
   const { data: users } = await supabase
@@ -22,6 +28,24 @@ export default async function AdminOverview() {
     .eq("status", "pending");
 
   const totalBalance = users?.reduce((sum, u) => sum + u.balance, 0) ?? 0;
+
+  const months = recentMonthKeysAlmaty(12);
+  const selectedMonth = months.some((m) => m.key === searchParams?.month)
+    ? searchParams.month
+    : currentMonthKeyAlmaty();
+  const { start, end } = monthRangeAlmaty(selectedMonth);
+
+  // "Реально потратили" — все покупки в магазине за месяц, кроме отклонённых
+  // (те возвращаются пользователю и деньгами не считаются).
+  const { data: spentPurchases } = await supabase
+    .from("purchase_requests")
+    .select("price_coins")
+    .neq("status", "rejected")
+    .gte("created_at", start)
+    .lt("created_at", end);
+
+  const totalSpent =
+    spentPurchases?.reduce((sum, p) => sum + p.price_coins, 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -56,6 +80,20 @@ export default async function AdminOverview() {
             {pendingPurchases ?? 0}
           </p>
         </div>
+      </div>
+
+      <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-gray-500">Потрачено в магазине</p>
+          <MonthPicker months={months} selected={selectedMonth} />
+        </div>
+        <p className="text-2xl font-bold text-acid-400">
+          {totalSpent.toLocaleString("ru-RU")} coins
+        </p>
+        <p className="text-xs text-gray-600 mt-1">
+          Сумма покупок наград за месяц, без отклонённых (за них деньги
+          вернулись)
+        </p>
       </div>
 
       <div className="space-y-2">
