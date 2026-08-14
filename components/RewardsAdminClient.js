@@ -22,6 +22,21 @@ const GLOW_STYLES = {
   red: "0 0 24px rgba(248, 113, 113, 0.55)",
 };
 
+function toAlmatyDatetimeLocal(isoString) {
+  if (!isoString) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Almaty",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(isoString));
+  const get = (t) => parts.find((p) => p.type === t)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
 export default function RewardsAdminClient({ rewards, categories }) {
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
@@ -151,13 +166,36 @@ export default function RewardsAdminClient({ rewards, categories }) {
               />
             </div>
           ) : (
-            <input
-              name="price_coins"
-              type="number"
-              required
-              placeholder="Цена в coins"
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
-            />
+            <>
+              <input
+                name="price_coins"
+                type="number"
+                required
+                placeholder="Цена в coins"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+              />
+              <div className="space-y-1">
+                <p className="text-xs text-gray-500">
+                  Флеш-скидка (необязательно) — оставь пустым, если без скидки
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    name="sale_price_coins"
+                    type="number"
+                    placeholder="Цена со скидкой"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+                  />
+                  <span className="text-gray-500 text-sm whitespace-nowrap">
+                    до
+                  </span>
+                  <input
+                    name="sale_ends_at"
+                    type="datetime-local"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
+                  />
+                </div>
+              </div>
+            </>
           )}
           <input
             name="sort_order"
@@ -254,12 +292,37 @@ export default function RewardsAdminClient({ rewards, categories }) {
                     />
                   </div>
                 ) : (
-                  <input
-                    name="price_coins"
-                    type="number"
-                    defaultValue={r.price_coins ?? ""}
-                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-                  />
+                  <>
+                    <input
+                      name="price_coins"
+                      type="number"
+                      defaultValue={r.price_coins ?? ""}
+                      className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">
+                        Флеш-скидка (необязательно)
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          name="sale_price_coins"
+                          type="number"
+                          defaultValue={r.sale_price_coins ?? ""}
+                          placeholder="Цена со скидкой"
+                          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                        />
+                        <span className="text-gray-500 text-xs whitespace-nowrap">
+                          до
+                        </span>
+                        <input
+                          name="sale_ends_at"
+                          type="datetime-local"
+                          defaultValue={toAlmatyDatetimeLocal(r.sale_ends_at)}
+                          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
                 <input
                   name="sort_order"
@@ -321,6 +384,20 @@ export default function RewardsAdminClient({ rewards, categories }) {
                           ?.label
                       }`}
                   </p>
+                  {r.sale_price_coins && r.sale_ends_at && (
+                    <p className="text-xs text-red-400 mt-0.5">
+                      🔥 Скидка {r.sale_price_coins} coins до{" "}
+                      {new Date(r.sale_ends_at).toLocaleString("ru-RU", {
+                        timeZone: "Asia/Almaty",
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {new Date(r.sale_ends_at).getTime() < Date.now() &&
+                        " (уже закончилась)"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button

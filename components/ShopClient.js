@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { purchaseReward, purchaseVariableReward } from "@/app/mop/shop/actions";
+import { getEffectivePrice } from "@/lib/rewardPricing";
 
 const GLOW_STYLES = {
   gold: "0 0 24px rgba(250, 204, 21, 0.55)",
@@ -31,14 +32,16 @@ export default function ShopClient({ grouped, balance }) {
   const [confirmingVariable, setConfirmingVariable] = useState(null);
 
   function handleBuy(reward) {
+    const { effectivePrice } = getEffectivePrice(reward);
+
     setConfirming(null);
-    setDisplayBalance((prev) => prev - reward.price_coins);
+    setDisplayBalance((prev) => prev - effectivePrice);
     setPurchasedIds((prev) => new Set([...prev, reward.id]));
 
     startTransition(async () => {
       const res = await purchaseReward(reward.id);
       if (res.error) {
-        setDisplayBalance((prev) => prev + reward.price_coins);
+        setDisplayBalance((prev) => prev + effectivePrice);
         setPurchasedIds((prev) => {
           const next = new Set(prev);
           next.delete(reward.id);
@@ -150,9 +153,10 @@ export default function ShopClient({ grouped, balance }) {
                     (Number(kztValue) * reward.rate_coins) / reward.rate_kzt
                   )
                 : 0;
+              const { effectivePrice, saleActive } = getEffectivePrice(reward);
               const canAfford = reward.is_variable
                 ? Number(kztValue) > 0 && displayBalance >= computedCoins
-                : displayBalance >= reward.price_coins;
+                : displayBalance >= effectivePrice;
               const isConfirmingVariable = confirmingVariable === reward.id;
 
               return (
@@ -242,9 +246,20 @@ export default function ShopClient({ grouped, balance }) {
                       </>
                     ) : (
                       <>
-                        <p className="text-acid-400 font-bold">
-                          {reward.price_coins} coins
-                        </p>
+                        {saleActive ? (
+                          <p className="flex items-baseline gap-2">
+                            <span className="text-gray-500 text-xs line-through">
+                              {reward.price_coins}
+                            </span>
+                            <span className="text-red-400 font-bold">
+                              {effectivePrice} coins
+                            </span>
+                          </p>
+                        ) : (
+                          <p className="text-acid-400 font-bold">
+                            {reward.price_coins} coins
+                          </p>
+                        )}
 
                         {isPurchased ? (
                           <div className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400">

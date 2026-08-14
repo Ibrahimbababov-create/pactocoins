@@ -72,11 +72,24 @@ export default async function ObserverShop() {
                     {reward.description}
                   </p>
                 )}
-                <p className="text-acid-400 font-bold mt-3">
-                  {reward.is_variable
-                    ? `${reward.rate_coins} coins за ${reward.rate_kzt} ₸`
-                    : `${reward.price_coins} coins`}
-                </p>
+                {reward.sale_price_coins &&
+                reward.sale_ends_at &&
+                new Date(reward.sale_ends_at) > new Date() ? (
+                  <p className="mt-3 flex items-baseline gap-2">
+                    <span className="text-gray-500 text-xs line-through">
+                      {reward.price_coins}
+                    </span>
+                    <span className="text-red-400 font-bold">
+                      {reward.sale_price_coins} coins
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-acid-400 font-bold mt-3">
+                    {reward.is_variable
+                      ? `${reward.rate_coins} coins за ${reward.rate_kzt} ₸`
+                      : `${reward.price_coins} coins`}
+                  </p>
+                )}
               </div>
             ))}
           </div>

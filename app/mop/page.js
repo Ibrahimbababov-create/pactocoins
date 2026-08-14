@@ -5,6 +5,7 @@ import BonusRequestForm from "@/components/BonusRequestForm";
 import RulesAccordion from "@/components/RulesAccordion";
 import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
+import FlashSaleCard from "@/components/FlashSaleCard";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { LEVELS, getLevelForAmount } from "@/lib/levels";
 import { currentMonthEndAlmaty } from "@/lib/timezone";
@@ -60,6 +61,14 @@ export default async function MopDashboard() {
     if (achievedGoal) currentGoal = achievedGoal;
   }
 
+  const { data: flashSaleRewards } = await supabase
+    .from("rewards")
+    .select("*")
+    .eq("is_active", true)
+    .not("sale_price_coins", "is", null)
+    .not("sale_ends_at", "is", null)
+    .gt("sale_ends_at", new Date().toISOString());
+
   const totalEarned = profile?.total_earned ?? 0;
   const currentLevel = getLevelForAmount(totalEarned);
   const nextLevel = LEVELS.find((l) => l.id === currentLevel.id + 1);
@@ -80,6 +89,14 @@ export default async function MopDashboard() {
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
         <h1 className="text-2xl font-bold">PactoCoins</h1>
       </div>
+
+      {flashSaleRewards?.map((reward) => (
+        <FlashSaleCard
+          key={reward.id}
+          reward={reward}
+          balance={profile?.balance ?? 0}
+        />
+      ))}
 
       {/* Баланс — крупная цифра */}
       <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-3xl p-6">

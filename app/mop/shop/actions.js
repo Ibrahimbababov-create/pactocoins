@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
+import { getEffectivePrice } from "@/lib/rewardPricing";
 
 export async function purchaseReward(rewardId) {
   const supabase = createClient();
@@ -30,11 +31,13 @@ export async function purchaseReward(rewardId) {
     return { error: "Награда недоступна" };
   }
 
-  if (profile.balance < reward.price_coins) {
+  const { effectivePrice } = getEffectivePrice(reward);
+
+  if (profile.balance < effectivePrice) {
     return { error: "Недостаточно коинов" };
   }
 
-  const newBalance = profile.balance - reward.price_coins;
+  const newBalance = profile.balance - effectivePrice;
 
   const { error: balanceError } = await admin
     .from("users")
@@ -48,7 +51,7 @@ export async function purchaseReward(rewardId) {
     .insert({
       user_id: user.id,
       reward_id: rewardId,
-      price_coins: reward.price_coins,
+      price_coins: effectivePrice,
       status: "pending",
     });
 
@@ -57,7 +60,7 @@ export async function purchaseReward(rewardId) {
   await admin.from("transactions").insert({
     user_id: user.id,
     type: "spend",
-    amount_coins: -reward.price_coins,
+    amount_coins: -effectivePrice,
     description: `Покупка: ${reward.title}`,
     created_by: user.id,
   });

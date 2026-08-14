@@ -4,6 +4,22 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
+import { almatyDatetimeToUtcIso } from "@/lib/timezone";
+
+function parseSale(formData) {
+  const salePrice = Number(formData.get("sale_price_coins"));
+  const saleEndsLocal = formData.get("sale_ends_at")?.toString();
+
+  if (!salePrice && !saleEndsLocal) return { sale_price_coins: null, sale_ends_at: null };
+  if (!salePrice || salePrice <= 0 || !saleEndsLocal) {
+    return { error: "Для скидки укажи и цену со скидкой, и до какого момента" };
+  }
+
+  return {
+    sale_price_coins: salePrice,
+    sale_ends_at: almatyDatetimeToUtcIso(saleEndsLocal),
+  };
+}
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -281,6 +297,9 @@ export async function createReward(formData) {
     return { error: "Укажи цену в coins" };
   }
 
+  const sale = parseSale(formData);
+  if (sale.error) return { error: sale.error };
+
   const { error } = await admin.from("rewards").insert({
     title: formData.get("title"),
     category: formData.get("category"),
@@ -288,6 +307,8 @@ export async function createReward(formData) {
     is_variable: isVariable,
     rate_coins: isVariable ? rateCoins : null,
     rate_kzt: isVariable ? rateKzt : null,
+    sale_price_coins: sale.sale_price_coins,
+    sale_ends_at: sale.sale_ends_at,
     description: formData.get("description"),
     sort_order: Number(formData.get("sort_order")) || 0,
     highlight_color: formData.get("highlight_color") || null,
@@ -333,6 +354,9 @@ export async function updateReward(rewardId, formData) {
     return { error: "Укажи цену в coins" };
   }
 
+  const sale = parseSale(formData);
+  if (sale.error) return { error: sale.error };
+
   const { error } = await admin
     .from("rewards")
     .update({
@@ -342,6 +366,8 @@ export async function updateReward(rewardId, formData) {
       is_variable: isVariable,
       rate_coins: isVariable ? rateCoins : null,
       rate_kzt: isVariable ? rateKzt : null,
+      sale_price_coins: sale.sale_price_coins,
+      sale_ends_at: sale.sale_ends_at,
       description: formData.get("description"),
       sort_order: Number(formData.get("sort_order")) || 0,
       highlight_color: formData.get("highlight_color") || null,
