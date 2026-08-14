@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { purchaseReward, purchaseVariableReward } from "@/app/mop/shop/actions";
 import { getEffectivePrice } from "@/lib/rewardPricing";
 
@@ -30,6 +30,22 @@ export default function ShopClient({ grouped, balance }) {
   const [purchasedIds, setPurchasedIds] = useState(new Set());
   const [kztInputs, setKztInputs] = useState({});
   const [confirmingVariable, setConfirmingVariable] = useState(null);
+  const [query, setQuery] = useState("");
+
+  // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер
+  const filteredGrouped = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return grouped;
+
+    const result = {};
+    Object.entries(grouped).forEach(([category, items]) => {
+      const matched = items.filter((r) =>
+        r.title.toLowerCase().includes(q)
+      );
+      if (matched.length > 0) result[category] = matched;
+    });
+    return result;
+  }, [grouped, query]);
 
   function handleBuy(reward) {
     const { effectivePrice } = getEffectivePrice(reward);
@@ -94,7 +110,8 @@ export default function ShopClient({ grouped, balance }) {
     }
   }
 
-  const categories = Object.keys(grouped);
+  const categories = Object.keys(filteredGrouped);
+  const isSearching = query.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -108,6 +125,20 @@ export default function ShopClient({ grouped, balance }) {
         </div>
       </div>
 
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Поиск по магазину..."
+        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-acid-400"
+      />
+
+      {isSearching && categories.length === 0 && (
+        <p className="text-gray-600 text-sm text-center py-4">
+          Ничего не нашлось
+        </p>
+      )}
+
       {message && (
         <div
           className={`rounded-xl p-3 text-sm text-center ${
@@ -120,20 +151,22 @@ export default function ShopClient({ grouped, balance }) {
         </div>
       )}
 
-      {/* Липкая панель быстрого перехода по категориям */}
-      <div className="sticky top-0 z-40 -mx-4 px-4 py-2 bg-dark-900/95 backdrop-blur border-b border-dark-600">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => scrollToCategory(category)}
-              className="whitespace-nowrap text-xs bg-dark-800 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300 hover:border-acid-400 hover:text-acid-400 transition"
-            >
-              {category}
-            </button>
-          ))}
+      {/* Липкая панель быстрого перехода по категориям — бессмысленна при поиске */}
+      {!isSearching && (
+        <div className="sticky top-0 z-40 -mx-4 px-4 py-2 bg-dark-900/95 backdrop-blur border-b border-dark-600">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => scrollToCategory(category)}
+                className="whitespace-nowrap text-xs bg-dark-800 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300 hover:border-acid-400 hover:text-acid-400 transition"
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {categories.map((category) => (
         <div
@@ -143,7 +176,7 @@ export default function ShopClient({ grouped, balance }) {
         >
           <p className="text-sm text-gray-500">{category}</p>
           <div className="grid grid-cols-2 gap-3">
-            {grouped[category].map((reward) => {
+            {filteredGrouped[category].map((reward) => {
               const isPurchased = purchasedIds.has(reward.id);
               const isConfirming = confirming === reward.id;
 
