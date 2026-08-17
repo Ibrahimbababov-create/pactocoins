@@ -8,7 +8,6 @@ const items = [
   { href: "/mop/rating", label: "Рейтинг", icon: "▲" },
   { href: "/mop/history", label: "История", icon: "≡" },
   { href: "/mop/shop", label: "Магазин", icon: "★" },
-  { href: "/mop/purchases", label: "Покупки", icon: "◈" },
 ];
 
 export default function BottomNav() {
@@ -16,7 +15,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-dark-800 border-t border-dark-600 z-50">
-      <div className="max-w-lg mx-auto grid grid-cols-5">
+      <div className="max-w-lg mx-auto grid grid-cols-4">
         {items.map((item) => {
           const active = pathname === item.href;
           return (

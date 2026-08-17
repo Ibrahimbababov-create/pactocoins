@@ -2,9 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import RevenueRequestForm from "@/components/RevenueRequestForm";
 import BonusRequestForm from "@/components/BonusRequestForm";
-import RulesAccordion from "@/components/RulesAccordion";
 import BirthdayProfile from "@/components/BirthdayProfile";
-import EditableName from "@/components/EditableName";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
@@ -87,7 +85,7 @@ export default async function MopDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <EditableName name={profile?.name ?? ""} />
+        <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
         <h1 className="text-2xl font-bold">PactoCoins</h1>
       </div>
 
@@ -204,8 +202,6 @@ export default async function MopDashboard() {
           ))}
         </div>
       )}
-
-      <RulesAccordion />
     </div>
   );
 }
