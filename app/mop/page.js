@@ -4,6 +4,7 @@ import RevenueRequestForm from "@/components/RevenueRequestForm";
 import BonusRequestForm from "@/components/BonusRequestForm";
 import RulesAccordion from "@/components/RulesAccordion";
 import BirthdayProfile from "@/components/BirthdayProfile";
+import EditableName from "@/components/EditableName";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
@@ -86,7 +87,7 @@ export default async function MopDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
+        <EditableName name={profile?.name ?? ""} />
         <h1 className="text-2xl font-bold">PactoCoins</h1>
       </div>
 
