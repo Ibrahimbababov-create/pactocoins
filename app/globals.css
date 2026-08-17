@@ -18,3 +18,44 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Плавный переход между вкладками (Баланс/Рейтинг/История/Магазин) —
+   только transform+opacity, чтобы браузер анимировал это на GPU. */
+@keyframes tab-slide-forward {
+  from {
+    transform: translateX(16px);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes tab-slide-back {
+  from {
+    transform: translateX(-16px);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.tab-anim-forward {
+  animation: tab-slide-forward 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+}
+
+.tab-anim-back {
+  animation: tab-slide-back 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-anim-forward,
+  .tab-anim-back {
+    animation: none;
+  }
+}

@@ -154,7 +154,7 @@ export default function ShopClient({ grouped, balance }) {
       {/* Липкая панель быстрого перехода по категориям — бессмысленна при поиске */}
       {!isSearching && (
         <div className="sticky top-0 z-40 -mx-4 px-4 py-2 bg-dark-900/95 backdrop-blur border-b border-dark-600">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar" data-no-swipe="true">
             {categories.map((category) => (
               <button
                 key={category}
