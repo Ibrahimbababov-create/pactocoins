@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import SideMenu from "@/components/SideMenu";
-import SwipeNav from "@/components/SwipeNav";
 
 export default async function MopLayout({ children }) {
   const supabase = createClient();
@@ -39,7 +38,7 @@ export default async function MopLayout({ children }) {
         <div className="flex justify-end items-center mb-2">
           <SideMenu unreadCount={unreadCount ?? 0} />
         </div>
-        <SwipeNav>{children}</SwipeNav>
+        {children}
       </div>
       <BottomNav />
     </div>
