@@ -10,10 +10,6 @@ const items = [
   { href: "/admin/revenue-requests", label: "Заявки на выручку" },
   { href: "/admin/bonus-requests", label: "Бонусы" },
   { href: "/admin/purchase-requests", label: "Заявки на покупки" },
-  { href: "/admin/rewards", label: "Магазин" },
-  { href: "/admin/funds", label: "Копилки" },
-  { href: "/admin/broadcast", label: "Рассылка" },
-  { href: "/admin/merge-accounts", label: "Слияние аккаунтов" },
 ];
 
 export default function AdminNav() {

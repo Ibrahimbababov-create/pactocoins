@@ -5,15 +5,15 @@ import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 
 const ITEMS = [
-  { href: "/mop/settings", label: "Настройки", icon: "⚙️" },
+  { href: "/admin/rewards", label: "Магазин наград", icon: "★" },
+  { href: "/admin/funds", label: "Копилки", icon: "🐷" },
+  { href: "/admin/broadcast", label: "Рассылка", icon: "📣" },
+  { href: "/admin/merge-accounts", label: "Слияние аккаунтов", icon: "🔗" },
   { href: "/levels", label: "Звания", icon: "🏆" },
-  { href: "/funds", label: "Копилки", icon: "🐷" },
-  { href: "/mop/purchases", label: "Покупки", icon: "◈" },
   { href: "/messages", label: "Сообщения", icon: "✉️" },
-  { href: "/mop/help", label: "Инструкция", icon: "❓" },
 ];
 
-export default function SideMenu({ unreadCount = 0 }) {
+export default function AdminSideMenu({ unreadCount = 0 }) {
   const [open, setOpen] = useState(false);
 
   return (
