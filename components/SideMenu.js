@@ -21,9 +21,10 @@ export default function SideMenu({ unreadCount = 0 }) {
       <button
         onClick={() => setOpen(true)}
         aria-label="Меню"
-        className="relative text-gray-300 text-xl leading-none p-1"
+        className="relative flex items-center gap-1.5 text-gray-300 text-sm p-1"
       >
-        ☰
+        <span className="text-xl leading-none">☰</span>
+        Меню
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-acid-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
             {unreadCount}
