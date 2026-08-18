@@ -19,10 +19,15 @@ export default async function AdminLayout({ children }) {
 
   if (profile?.role !== "admin") redirect("/mop");
 
-  const { count: unreadCount } = await supabase
+  const { count: unreadMessages } = await supabase
     .from("messages")
     .select("*", { count: "exact", head: true })
     .eq("recipient_id", user.id)
+    .is("read_at", null);
+
+  const { count: unreadBotMessages } = await supabase
+    .from("bot_inbox_messages")
+    .select("*", { count: "exact", head: true })
     .is("read_at", null);
 
   return (
@@ -33,7 +38,10 @@ export default async function AdminLayout({ children }) {
             Pacto<span className="text-acid-400">Coins</span>{" "}
             <span className="text-gray-500 font-normal text-sm">admin</span>
           </h1>
-          <AdminSideMenu unreadCount={unreadCount ?? 0} />
+          <AdminSideMenu
+            unreadMessages={unreadMessages ?? 0}
+            unreadBotMessages={unreadBotMessages ?? 0}
+          />
         </div>
         <AdminNav />
       </div>

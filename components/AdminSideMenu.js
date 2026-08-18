@@ -10,11 +10,19 @@ const ITEMS = [
   { href: "/admin/broadcast", label: "Рассылка", icon: "📣" },
   { href: "/admin/merge-accounts", label: "Слияние аккаунтов", icon: "🔗" },
   { href: "/levels", label: "Звания", icon: "🏆" },
-  { href: "/messages", label: "Сообщения", icon: "✉️" },
+  { href: "/messages", label: "Сообщения", icon: "✉️", badgeKey: "unreadMessages" },
+  {
+    href: "/admin/bot-messages",
+    label: "Сообщения боту",
+    icon: "🤖",
+    badgeKey: "unreadBotMessages",
+  },
 ];
 
-export default function AdminSideMenu({ unreadCount = 0 }) {
+export default function AdminSideMenu({ unreadMessages = 0, unreadBotMessages = 0 }) {
   const [open, setOpen] = useState(false);
+  const totalUnread = unreadMessages + unreadBotMessages;
+  const badges = { unreadMessages, unreadBotMessages };
 
   return (
     <>
@@ -25,9 +33,9 @@ export default function AdminSideMenu({ unreadCount = 0 }) {
       >
         <span className="text-xl leading-none">☰</span>
         Меню
-        {unreadCount > 0 && (
+        {totalUnread > 0 && (
           <span className="absolute -top-1 -right-1 bg-acid-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-            {unreadCount}
+            {totalUnread}
           </span>
         )}
       </button>
@@ -50,24 +58,27 @@ export default function AdminSideMenu({ unreadCount = 0 }) {
               </button>
             </div>
 
-            {ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-dark-700 transition"
-              >
-                <span className="flex items-center gap-2">
-                  <span>{item.icon}</span>
-                  {item.label}
-                </span>
-                {item.href === "/messages" && unreadCount > 0 && (
-                  <span className="bg-acid-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {unreadCount}
+            {ITEMS.map((item) => {
+              const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-dark-700 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>{item.icon}</span>
+                    {item.label}
                   </span>
-                )}
-              </Link>
-            ))}
+                  {badgeCount > 0 && (
+                    <span className="bg-acid-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {badgeCount}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
 
             <div className="pt-2 mt-2 border-t border-dark-600 px-3">
               <LogoutButton />
