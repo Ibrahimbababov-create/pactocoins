@@ -65,20 +65,29 @@ export async function submitBonusRequest(category, comment, customAmount) {
       `Коинов: ${amount}\n` +
       (comment ? `Комментарий: ${comment}\n` : "");
 
-    await sendTelegramMessage(groupChatId, text, {
-      inline_keyboard: [
-        [
-          {
-            text: "✅ Подтвердить",
-            callback_data: `approve_bonus:${inserted.id}`,
-          },
-          {
-            text: "❌ Отклонить",
-            callback_data: `reject_bonus:${inserted.id}`,
-          },
+    const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID
+      ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)
+      : undefined;
+
+    await sendTelegramMessage(
+      groupChatId,
+      text,
+      {
+        inline_keyboard: [
+          [
+            {
+              text: "✅ Подтвердить",
+              callback_data: `approve_bonus:${inserted.id}`,
+            },
+            {
+              text: "❌ Отклонить",
+              callback_data: `reject_bonus:${inserted.id}`,
+            },
+          ],
         ],
-      ],
-    });
+      },
+      threadId
+    );
   }
 
   revalidatePath("/mop");

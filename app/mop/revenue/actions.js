@@ -53,14 +53,23 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
       `Коинов: ${coins}\n` +
       (comment ? `Комментарий: ${comment}\n` : "");
 
-    const tgResult = await sendTelegramMessage(groupChatId, text, {
-      inline_keyboard: [
-        [
-          { text: "✅ Подтвердить", callback_data: `approve_rev:${inserted.id}` },
-          { text: "❌ Отклонить", callback_data: `reject_rev:${inserted.id}` },
+    const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID
+      ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)
+      : undefined;
+
+    const tgResult = await sendTelegramMessage(
+      groupChatId,
+      text,
+      {
+        inline_keyboard: [
+          [
+            { text: "✅ Подтвердить", callback_data: `approve_rev:${inserted.id}` },
+            { text: "❌ Отклонить", callback_data: `reject_rev:${inserted.id}` },
+          ],
         ],
-      ],
-    });
+      },
+      threadId
+    );
 
     console.log("TELEGRAM_SEND_RESULT", JSON.stringify(tgResult));
   } else {
