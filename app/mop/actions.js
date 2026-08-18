@@ -29,6 +29,34 @@ export async function updateMyName(formData) {
   return { success: true };
 }
 
+export async function updateReminderSettings(formData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Не авторизован" };
+
+  const enabled = formData.get("enabled") === "on";
+  const time = formData.get("time")?.toString() || null;
+
+  if (enabled && !time) return { error: "Укажи время" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("users")
+    .update({
+      reminder_enabled: enabled,
+      reminder_time: enabled ? time : null,
+    })
+    .eq("id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/settings");
+  return { success: true };
+}
+
 export async function setMyBirthday(formData) {
   const supabase = createClient();
   const {
