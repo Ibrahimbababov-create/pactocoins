@@ -4,6 +4,8 @@ import {
   rejectRevenueRequestInternal,
   approveBonusRequestInternal,
   rejectBonusRequestInternal,
+  approvePurchaseRequestInternal,
+  rejectPurchaseRequestInternal,
 } from "@/lib/telegramApprovals";
 import { editTelegramMessage, answerCallbackQuery } from "@/lib/telegramBot";
 
@@ -12,6 +14,8 @@ const COIN_ACTIONS = new Set([
   "reject_rev",
   "approve_bonus",
   "reject_bonus",
+  "approve_purchase",
+  "reject_purchase",
 ]);
 
 async function forwardToSalesBot(update) {
@@ -58,6 +62,8 @@ export async function POST(request) {
     reject_rev: rejectRevenueRequestInternal,
     approve_bonus: approveBonusRequestInternal,
     reject_bonus: rejectBonusRequestInternal,
+    approve_purchase: approvePurchaseRequestInternal,
+    reject_purchase: rejectPurchaseRequestInternal,
   };
 
   const handler = actionMap[action];

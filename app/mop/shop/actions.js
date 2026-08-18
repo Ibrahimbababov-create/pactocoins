@@ -4,6 +4,30 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { getEffectivePrice } from "@/lib/rewardPricing";
+import { sendTelegramMessage } from "@/lib/telegramBot";
+
+async function notifyPurchaseGroup(purchaseId, employeeName, text) {
+  const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+  if (!groupChatId) return;
+
+  const threadId = process.env.TELEGRAM_PURCHASES_THREAD_ID
+    ? Number(process.env.TELEGRAM_PURCHASES_THREAD_ID)
+    : undefined;
+
+  await sendTelegramMessage(
+    groupChatId,
+    `🛍 <b>Новая покупка</b>\n\nОт: <b>${employeeName}</b>\n${text}`,
+    {
+      inline_keyboard: [
+        [
+          { text: "✅ Подтвердить", callback_data: `approve_purchase:${purchaseId}` },
+          { text: "❌ Отклонить", callback_data: `reject_purchase:${purchaseId}` },
+        ],
+      ],
+    },
+    threadId
+  );
+}
 
 export async function purchaseReward(rewardId) {
   const supabase = createClient();
@@ -17,7 +41,7 @@ export async function purchaseReward(rewardId) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance")
+    .select("name, balance")
     .eq("id", user.id)
     .single();
 
@@ -46,14 +70,16 @@ export async function purchaseReward(rewardId) {
 
   if (balanceError) return { error: "Ошибка списания баланса" };
 
-  const { error: purchaseError } = await admin
+  const { data: inserted, error: purchaseError } = await admin
     .from("purchase_requests")
     .insert({
       user_id: user.id,
       reward_id: rewardId,
       price_coins: effectivePrice,
       status: "pending",
-    });
+    })
+    .select()
+    .single();
 
   if (purchaseError) return { error: "Ошибка создания заявки" };
 
@@ -64,6 +90,12 @@ export async function purchaseReward(rewardId) {
     description: `Покупка: ${reward.title}`,
     created_by: user.id,
   });
+
+  await notifyPurchaseGroup(
+    inserted.id,
+    profile?.name ?? "МОП",
+    `Награда: ${reward.title}\nЦена: ${effectivePrice} coins`
+  );
 
   revalidatePath("/mop");
   revalidatePath("/mop/shop");
@@ -101,7 +133,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance")
+    .select("name, balance")
     .eq("id", user.id)
     .single();
 
@@ -118,7 +150,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
 
   if (balanceError) return { error: "Ошибка списания баланса" };
 
-  const { error: purchaseError } = await admin
+  const { data: inserted, error: purchaseError } = await admin
     .from("purchase_requests")
     .insert({
       user_id: user.id,
@@ -126,7 +158,9 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
       price_coins: priceCoins,
       kzt_amount: kzt,
       status: "pending",
-    });
+    })
+    .select()
+    .single();
 
   if (purchaseError) return { error: "Ошибка создания заявки" };
 
@@ -137,6 +171,12 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     description: `Покупка: ${reward.title} — ${kzt.toLocaleString("ru-RU")} ₸`,
     created_by: user.id,
   });
+
+  await notifyPurchaseGroup(
+    inserted.id,
+    profile?.name ?? "МОП",
+    `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${priceCoins} coins`
+  );
 
   revalidatePath("/mop");
   revalidatePath("/mop/shop");
