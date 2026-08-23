@@ -7,7 +7,7 @@ export default async function BudgetPage() {
   const { data: topups } = await supabase
     .from("budget_topups")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("given_at", { ascending: false });
 
   const { data: expenses } = await supabase
     .from("purchase_requests")

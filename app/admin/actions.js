@@ -281,6 +281,7 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
 
   revalidatePath("/admin/purchase-requests");
   revalidatePath("/admin/budget");
+  revalidatePath("/admin");
   return { success: true };
 }
 

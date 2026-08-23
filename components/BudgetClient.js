@@ -7,6 +7,14 @@ function formatKzt(n) {
   return `${n.toLocaleString("ru-RU")} ₸`;
 }
 
+function formatDate(dateStr) {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("ru-RU");
+}
+
+function todayLocal() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
 export default function BudgetClient({ topups, expenses }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
@@ -103,6 +111,13 @@ export default function BudgetClient({ topups, expenses }) {
             className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-sm w-32"
           />
           <input
+            type="date"
+            name="given_at"
+            defaultValue={todayLocal()}
+            required
+            className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
             type="text"
             name="note"
             placeholder="Комментарий (необязательно)"
@@ -132,9 +147,7 @@ export default function BudgetClient({ topups, expenses }) {
               <div>
                 <p className="font-semibold">{formatKzt(t.amount_kzt)}</p>
                 {t.note && <p className="text-sm text-gray-500">{t.note}</p>}
-                <p className="text-xs text-gray-600">
-                  {new Date(t.created_at).toLocaleString("ru-RU")}
-                </p>
+                <p className="text-xs text-gray-600">{formatDate(t.given_at)}</p>
               </div>
               <button
                 onClick={() => handleDelete(t.id)}

@@ -47,6 +47,19 @@ export default async function AdminOverview({ searchParams }) {
   const totalSpent =
     spentPurchases?.reduce((sum, p) => sum + p.price_coins, 0) ?? 0;
 
+  const { data: topups } = await supabase
+    .from("budget_topups")
+    .select("amount_kzt");
+
+  const { data: budgetExpenses } = await supabase
+    .from("purchase_requests")
+    .select("actual_kzt_amount")
+    .not("actual_kzt_amount", "is", null);
+
+  const remainingBudget =
+    (topups?.reduce((sum, t) => sum + t.amount_kzt, 0) ?? 0) -
+    (budgetExpenses?.reduce((sum, e) => sum + e.actual_kzt_amount, 0) ?? 0);
+
   const { data: funds } = await supabase
     .from("funds")
     .select("id, title, status")
@@ -95,6 +108,20 @@ export default async function AdminOverview({ searchParams }) {
           </p>
         </div>
       </div>
+
+      <Link
+        href="/admin/budget"
+        className="block bg-dark-800 border border-dark-600 rounded-2xl p-4"
+      >
+        <p className="text-xs text-gray-500">Остаток бюджета на закуп</p>
+        <p
+          className={`text-2xl font-bold ${
+            remainingBudget < 0 ? "text-red-400" : "text-acid-400"
+          }`}
+        >
+          {remainingBudget.toLocaleString("ru-RU")} ₸
+        </p>
+      </Link>
 
       <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-2">
