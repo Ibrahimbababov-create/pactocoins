@@ -79,18 +79,20 @@ export default function PurchaseRequestsClient({ purchases }) {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                placeholder="₸ потрачено"
-                defaultValue={p.actual_kzt_amount ?? ""}
-                onBlur={(e) => {
-                  const raw = e.target.value;
-                  if (String(p.actual_kzt_amount ?? "") === raw) return;
-                  handleSpendSave(p.id, raw);
-                }}
-                className="w-24 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs"
-              />
+              {currentStatus !== "rejected" && (
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="₸ потрачено в магазине"
+                  defaultValue={p.actual_kzt_amount ?? ""}
+                  onBlur={(e) => {
+                    const raw = e.target.value;
+                    if (String(p.actual_kzt_amount ?? "") === raw) return;
+                    handleSpendSave(p.id, raw);
+                  }}
+                  className="w-36 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs"
+                />
+              )}
               <select
                 value={currentStatus}
                 disabled={isPending}

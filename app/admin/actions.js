@@ -268,14 +268,19 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
     });
   }
 
+  const update = { status: newStatus, updated_at: new Date().toISOString() };
+  // Отклонённая покупка не состоялась — реальных денег на неё не ушло.
+  if (newStatus === "rejected") update.actual_kzt_amount = null;
+
   const { error } = await admin
     .from("purchase_requests")
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .update(update)
     .eq("id", purchaseId);
 
   if (error) return { error: error.message };
 
   revalidatePath("/admin/purchase-requests");
+  revalidatePath("/admin/budget");
   return { success: true };
 }
 
