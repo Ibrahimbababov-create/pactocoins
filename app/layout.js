@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import TelegramInit from "@/components/TelegramInit";
 
@@ -24,6 +25,7 @@ export default function RootLayout({ children }) {
         />
         <TelegramInit />
         {children}
+        <Analytics />
       </body>
     </html>
   );
