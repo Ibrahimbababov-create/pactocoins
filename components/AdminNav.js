@@ -10,6 +10,7 @@ const items = [
   { href: "/admin/revenue-requests", label: "Заявки на выручку" },
   { href: "/admin/bonus-requests", label: "Бонусы" },
   { href: "/admin/purchase-requests", label: "Заявки на покупки" },
+  { href: "/admin/budget", label: "Бюджет" },
 ];
 
 export default function AdminNav() {

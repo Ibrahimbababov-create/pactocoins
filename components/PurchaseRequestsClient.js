@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { updatePurchaseStatus } from "@/app/admin/actions";
+import { updatePurchaseActualSpend } from "@/app/admin/budgetActions";
 
 const statuses = [
   { value: "pending", label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -18,6 +19,13 @@ export default function PurchaseRequestsClient({ purchases }) {
   function showMessage(text, type = "success") {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
+  }
+
+  function handleSpendSave(id, value) {
+    startTransition(async () => {
+      const res = await updatePurchaseActualSpend(id, value);
+      if (res?.error) showMessage(res.error, "error");
+    });
   }
 
   function handleChange(id, newStatus) {
@@ -70,18 +78,32 @@ export default function PurchaseRequestsClient({ purchases }) {
                 {new Date(p.created_at).toLocaleString("ru-RU")}
               </p>
             </div>
-            <select
-              value={currentStatus}
-              disabled={isPending}
-              onChange={(e) => handleChange(p.id, e.target.value)}
-              className={`text-xs rounded-full px-3 py-1.5 border-none ${meta?.color}`}
-            >
-              {statuses.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                placeholder="₸ потрачено"
+                defaultValue={p.actual_kzt_amount ?? ""}
+                onBlur={(e) => {
+                  const raw = e.target.value;
+                  if (String(p.actual_kzt_amount ?? "") === raw) return;
+                  handleSpendSave(p.id, raw);
+                }}
+                className="w-24 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs"
+              />
+              <select
+                value={currentStatus}
+                disabled={isPending}
+                onChange={(e) => handleChange(p.id, e.target.value)}
+                className={`text-xs rounded-full px-3 py-1.5 border-none ${meta?.color}`}
+              >
+                {statuses.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         );
       })}
