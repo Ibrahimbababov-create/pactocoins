@@ -23,9 +23,13 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name, coin_rate_multiplier")
+    .select("name, coin_rate_multiplier, is_guest")
     .eq("id", user.id)
     .single();
+
+  if (profile?.is_guest) {
+    return { error: "В гостевом режиме доступен только магазин" };
+  }
 
   // Это только оценка для отображения — итоговая сумма коинов
   // пересчитывается заново в момент одобрения (на случай если

@@ -14,6 +14,7 @@ export default async function BonusRequestsPage() {
     .select("id, name")
     .eq("role", "mop")
     .eq("is_active", true)
+    .eq("is_guest", false)
     .order("name");
 
   return (

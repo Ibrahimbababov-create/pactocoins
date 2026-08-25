@@ -16,6 +16,7 @@ export default async function AdminOverview({ searchParams }) {
     .select("*")
     .eq("role", "mop")
     .eq("is_active", true)
+    .eq("is_guest", false)
     .order("balance", { ascending: false });
 
   const { count: pendingRevenue } = await supabase

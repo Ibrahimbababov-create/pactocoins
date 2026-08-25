@@ -634,7 +634,8 @@ export async function resetAllStats() {
     .from("users")
     .update({ balance: 0, total_earned: 0, month_earned: 0, last_level_id: 1 })
     .eq("role", "mop")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .eq("is_guest", false);
 
   revalidatePath("/admin");
   revalidatePath("/admin/employees");

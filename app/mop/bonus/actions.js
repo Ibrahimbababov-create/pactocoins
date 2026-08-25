@@ -15,6 +15,15 @@ export async function submitBonusRequest(category, comment, customAmount) {
 
   if (!user) return { error: "Не авторизован" };
 
+  const { data: guestCheck } = await supabase
+    .from("users")
+    .select("is_guest")
+    .eq("id", user.id)
+    .single();
+  if (guestCheck?.is_guest) {
+    return { error: "В гостевом режиме доступен только магазин" };
+  }
+
   const meta = BONUS_CATEGORIES[category];
   if (!meta) return { error: "Неизвестная категория" };
 

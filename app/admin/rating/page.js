@@ -11,7 +11,8 @@ export default async function AdminRating() {
     .from("users")
     .select("id, name, total_earned")
     .eq("role", "mop")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .eq("is_guest", false);
 
   const userIds = users?.map((u) => u.id) ?? [];
 

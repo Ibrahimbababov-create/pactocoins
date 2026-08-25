@@ -10,6 +10,7 @@ export default async function ObserverOverview() {
         .select("*")
         .eq("role", "mop")
         .eq("is_active", true)
+        .eq("is_guest", false)
         .order("balance", { ascending: false }),
       supabase
         .from("revenue_requests")

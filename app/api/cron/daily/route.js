@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { processBirthdaysToday } from "@/lib/birthdayBonus";
+import { resetGuestAccount } from "@/lib/guestAccount";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { sendTelegramDocument } from "@/lib/telegramBot";
@@ -21,6 +22,7 @@ export async function GET(request) {
 
   const summary = {
     birthdays: [],
+    guestReset: false,
     weeklyReportSent: false,
     monthlyReportSent: false,
   };
@@ -29,6 +31,13 @@ export async function GET(request) {
     summary.birthdays = await processBirthdaysToday();
   } catch (err) {
     console.error("[cron] birthday check failed:", err);
+  }
+
+  try {
+    await resetGuestAccount();
+    summary.guestReset = true;
+  } catch (err) {
+    console.error("[cron] guest reset failed:", err);
   }
 
   const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;

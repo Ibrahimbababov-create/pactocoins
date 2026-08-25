@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { validateTelegramInitData, derivePassword } from "@/lib/telegram";
 
 export async function POST(request) {
-  const { initData } = await request.json();
+  const { initData, displayName } = await request.json();
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
   const tgUser = validateTelegramInitData(initData, botToken);
@@ -36,8 +36,14 @@ export async function POST(request) {
     password,
   });
 
-  // Первый вход этого пользователя — создаём аккаунт автоматически
+  // Первый вход этого пользователя.
   if (signInError) {
+    // Ещё не выбрали имя — просим клиент показать экран приветствия
+    // (гость / регистрация), аккаунт пока не создаём.
+    if (!displayName) {
+      return NextResponse.json({ needsOnboarding: true });
+    }
+
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
@@ -48,10 +54,7 @@ export async function POST(request) {
       return NextResponse.json({ error: createErr.message }, { status: 500 });
     }
 
-    const name =
-      [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") ||
-      tgUser.username ||
-      "МОП";
+    const name = displayName.trim().slice(0, 60) || "МОП";
 
     await admin.from("users").insert({
       id: created.user.id,

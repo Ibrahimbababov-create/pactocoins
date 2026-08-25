@@ -72,8 +72,12 @@ export default function PurchaseRequestsClient({ purchases }) {
               <p className="font-semibold">{p.rewards?.title}</p>
               <p className="text-sm text-gray-500">
                 {p.users?.name}
-                {p.users?.role === "observer" ? " (наблюдатель)" : ""} ·{" "}
-                {p.price_coins} coins
+                {p.users?.is_guest
+                  ? " (гость)"
+                  : p.users?.role === "observer"
+                  ? " (наблюдатель)"
+                  : ""}{" "}
+                · {p.price_coins} coins
                 {p.kzt_amount ? ` · ${p.kzt_amount.toLocaleString("ru-RU")} ₸` : ""}
               </p>
               <p className="text-xs text-gray-600">

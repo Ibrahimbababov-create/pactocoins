@@ -176,11 +176,23 @@ export default async function MopDashboard() {
 
       <BirthdayProfile birthday={profile?.birthday} />
 
-      {/* Заявка на выручку */}
-      <RevenueRequestForm />
+      {profile?.is_guest ? (
+        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+          <p className="text-sm text-gray-400">
+            👀 Гостевой режим — можно смотреть магазин и пробовать
+            покупки. Заявки на выручку и бонусы в демо-режиме
+            недоступны.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Заявка на выручку */}
+          <RevenueRequestForm />
 
-      {/* Заявка на бонус */}
-      <BonusRequestForm />
+          {/* Заявка на бонус */}
+          <BonusRequestForm />
+        </>
+      )}
 
       {/* Заявки в ожидании */}
       {hasPending && (
