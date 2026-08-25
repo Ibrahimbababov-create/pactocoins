@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
-import { currentMonthEndAlmaty } from "@/lib/timezone";
+import { getEffectivePrice } from "@/lib/rewardPricing";
 
 export async function POST(request) {
   const supabase = createClient();
@@ -13,42 +13,41 @@ export async function POST(request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const targetAmount = Number(body.targetAmount);
+  const rewardId = body.rewardId;
 
-  if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+  if (!rewardId) {
+    return NextResponse.json({ error: "Выбери награду" }, { status: 400 });
+  }
+
+  const { data: reward } = await supabase
+    .from("rewards")
+    .select("*")
+    .eq("id", rewardId)
+    .eq("is_active", true)
+    .single();
+
+  if (!reward || reward.is_variable) {
     return NextResponse.json(
-      { error: "Укажи целевую сумму больше нуля" },
+      { error: "Эту награду нельзя поставить целью" },
       { status: 400 }
     );
   }
 
-  const deadline = currentMonthEndAlmaty();
+  const { effectivePrice } = getEffectivePrice(reward);
 
+  // У человека в любой момент максимум одна активная цель — если
+  // уже есть, просто меняем её на новую награду, а не заводим вторую.
   const { data: existing } = await supabase
     .from("user_goals")
-    .select("*")
+    .select("id")
     .eq("user_id", user.id)
-    .eq("deadline", deadline)
+    .eq("status", "active")
     .maybeSingle();
-
-  if (existing?.status === "active") {
-    return NextResponse.json(
-      { error: "План на этот месяц уже активен" },
-      { status: 409 }
-    );
-  }
-
-  if (existing?.status === "achieved" && targetAmount <= existing.target_amount) {
-    return NextResponse.json(
-      { error: "Новая цель должна быть выше текущей" },
-      { status: 400 }
-    );
-  }
 
   const payload = {
     user_id: user.id,
-    target_amount: targetAmount,
-    deadline,
+    reward_id: rewardId,
+    target_amount: effectivePrice,
     status: "active",
     updated_at: new Date().toISOString(),
   };
@@ -58,9 +57,13 @@ export async function POST(request) {
         .from("user_goals")
         .update(payload)
         .eq("id", existing.id)
-        .select()
+        .select("*, rewards(title)")
         .single()
-    : await supabase.from("user_goals").insert(payload).select().single();
+    : await supabase
+        .from("user_goals")
+        .insert(payload)
+        .select("*, rewards(title)")
+        .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

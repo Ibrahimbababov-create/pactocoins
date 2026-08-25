@@ -261,23 +261,17 @@ export default function EmployeesClient({ users }) {
                     · всего {u.total_earned} · месяц {u.month_earned}
                   </p>
                   {u.goal ? (
-                    u.goal.status === "achieved" ? (
-                      <span className="inline-block mt-1.5 text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">
-                        ✅ План выполнен · {u.goal.target_amount}
-                      </span>
-                    ) : (
-                      <span className="inline-block mt-1.5 text-xs bg-acid-400/10 text-acid-400 px-2 py-0.5 rounded-full">
-                        🎯{" "}
-                        {Math.min(
-                          100,
-                          Math.round((u.balance / u.goal.target_amount) * 100)
-                        )}
-                        % из {u.goal.target_amount}
-                      </span>
-                    )
+                    <span className="inline-block mt-1.5 text-xs bg-acid-400/10 text-acid-400 px-2 py-0.5 rounded-full">
+                      🎯 {u.goal.rewards?.title ?? "награда"} ·{" "}
+                      {Math.min(
+                        100,
+                        Math.round((u.balance / u.goal.target_amount) * 100)
+                      )}
+                      % из {u.goal.target_amount}
+                    </span>
                   ) : (
                     <span className="inline-block mt-1.5 text-xs bg-dark-700 text-gray-500 px-2 py-0.5 rounded-full">
-                      Плана на месяц нет
+                      Цели нет
                     </span>
                   )}
                 </div>

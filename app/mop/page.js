@@ -7,7 +7,7 @@ import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { LEVELS, getLevelForAmount } from "@/lib/levels";
-import { currentMonthEndAlmaty } from "@/lib/timezone";
+import { getEffectivePrice } from "@/lib/rewardPricing";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -38,27 +38,36 @@ export default async function MopDashboard() {
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
 
-  const goalDeadline = currentMonthEndAlmaty();
   const { data: fetchedGoal } = await supabase
     .from("user_goals")
-    .select("*")
+    .select("*, rewards(title)")
     .eq("user_id", user.id)
-    .eq("deadline", goalDeadline)
+    .eq("status", "active")
     .maybeSingle();
 
   let currentGoal = fetchedGoal;
-  if (
-    currentGoal?.status === "active" &&
-    (profile?.balance ?? 0) >= currentGoal.target_amount
-  ) {
+  if (currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
     const { data: achievedGoal } = await supabase
       .from("user_goals")
       .update({ status: "achieved", updated_at: new Date().toISOString() })
       .eq("id", currentGoal.id)
-      .select()
+      .select("*, rewards(title)")
       .single();
     if (achievedGoal) currentGoal = achievedGoal;
   }
+
+  const { data: goalRewardOptions } = await supabase
+    .from("rewards")
+    .select("id, title, price_coins, sale_price_coins, sale_ends_at")
+    .eq("is_active", true)
+    .eq("is_variable", false)
+    .order("price_coins");
+
+  const goalRewards = (goalRewardOptions ?? []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    effectivePrice: getEffectivePrice(r).effectivePrice,
+  }));
 
   const { data: flashSaleRewards } = await supabase
     .from("rewards")
@@ -127,7 +136,11 @@ export default async function MopDashboard() {
         </div>
       </div>
 
-      <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
+      <GoalWidget
+        goal={currentGoal}
+        balance={profile?.balance ?? 0}
+        rewards={goalRewards}
+      />
 
       <Link
         href="/levels"

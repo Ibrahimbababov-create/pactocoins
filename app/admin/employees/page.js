@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
 import EmployeesClient from "@/components/EmployeesClient";
-import { currentMonthEndAlmaty } from "@/lib/timezone";
 
 export default async function EmployeesPage() {
   const supabase = createClient();
@@ -14,8 +13,8 @@ export default async function EmployeesPage() {
 
   const { data: goals } = await supabase
     .from("user_goals")
-    .select("*")
-    .eq("deadline", currentMonthEndAlmaty());
+    .select("*, rewards(title)")
+    .eq("status", "active");
 
   const goalByUser = Object.fromEntries(
     (goals ?? []).map((g) => [g.user_id, g])
