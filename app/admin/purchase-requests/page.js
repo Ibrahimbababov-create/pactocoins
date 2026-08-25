@@ -6,7 +6,7 @@ export default async function PurchaseRequestsPage() {
 
   const { data: purchases } = await supabase
     .from("purchase_requests")
-    .select("*, users(name, email), rewards(title, category)")
+    .select("*, users(name, email, role), rewards(title, category)")
     .order("created_at", { ascending: false });
 
   const { data: topups } = await supabase

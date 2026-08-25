@@ -100,6 +100,8 @@ export async function purchaseReward(rewardId) {
   revalidatePath("/mop");
   revalidatePath("/mop/shop");
   revalidatePath("/mop/purchases");
+  revalidatePath("/observer");
+  revalidatePath("/observer/shop");
 
   return { success: true };
 }
@@ -181,6 +183,8 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
   revalidatePath("/mop");
   revalidatePath("/mop/shop");
   revalidatePath("/mop/purchases");
+  revalidatePath("/observer");
+  revalidatePath("/observer/shop");
 
   return { success: true, priceCoins };
 }
