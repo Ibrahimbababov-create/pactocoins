@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso } from "@/lib/timezone";
 import { calculateRevenueCoins } from "@/lib/coinRate";
+import { uploadPhoto } from "@/lib/uploadPhoto";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -319,6 +320,13 @@ export async function createReward(formData) {
   const sale = parseSale(formData);
   if (sale.error) return { error: sale.error };
 
+  const { url: imageUrl, error: photoError } = await uploadPhoto(
+    admin,
+    "reward-photos",
+    formData.get("photo")
+  );
+  if (photoError) return { error: photoError };
+
   const { error } = await admin.from("rewards").insert({
     title: formData.get("title"),
     category: formData.get("category"),
@@ -331,6 +339,7 @@ export async function createReward(formData) {
     description: formData.get("description"),
     sort_order: Number(formData.get("sort_order")) || 0,
     highlight_color: formData.get("highlight_color") || null,
+    image_url: imageUrl,
     is_active: true,
   });
 
@@ -376,21 +385,32 @@ export async function updateReward(rewardId, formData) {
   const sale = parseSale(formData);
   if (sale.error) return { error: sale.error };
 
+  const { url: imageUrl, error: photoError } = await uploadPhoto(
+    admin,
+    "reward-photos",
+    formData.get("photo")
+  );
+  if (photoError) return { error: photoError };
+
+  const update = {
+    title: formData.get("title"),
+    category: formData.get("category"),
+    price_coins: isVariable ? null : priceCoins,
+    is_variable: isVariable,
+    rate_coins: isVariable ? rateCoins : null,
+    rate_kzt: isVariable ? rateKzt : null,
+    sale_price_coins: sale.sale_price_coins,
+    sale_ends_at: sale.sale_ends_at,
+    description: formData.get("description"),
+    sort_order: Number(formData.get("sort_order")) || 0,
+    highlight_color: formData.get("highlight_color") || null,
+  };
+  // Новое фото загрузили — заменяем. Не выбрали — оставляем старое.
+  if (imageUrl) update.image_url = imageUrl;
+
   const { error } = await admin
     .from("rewards")
-    .update({
-      title: formData.get("title"),
-      category: formData.get("category"),
-      price_coins: isVariable ? null : priceCoins,
-      is_variable: isVariable,
-      rate_coins: isVariable ? rateCoins : null,
-      rate_kzt: isVariable ? rateKzt : null,
-      sale_price_coins: sale.sale_price_coins,
-      sale_ends_at: sale.sale_ends_at,
-      description: formData.get("description"),
-      sort_order: Number(formData.get("sort_order")) || 0,
-      highlight_color: formData.get("highlight_color") || null,
-    })
+    .update(update)
     .eq("id", rewardId);
 
   if (error) return { error: error.message };

@@ -57,12 +57,12 @@ export async function POST(request) {
         .from("user_goals")
         .update(payload)
         .eq("id", existing.id)
-        .select("*, rewards(title)")
+        .select("*, rewards(title, image_url)")
         .single()
     : await supabase
         .from("user_goals")
         .insert(payload)
-        .select("*, rewards(title)")
+        .select("*, rewards(title, image_url)")
         .single();
 
   if (error) {

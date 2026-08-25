@@ -207,6 +207,13 @@ export default function ShopClient({ grouped, balance }) {
                   }
                 >
                   <div>
+                    {reward.image_url && (
+                      <img
+                        src={reward.image_url}
+                        alt=""
+                        className="w-full h-24 object-cover rounded-lg mb-2"
+                      />
+                    )}
                     <p className="font-semibold text-sm leading-tight">
                       {reward.title}
                     </p>

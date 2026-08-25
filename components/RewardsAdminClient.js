@@ -22,6 +22,64 @@ const GLOW_STYLES = {
   red: "0 0 24px rgba(248, 113, 113, 0.55)",
 };
 
+// Сжимаем/уменьшаем фото на клиенте перед отправкой — награды могут
+// грузить фото прямо с телефона, а это легко 5-10 МБ на файл.
+function compressImage(file, maxSize = 1000, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Не удалось обработать фото"));
+            return;
+          }
+          resolve(
+            new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
+              type: "image/jpeg",
+            })
+          );
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function handlePhotoChange(e) {
+  const input = e.target;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    const compressed = await compressImage(file);
+    const dt = new DataTransfer();
+    dt.items.add(compressed);
+    input.files = dt.files;
+  } catch {
+    // Не получилось сжать — отправляем как есть, сервер всё равно проверит размер
+  }
+}
+
 function toAlmatyDatetimeLocal(isoString) {
   if (!isoString) return "";
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -219,6 +277,16 @@ export default function RewardsAdminClient({ rewards, categories }) {
             placeholder="Описание (необязательно)"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
           />
+          <label className="block space-y-1">
+            <span className="text-xs text-gray-500">Фото (необязательно)</span>
+            <input
+              name="photo"
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="w-full text-sm text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-dark-700 file:text-white file:text-sm"
+            />
+          </label>
           <button
             type="submit"
             disabled={isPending}
@@ -347,6 +415,27 @@ export default function RewardsAdminClient({ rewards, categories }) {
                   defaultValue={r.description}
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 />
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">
+                    {r.image_url ? "Заменить фото" : "Фото (необязательно)"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {r.image_url && (
+                      <img
+                        src={r.image_url}
+                        alt=""
+                        className="w-10 h-10 rounded-lg object-cover shrink-0"
+                      />
+                    )}
+                    <input
+                      name="photo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="w-full text-sm text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-dark-700 file:text-white file:text-sm"
+                    />
+                  </div>
+                </label>
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -365,7 +454,15 @@ export default function RewardsAdminClient({ rewards, categories }) {
               </form>
             ) : (
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex items-center gap-3 min-w-0">
+                  {r.image_url && (
+                    <img
+                      src={r.image_url}
+                      alt=""
+                      className="w-10 h-10 rounded-lg object-cover shrink-0"
+                    />
+                  )}
+                  <div className="min-w-0">
                   <p className="font-semibold">
                     {r.title}{" "}
                     {!r.is_active && (
@@ -398,6 +495,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
                         " (уже закончилась)"}
                     </p>
                   )}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button

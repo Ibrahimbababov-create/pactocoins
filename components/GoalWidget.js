@@ -168,7 +168,16 @@ export default function GoalWidget({ goal: initialGoal, balance, rewards }) {
         <p className="text-sm font-bold">
           {achieved ? "Цель достигнута!" : "Копишь на"}
         </p>
-        <p className="text-sm text-gray-300 truncate mt-0.5">{rewardTitle}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          {goal.rewards?.image_url && (
+            <img
+              src={goal.rewards.image_url}
+              alt=""
+              className="w-8 h-8 rounded-lg object-cover shrink-0"
+            />
+          )}
+          <p className="text-sm text-gray-300 truncate">{rewardTitle}</p>
+        </div>
         <p className="text-xs text-gray-500 mt-1">
           {goal.target_amount.toLocaleString("ru-RU")} coins
         </p>

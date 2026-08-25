@@ -40,7 +40,7 @@ export default async function MopDashboard() {
 
   const { data: fetchedGoal } = await supabase
     .from("user_goals")
-    .select("*, rewards(title)")
+    .select("*, rewards(title, image_url)")
     .eq("user_id", user.id)
     .eq("status", "active")
     .maybeSingle();
@@ -51,7 +51,7 @@ export default async function MopDashboard() {
       .from("user_goals")
       .update({ status: "achieved", updated_at: new Date().toISOString() })
       .eq("id", currentGoal.id)
-      .select("*, rewards(title)")
+      .select("*, rewards(title, image_url)")
       .single();
     if (achievedGoal) currentGoal = achievedGoal;
   }
