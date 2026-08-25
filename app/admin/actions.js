@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso } from "@/lib/timezone";
+import { calculateRevenueCoins } from "@/lib/coinRate";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -83,10 +84,16 @@ export async function updateMop(userId, formData) {
   const name = formData.get("name");
   const role = formData.get("role");
   const birthday = formData.get("birthday") || null;
+  const multiplierRaw = formData.get("coin_rate_multiplier");
+  const multiplier = multiplierRaw ? Number(multiplierRaw) : 1;
+
+  if (!multiplier || multiplier <= 0) {
+    return { error: "Множитель коинов должен быть больше нуля" };
+  }
 
   const { error } = await admin
     .from("users")
-    .update({ name, role, birthday })
+    .update({ name, role, birthday, coin_rate_multiplier: multiplier })
     .eq("id", userId);
 
   if (error) return { error: error.message };
@@ -155,11 +162,17 @@ export async function approveRevenueRequest(requestId, earnedAtDate) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance, total_earned, month_earned")
+    .select("balance, total_earned, month_earned, coin_rate_multiplier")
     .eq("id", request.user_id)
     .single();
 
-  const coins = request.calculated_coins;
+  // Пересчитываем на моменте одобрения (не берём calculated_coins
+  // как есть) — так множитель тимлида всегда актуальный, даже если
+  // его поменяли уже после того, как заявка была подана.
+  const coins = calculateRevenueCoins(
+    request.amount_kzt,
+    profile.coin_rate_multiplier
+  );
 
   const { error: updateUserError } = await admin
     .from("users")

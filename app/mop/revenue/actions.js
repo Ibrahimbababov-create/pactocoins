@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { sendTelegramMessage } from "@/lib/telegramBot";
+import { calculateRevenueCoins } from "@/lib/coinRate";
 
 export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed) {
   const supabase = createClient();
@@ -20,13 +21,16 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
     return { error: "Подтверди, что отправил чек в группу" };
   }
 
-  const coins = Math.floor(amountKzt / 1000);
-
   const { data: profile } = await supabase
     .from("users")
-    .select("name")
+    .select("name, coin_rate_multiplier")
     .eq("id", user.id)
     .single();
+
+  // Это только оценка для отображения — итоговая сумма коинов
+  // пересчитывается заново в момент одобрения (на случай если
+  // множитель поменяется, пока заявка висит на рассмотрении).
+  const coins = calculateRevenueCoins(amountKzt, profile?.coin_rate_multiplier);
 
   const { data: inserted, error } = await supabase
     .from("revenue_requests")

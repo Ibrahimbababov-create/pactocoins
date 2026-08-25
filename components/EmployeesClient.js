@@ -158,6 +158,7 @@ export default function EmployeesClient({ users }) {
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
           >
             <option value="mop">МОП</option>
+            <option value="rop">РОП</option>
             <option value="admin">Админ</option>
             <option value="observer">Наблюдатель</option>
           </select>
@@ -193,9 +194,23 @@ export default function EmployeesClient({ users }) {
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 >
                   <option value="mop">МОП</option>
+                  <option value="rop">РОП</option>
                   <option value="admin">Админ</option>
                   <option value="observer">Наблюдатель</option>
                 </select>
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">
+                    Множитель коинов (для тимлидов, 1 — обычный МОП)
+                  </span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    name="coin_rate_multiplier"
+                    defaultValue={u.coin_rate_multiplier ?? 1}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </label>
                 <label className="block space-y-1">
                   <span className="text-xs text-gray-500">
                     День рождения
@@ -229,7 +244,10 @@ export default function EmployeesClient({ users }) {
                   <p className="font-semibold">
                     {u.name}{" "}
                     <span className="text-xs text-gray-500">
-                      ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : "МОП"})
+                      ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : u.role === "rop" ? "РОП" : "МОП"})
+                      {Number(u.coin_rate_multiplier) !== 1 && (
+                        <span className="text-acid-400"> · x{u.coin_rate_multiplier}</span>
+                      )}
                     </span>
                     {!u.is_active && (
                       <span className="ml-2 text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full">

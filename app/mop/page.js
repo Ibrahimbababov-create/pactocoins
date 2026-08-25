@@ -89,6 +89,16 @@ export default async function MopDashboard() {
         <h1 className="text-2xl font-bold">PactoCoins</h1>
       </div>
 
+      {profile?.role === "rop" && (
+        <div className="bg-gradient-to-br from-purple-500/10 to-dark-800 border border-purple-500/30 rounded-2xl p-4">
+          <p className="font-bold text-purple-300">🚀 Для РОПов скоро новинка</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Мы готовим отдельную функцию под вашу должность. Пока всё
+            работает как у МОПа — выручка, бонусы, магазин.
+          </p>
+        </div>
+      )}
+
       {flashSaleRewards?.map((reward) => (
         <FlashSaleCard
           key={reward.id}
