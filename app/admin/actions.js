@@ -600,7 +600,8 @@ export async function resetAllStats() {
   await admin
     .from("users")
     .update({ balance: 0, total_earned: 0, month_earned: 0, last_level_id: 1 })
-    .eq("role", "mop");
+    .eq("role", "mop")
+    .eq("is_active", true);
 
   revalidatePath("/admin");
   revalidatePath("/admin/employees");
@@ -642,51 +643,76 @@ export async function resetUserStats(userId) {
 
 // ---------- Удаление сотрудника ----------
 
-export async function deleteEmployee(userId) {
+// Увольнение: история (заявки, транзакции, сообщения) НЕ удаляется —
+// только обнуляем баланс (одной видимой транзакцией, чтобы было понятно
+// куда делись коины) и прячем человека из активных списков/рейтинга.
+// Раньше эта функция физически удаляла аккаунт и каскадом сносила всю
+// историю — из-за этого нельзя было потом посмотреть, кто сколько
+// заработал до увольнения.
+export async function offboardEmployee(userId) {
   const admin_user = await requireAdmin();
   if (userId === admin_user.id) {
-    return { error: "Нельзя удалить самого себя" };
+    return { error: "Нельзя уволить самого себя" };
   }
 
   const admin = createAdminClient();
 
-  // Снимаем ссылки там, где это чужие записи (например, этот
-  // человек как админ когда-то подтверждал чужую заявку) —
-  // сами записи не трогаем, просто убираем ссылку на удаляемого.
-  await admin
-    .from("revenue_requests")
-    .update({ reviewed_by: null })
-    .eq("reviewed_by", userId);
-  await admin
-    .from("bonus_requests")
-    .update({ reviewed_by: null })
-    .eq("reviewed_by", userId);
-  await admin
-    .from("transactions")
-    .update({ created_by: null })
-    .eq("created_by", userId);
+  const { data: profile } = await admin
+    .from("users")
+    .select("balance")
+    .eq("id", userId)
+    .single();
 
-  // Удаляем всё, что принадлежит самому этому человеку.
-  await admin.from("transactions").delete().eq("user_id", userId);
-  await admin.from("revenue_requests").delete().eq("user_id", userId);
-  await admin.from("bonus_requests").delete().eq("user_id", userId);
-  await admin.from("purchase_requests").delete().eq("user_id", userId);
-  await admin.from("anonymous_messages").delete().eq("sender_id", userId);
-  await admin
-    .from("messages")
-    .delete()
-    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+  if (!profile) return { error: "Сотрудник не найден" };
 
-  // Удаление аккаунта входа каскадом удалит и строку в public.users.
-  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (profile.balance > 0) {
+    await admin.from("transactions").insert({
+      user_id: userId,
+      type: "manual_subtract",
+      amount_coins: -profile.balance,
+      description: "Списание при увольнении",
+      rating_exempt: true,
+    });
+  }
+
+  const { error } = await admin
+    .from("users")
+    .update({ balance: 0, is_active: false })
+    .eq("id", userId);
+
   if (error) return { error: error.message };
 
   revalidatePath("/admin");
   revalidatePath("/admin/employees");
-  revalidatePath("/admin/revenue-requests");
-  revalidatePath("/admin/bonus-requests");
-  revalidatePath("/admin/purchase-requests");
+  revalidatePath("/admin/rating");
   revalidatePath("/mop/rating");
+  revalidatePath("/observer");
+  revalidatePath("/observer/rating");
+
+  return { success: true };
+}
+
+// Отмена увольнения — возвращает в активные списки/рейтинг.
+// Баланс, списанный при увольнении, сознательно не восстанавливается
+// (это было бы неожиданным начислением) — при необходимости админ
+// может начислить заново через "Баланс" в карточке сотрудника.
+export async function reinstateEmployee(userId) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("users")
+    .update({ is_active: true })
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/rating");
+  revalidatePath("/mop/rating");
+  revalidatePath("/observer");
+  revalidatePath("/observer/rating");
 
   return { success: true };
 }

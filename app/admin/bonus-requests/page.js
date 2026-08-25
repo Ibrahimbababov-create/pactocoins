@@ -13,6 +13,7 @@ export default async function BonusRequestsPage() {
     .from("users")
     .select("id, name")
     .eq("role", "mop")
+    .eq("is_active", true)
     .order("name");
 
   return (

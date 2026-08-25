@@ -8,6 +8,7 @@ export default async function EmployeesPage() {
   const { data: users } = await supabase
     .from("users")
     .select("*")
+    .order("is_active", { ascending: false })
     .order("role", { ascending: false })
     .order("name");
 

@@ -10,7 +10,8 @@ export default async function RatingPage() {
   const { data: users } = await supabase
     .from("users")
     .select("id, name, total_earned")
-    .eq("role", "mop");
+    .eq("role", "mop")
+    .eq("is_active", true);
 
   const userIds = users?.map((u) => u.id) ?? [];
 

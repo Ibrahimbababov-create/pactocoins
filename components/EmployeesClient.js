@@ -7,7 +7,8 @@ import {
   updateMop,
   manualAdjustBalance,
   resetUserStats,
-  deleteEmployee,
+  offboardEmployee,
+  reinstateEmployee,
 } from "@/app/admin/actions";
 
 export default function EmployeesClient({ users }) {
@@ -75,21 +76,24 @@ export default function EmployeesClient({ users }) {
     });
   }
 
-  function handleDelete(userId, name) {
+  function handleOffboard(userId, name) {
     const confirmed = window.confirm(
-      `Удалить ${name} насовсем? Он потеряет доступ к сайту, вся его история, сообщения и заявки будут удалены. Отменить нельзя.`
+      `Уволить ${name}? Баланс обнулится, он пропадёт из рейтинга и списка активных. История (заявки, транзакции) сохранится — при необходимости можно восстановить.`
     );
     if (!confirmed) return;
 
-    const doubleConfirmed = window.confirm(
-      `Точно-точно? Это последнее подтверждение — ${name} будет удалён без возможности восстановить.`
-    );
-    if (!doubleConfirmed) return;
-
     startTransition(async () => {
-      const res = await deleteEmployee(userId);
+      const res = await offboardEmployee(userId);
       if (res.error) showMessage(res.error, "error");
-      else showMessage(`${name} удалён`);
+      else showMessage(`${name} уволен`);
+    });
+  }
+
+  function handleReinstate(userId, name) {
+    startTransition(async () => {
+      const res = await reinstateEmployee(userId);
+      if (res.error) showMessage(res.error, "error");
+      else showMessage(`${name} восстановлен`);
     });
   }
 
@@ -227,6 +231,11 @@ export default function EmployeesClient({ users }) {
                     <span className="text-xs text-gray-500">
                       ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : "МОП"})
                     </span>
+                    {!u.is_active && (
+                      <span className="ml-2 text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full">
+                        уволен
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-gray-500">{u.email}</p>
                   <p className="text-xs text-gray-500 mt-1">
@@ -282,13 +291,23 @@ export default function EmployeesClient({ users }) {
                   >
                     Сбросить
                   </button>
-                  <button
-                    onClick={() => handleDelete(u.id, u.name)}
-                    disabled={isPending}
-                    className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5"
-                  >
-                    Удалить
-                  </button>
+                  {u.is_active ? (
+                    <button
+                      onClick={() => handleOffboard(u.id, u.name)}
+                      disabled={isPending}
+                      className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5"
+                    >
+                      Уволить
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleReinstate(u.id, u.name)}
+                      disabled={isPending}
+                      className="text-xs bg-acid-400/10 text-acid-400 rounded-lg px-3 py-1.5"
+                    >
+                      Восстановить
+                    </button>
+                  )}
                 </div>
               </div>
             )}
