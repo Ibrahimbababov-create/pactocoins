@@ -29,6 +29,10 @@ export default function LoginPage() {
   const [onboardingError, setOnboardingError] = useState("");
   const [onboardingLoading, setOnboardingLoading] = useState(false);
 
+  // Заявка на регистрацию отправлена и ждёт, пока админ подтвердит
+  // её в Telegram — своего аккаунта у человека пока нет.
+  const [pendingRequest, setPendingRequest] = useState(false);
+
   function doTelegramLogin(initData, displayName) {
     setDebug("initData найден, отправляем на сервер (XHR)...");
 
@@ -41,6 +45,14 @@ export default function LoginPage() {
       if (cancelledRef.current) return;
       try {
         const data = JSON.parse(xhr.responseText);
+
+        if (data.pending) {
+          setNeedsOnboarding(false);
+          setPendingRequest(true);
+          setCheckingTelegram(false);
+          setOnboardingLoading(false);
+          return;
+        }
 
         if (data.needsOnboarding) {
           setPendingInitData(initData);
@@ -203,6 +215,21 @@ export default function LoginPage() {
     );
   }
 
+  if (pendingRequest) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-dark-900">
+        <div className="w-full max-w-sm text-center">
+          <p className="text-5xl mb-4">⏳</p>
+          <h1 className="text-2xl font-bold mb-2">Заявка отправлена</h1>
+          <p className="text-gray-500 text-sm">
+            Админ уже получил уведомление и скоро подтвердит регистрацию.
+            Как только это произойдёт — просто открой приложение заново.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (needsOnboarding) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-dark-900">
@@ -243,7 +270,7 @@ export default function LoginPage() {
               >
                 <p className="font-bold">✅ Зарегистрироваться</p>
                 <p className="text-xs mt-1 opacity-70">
-                  Через Telegram, займёт 10 секунд
+                  Заявка админу, обычно быстро
                 </p>
               </button>
             </div>
@@ -271,7 +298,7 @@ export default function LoginPage() {
                 disabled={onboardingLoading}
                 className="w-full bg-acid-400 text-black font-bold rounded-lg py-3 hover:bg-acid-500 transition disabled:opacity-50"
               >
-                {onboardingLoading ? "..." : "Продолжить"}
+                {onboardingLoading ? "..." : "Отправить заявку"}
               </button>
               <button
                 type="button"
