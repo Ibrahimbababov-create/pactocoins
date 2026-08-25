@@ -5,6 +5,11 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { validateTelegramInitData, derivePassword } from "@/lib/telegram";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 
+// Отдельная группа/топик, куда падают заявки на регистрацию новых
+// аккаунтов — не то же самое, что общая группа заявок на выручку.
+const JOIN_REQUEST_CHAT_ID = -1004323139236;
+const JOIN_REQUEST_THREAD_ID = 99;
+
 export async function POST(request) {
   const { initData, displayName } = await request.json();
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -74,28 +79,21 @@ export async function POST(request) {
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
-    const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
-    if (groupChatId) {
-      const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID
-        ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)
-        : undefined;
-
-      await sendTelegramMessage(
-        groupChatId,
-        `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${name}</b>\nTelegram: ${
-          tgUser.username ? `@${tgUser.username}` : `id ${tgUser.id}`
-        }`,
-        {
-          inline_keyboard: [
-            [
-              { text: "✅ Принять", callback_data: `approve_join:${joinRequest.id}` },
-              { text: "❌ Отклонить", callback_data: `reject_join:${joinRequest.id}` },
-            ],
+    await sendTelegramMessage(
+      JOIN_REQUEST_CHAT_ID,
+      `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${name}</b>\nTelegram: ${
+        tgUser.username ? `@${tgUser.username}` : `id ${tgUser.id}`
+      }`,
+      {
+        inline_keyboard: [
+          [
+            { text: "✅ Принять", callback_data: `approve_join:${joinRequest.id}` },
+            { text: "❌ Отклонить", callback_data: `reject_join:${joinRequest.id}` },
           ],
-        },
-        threadId
-      );
-    }
+        ],
+      },
+      JOIN_REQUEST_THREAD_ID
+    );
 
     // Аккаунта пока нет — сессию не открываем, просто сообщаем что
     // заявка ушла на рассмотрение.
