@@ -6,7 +6,7 @@ export default async function RevenueRequestsPage() {
 
   const { data: requests } = await supabase
     .from("revenue_requests")
-    .select("*, users!revenue_requests_user_id_fkey(name, email)")
+    .select("*, users!revenue_requests_user_id_fkey(name, email, is_guest)")
     .order("created_at", { ascending: false });
 
   return (

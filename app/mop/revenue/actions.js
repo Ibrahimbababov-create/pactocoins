@@ -27,10 +27,6 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
     .eq("id", user.id)
     .single();
 
-  if (profile?.is_guest) {
-    return { error: "В гостевом режиме доступен только магазин" };
-  }
-
   // Это только оценка для отображения — итоговая сумма коинов
   // пересчитывается заново в момент одобрения (на случай если
   // множитель поменяется, пока заявка висит на рассмотрении).

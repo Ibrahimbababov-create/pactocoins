@@ -6,7 +6,6 @@ import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
-import { LEVELS, getLevelForAmount } from "@/lib/levels";
 import { getEffectivePrice } from "@/lib/rewardPricing";
 
 export default async function MopDashboard() {
@@ -77,20 +76,6 @@ export default async function MopDashboard() {
     .not("sale_ends_at", "is", null)
     .gt("sale_ends_at", new Date().toISOString());
 
-  const totalEarned = profile?.total_earned ?? 0;
-  const currentLevel = getLevelForAmount(totalEarned);
-  const nextLevel = LEVELS.find((l) => l.id === currentLevel.id + 1);
-  const levelProgressPct = nextLevel
-    ? Math.min(
-        100,
-        Math.round(
-          ((totalEarned - currentLevel.min) /
-            (nextLevel.min - currentLevel.min)) *
-            100
-        )
-      )
-    : 100;
-
   return (
     <div className="space-y-6">
       <div>
@@ -142,57 +127,22 @@ export default async function MopDashboard() {
         rewards={goalRewards}
       />
 
-      <Link
-        href="/levels"
-        className="block bg-dark-800 border border-dark-600 rounded-2xl p-4"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{currentLevel.icon}</span>
-            <div>
-              <p className="font-bold">{currentLevel.name}</p>
-              {nextLevel ? (
-                <p className="text-xs text-gray-500">
-                  до {nextLevel.icon} {nextLevel.name}: ещё{" "}
-                  {(nextLevel.min - totalEarned).toLocaleString("ru-RU")}{" "}
-                  coins
-                </p>
-              ) : (
-                <p className="text-xs text-gray-500">Максимальное звание!</p>
-              )}
-            </div>
-          </div>
-          <span className="text-gray-500 text-sm">→</span>
-        </div>
-        {nextLevel && (
-          <div className="w-full bg-dark-700 rounded-full h-2 overflow-hidden mt-3">
-            <div
-              className="bg-acid-400 h-full transition-all"
-              style={{ width: `${levelProgressPct}%` }}
-            />
-          </div>
-        )}
-      </Link>
-
       <BirthdayProfile birthday={profile?.birthday} />
 
-      {profile?.is_guest ? (
+      {profile?.is_guest && (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
           <p className="text-sm text-gray-400">
-            👀 Гостевой режим — можно смотреть магазин и пробовать
-            покупки. Заявки на выручку и бонусы в демо-режиме
-            недоступны.
+            👀 Гостевой режим — это общий демо-аккаунт, баланс и заявки
+            сбрасываются каждую ночь.
           </p>
         </div>
-      ) : (
-        <>
-          {/* Заявка на выручку */}
-          <RevenueRequestForm />
-
-          {/* Заявка на бонус */}
-          <BonusRequestForm />
-        </>
       )}
+
+      {/* Заявка на выручку */}
+      <RevenueRequestForm />
+
+      {/* Заявка на бонус */}
+      <BonusRequestForm />
 
       {/* Заявки в ожидании */}
       {hasPending && (

@@ -6,7 +6,7 @@ export default async function BonusRequestsPage() {
 
   const { data: requests } = await supabase
     .from("bonus_requests")
-    .select("*, users!bonus_requests_user_id_fkey(name, email)")
+    .select("*, users!bonus_requests_user_id_fkey(name, email, is_guest)")
     .order("created_at", { ascending: false });
 
   const { data: employees } = await supabase

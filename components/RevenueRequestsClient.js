@@ -183,7 +183,12 @@ export default function RevenueRequestsClient({ requests }) {
 
             <div className="flex-1 flex items-center justify-between gap-4">
               <div>
-                <p className="font-semibold">{r.users?.name}</p>
+                <p className="font-semibold">
+                  {r.users?.name}
+                  {r.users?.is_guest && (
+                    <span className="text-xs text-gray-500 font-normal"> (гость)</span>
+                  )}
+                </p>
                 <p className="text-sm">
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ →{" "}
                   <span className="text-acid-400 font-bold">
@@ -269,7 +274,12 @@ export default function RevenueRequestsClient({ requests }) {
               className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
             >
               <div>
-                <p className="font-semibold">{r.users?.name}</p>
+                <p className="font-semibold">
+                  {r.users?.name}
+                  {r.users?.is_guest && (
+                    <span className="text-xs text-gray-500 font-normal"> (гость)</span>
+                  )}
+                </p>
                 <p className="text-sm text-gray-500">
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ ·{" "}
                   {r.calculated_coins} coins
