@@ -14,35 +14,50 @@ export default async function MopDashboard() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  const { data: pendingRevenue } = await supabase
-    .from("revenue_requests")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
-
-  const { data: pendingBonus } = await supabase
-    .from("bonus_requests")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
+  const [
+    { data: profile },
+    { data: pendingRevenue },
+    { data: pendingBonus },
+    { data: fetchedGoal },
+    { data: goalRewardOptions },
+    { data: flashSaleRewards },
+  ] = await Promise.all([
+    supabase.from("users").select("*").eq("id", user.id).single(),
+    supabase
+      .from("revenue_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("bonus_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("user_goals")
+      .select("*, rewards(title, image_url)")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle(),
+    supabase
+      .from("rewards")
+      .select("id, title, price_coins, sale_price_coins, sale_ends_at")
+      .eq("is_active", true)
+      .eq("is_variable", false)
+      .order("price_coins"),
+    supabase
+      .from("rewards")
+      .select("*")
+      .eq("is_active", true)
+      .not("sale_price_coins", "is", null)
+      .not("sale_ends_at", "is", null)
+      .gt("sale_ends_at", new Date().toISOString()),
+  ]);
 
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
-
-  const { data: fetchedGoal } = await supabase
-    .from("user_goals")
-    .select("*, rewards(title, image_url)")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .maybeSingle();
 
   let currentGoal = fetchedGoal;
   if (currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
@@ -55,26 +70,11 @@ export default async function MopDashboard() {
     if (achievedGoal) currentGoal = achievedGoal;
   }
 
-  const { data: goalRewardOptions } = await supabase
-    .from("rewards")
-    .select("id, title, price_coins, sale_price_coins, sale_ends_at")
-    .eq("is_active", true)
-    .eq("is_variable", false)
-    .order("price_coins");
-
   const goalRewards = (goalRewardOptions ?? []).map((r) => ({
     id: r.id,
     title: r.title,
     effectivePrice: getEffectivePrice(r).effectivePrice,
   }));
-
-  const { data: flashSaleRewards } = await supabase
-    .from("rewards")
-    .select("*")
-    .eq("is_active", true)
-    .not("sale_price_coins", "is", null)
-    .not("sale_ends_at", "is", null)
-    .gt("sale_ends_at", new Date().toISOString());
 
   return (
     <div className="space-y-6">

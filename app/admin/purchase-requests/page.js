@@ -4,14 +4,13 @@ import PurchaseRequestsClient from "@/components/PurchaseRequestsClient";
 export default async function PurchaseRequestsPage() {
   const supabase = createClient();
 
-  const { data: purchases } = await supabase
-    .from("purchase_requests")
-    .select("*, users(name, email, role, is_guest), rewards(title, category)")
-    .order("created_at", { ascending: false });
-
-  const { data: topups } = await supabase
-    .from("budget_topups")
-    .select("amount_kzt");
+  const [{ data: purchases }, { data: topups }] = await Promise.all([
+    supabase
+      .from("purchase_requests")
+      .select("*, users(name, email, role, is_guest), rewards(title, category)")
+      .order("created_at", { ascending: false }),
+    supabase.from("budget_topups").select("amount_kzt"),
+  ]);
 
   const totalTopups = (topups ?? []).reduce((sum, t) => sum + t.amount_kzt, 0);
   const totalSpent = (purchases ?? []).reduce(

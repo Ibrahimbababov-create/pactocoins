@@ -11,65 +11,65 @@ import {
 export default async function AdminOverview({ searchParams }) {
   const supabase = createClient();
 
-  const { data: users } = await supabase
-    .from("users")
-    .select("*")
-    .eq("role", "mop")
-    .eq("is_active", true)
-    .eq("is_guest", false)
-    .order("balance", { ascending: false });
-
-  const { count: pendingRevenue } = await supabase
-    .from("revenue_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending");
-
-  const { count: pendingPurchases } = await supabase
-    .from("purchase_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending");
-
-  const totalBalance = users?.reduce((sum, u) => sum + u.balance, 0) ?? 0;
-
   const months = recentMonthKeysAlmaty(12);
   const selectedMonth = months.some((m) => m.key === searchParams?.month)
     ? searchParams.month
     : currentMonthKeyAlmaty();
   const { start, end } = monthRangeAlmaty(selectedMonth);
 
-  // "Реально потратили" — все покупки в магазине за месяц, кроме отклонённых
-  // (те возвращаются пользователю и деньгами не считаются).
-  const { data: spentPurchases } = await supabase
-    .from("purchase_requests")
-    .select("price_coins")
-    .neq("status", "rejected")
-    .gte("created_at", start)
-    .lt("created_at", end);
+  const [
+    { data: users },
+    { count: pendingRevenue },
+    { count: pendingPurchases },
+    { data: spentPurchases },
+    { data: topups },
+    { data: budgetExpenses },
+    { data: funds },
+    { data: fundContributions },
+  ] = await Promise.all([
+    supabase
+      .from("users")
+      .select("*")
+      .eq("role", "mop")
+      .eq("is_active", true)
+      .eq("is_guest", false)
+      .order("balance", { ascending: false }),
+    supabase
+      .from("revenue_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("purchase_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    // "Реально потратили" — все покупки в магазине за месяц, кроме
+    // отклонённых (те возвращаются пользователю и деньгами не считаются).
+    supabase
+      .from("purchase_requests")
+      .select("price_coins")
+      .neq("status", "rejected")
+      .gte("created_at", start)
+      .lt("created_at", end),
+    supabase.from("budget_topups").select("amount_kzt"),
+    supabase
+      .from("purchase_requests")
+      .select("actual_kzt_amount")
+      .not("actual_kzt_amount", "is", null),
+    supabase
+      .from("funds")
+      .select("id, title, status")
+      .order("created_at", { ascending: false }),
+    supabase.from("fund_contributions").select("fund_id, amount_coins"),
+  ]);
+
+  const totalBalance = users?.reduce((sum, u) => sum + u.balance, 0) ?? 0;
 
   const totalSpent =
     spentPurchases?.reduce((sum, p) => sum + p.price_coins, 0) ?? 0;
 
-  const { data: topups } = await supabase
-    .from("budget_topups")
-    .select("amount_kzt");
-
-  const { data: budgetExpenses } = await supabase
-    .from("purchase_requests")
-    .select("actual_kzt_amount")
-    .not("actual_kzt_amount", "is", null);
-
   const remainingBudget =
     (topups?.reduce((sum, t) => sum + t.amount_kzt, 0) ?? 0) -
     (budgetExpenses?.reduce((sum, e) => sum + e.actual_kzt_amount, 0) ?? 0);
-
-  const { data: funds } = await supabase
-    .from("funds")
-    .select("id, title, status")
-    .order("created_at", { ascending: false });
-
-  const { data: fundContributions } = await supabase
-    .from("fund_contributions")
-    .select("fund_id, amount_coins");
 
   const fundTotals = {};
   fundContributions?.forEach((c) => {

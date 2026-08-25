@@ -8,23 +8,27 @@ export default async function HistoryPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  const { data: revenueRequests } = await supabase
-    .from("revenue_requests")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  const { data: bonusRequests } = await supabase
-    .from("bonus_requests")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const [
+    { data: transactions },
+    { data: revenueRequests },
+    { data: bonusRequests },
+  ] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("revenue_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("bonus_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const requests = [
     ...(revenueRequests ?? []).map((r) => ({

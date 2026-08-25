@@ -4,18 +4,16 @@ import EmployeesClient from "@/components/EmployeesClient";
 export default async function EmployeesPage() {
   const supabase = createClient();
 
-  const { data: users } = await supabase
-    .from("users")
-    .select("*")
-    .eq("is_guest", false)
-    .order("is_active", { ascending: false })
-    .order("role", { ascending: false })
-    .order("name");
-
-  const { data: goals } = await supabase
-    .from("user_goals")
-    .select("*, rewards(title)")
-    .eq("status", "active");
+  const [{ data: users }, { data: goals }] = await Promise.all([
+    supabase
+      .from("users")
+      .select("*")
+      .eq("is_guest", false)
+      .order("is_active", { ascending: false })
+      .order("role", { ascending: false })
+      .order("name"),
+    supabase.from("user_goals").select("*, rewards(title)").eq("status", "active"),
+  ]);
 
   const goalByUser = Object.fromEntries(
     (goals ?? []).map((g) => [g.user_id, g])

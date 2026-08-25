@@ -5,17 +5,14 @@ import CategoriesManager from "@/components/CategoriesManager";
 export default async function RewardsAdminPage() {
   const supabase = createClient();
 
-  const { data: categories } = await supabase
-    .from("reward_categories")
-    .select("*")
-    .order("sort_order")
-    .order("name");
-
-  const { data: rewards } = await supabase
-    .from("rewards")
-    .select("*")
-    .order("sort_order")
-    .order("price_coins");
+  const [{ data: categories }, { data: rewards }] = await Promise.all([
+    supabase
+      .from("reward_categories")
+      .select("*")
+      .order("sort_order")
+      .order("name"),
+    supabase.from("rewards").select("*").order("sort_order").order("price_coins"),
+  ]);
 
   const categoryOrder = {};
   categories?.forEach((c, i) => {

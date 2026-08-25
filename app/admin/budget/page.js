@@ -4,16 +4,17 @@ import BudgetClient from "@/components/BudgetClient";
 export default async function BudgetPage() {
   const supabase = createClient();
 
-  const { data: topups } = await supabase
-    .from("budget_topups")
-    .select("*")
-    .order("given_at", { ascending: false });
-
-  const { data: expenses } = await supabase
-    .from("purchase_requests")
-    .select("*, users(name), rewards(title)")
-    .not("actual_kzt_amount", "is", null)
-    .order("updated_at", { ascending: false });
+  const [{ data: topups }, { data: expenses }] = await Promise.all([
+    supabase
+      .from("budget_topups")
+      .select("*")
+      .order("given_at", { ascending: false }),
+    supabase
+      .from("purchase_requests")
+      .select("*, users(name), rewards(title)")
+      .not("actual_kzt_amount", "is", null)
+      .order("updated_at", { ascending: false }),
+  ]);
 
   return (
     <div className="space-y-6">

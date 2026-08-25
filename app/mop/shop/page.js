@@ -7,24 +7,21 @@ export default async function ShopPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("balance")
-    .eq("id", user.id)
-    .single();
-
-  const { data: categories } = await supabase
-    .from("reward_categories")
-    .select("*")
-    .order("sort_order")
-    .order("name");
-
-  const { data: rewards } = await supabase
-    .from("rewards")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order")
-    .order("price_coins");
+  const [{ data: profile }, { data: categories }, { data: rewards }] =
+    await Promise.all([
+      supabase.from("users").select("balance").eq("id", user.id).single(),
+      supabase
+        .from("reward_categories")
+        .select("*")
+        .order("sort_order")
+        .order("name"),
+      supabase
+        .from("rewards")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("price_coins"),
+    ]);
 
   const grouped = {};
   categories?.forEach((c) => {
