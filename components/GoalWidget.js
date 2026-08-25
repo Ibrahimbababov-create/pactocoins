@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 
-const SIZE = 128;
+const SIZE = 96;
 const STROKE = 8;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -13,12 +14,7 @@ function computeStats(goal, balance) {
   return { remaining, pct, achieved: balance >= goal.target_amount };
 }
 
-export default function GoalWidget({ goal: initialGoal, balance, rewards }) {
-  const [goal, setGoal] = useState(initialGoal);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedRewardId, setSelectedRewardId] = useState("");
-  const [error, setError] = useState(null);
-  const [isPending, setIsPending] = useState(false);
+export default function GoalWidget({ goal, balance }) {
   const [animatedPct, setAnimatedPct] = useState(0);
 
   const stats = useMemo(
@@ -32,94 +28,22 @@ export default function GoalWidget({ goal: initialGoal, balance, rewards }) {
     return () => clearTimeout(t);
   }, [stats?.pct]);
 
-  async function submitGoal(e) {
-    e.preventDefault();
-    if (!selectedRewardId) {
-      setError("Выбери награду");
-      return;
-    }
-
-    setIsPending(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/goals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rewardId: selectedRewardId }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Не получилось сохранить цель");
-        return;
-      }
-
-      setAnimatedPct(0);
-      setGoal(data.goal);
-      setSelectedRewardId("");
-      setShowForm(false);
-    } finally {
-      setIsPending(false);
-    }
-  }
-
-  if (!goal || showForm) {
+  if (!goal) {
     return (
-      <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
-        <p className="text-sm text-gray-400">
-          {goal
-            ? "🎯 Выбери новую цель"
-            : "🎯 На что копишь? Выбери награду из магазина"}
-        </p>
-
-        {error && (
-          <div className="rounded-xl p-3 text-sm text-center bg-red-500/10 text-red-400">
-            {error}
+      <Link
+        href="/mop/shop"
+        className="block bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-2xl p-4"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-bold">🎯 На что копишь?</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Выбери награду в магазине — здесь появится прогресс
+            </p>
           </div>
-        )}
-
-        {rewards.length === 0 ? (
-          <p className="text-xs text-gray-500">
-            В магазине пока нет наград, на которые можно копить.
-          </p>
-        ) : (
-          <form onSubmit={submitGoal} className="flex gap-2">
-            <select
-              value={selectedRewardId}
-              onChange={(e) => setSelectedRewardId(e.target.value)}
-              required
-              className="flex-1 min-w-0 bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-acid-400"
-            >
-              <option value="" disabled>
-                Выбери награду
-              </option>
-              {rewards.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title} — {r.effectivePrice.toLocaleString("ru-RU")} coins
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="bg-acid-400 text-black font-bold rounded-lg px-5 py-2.5 text-sm disabled:opacity-50 shrink-0"
-            >
-              {isPending ? "..." : "Копить"}
-            </button>
-          </form>
-        )}
-
-        {goal && (
-          <button
-            type="button"
-            onClick={() => setShowForm(false)}
-            className="text-xs text-gray-500"
-          >
-            Отмена
-          </button>
-        )}
-      </div>
+          <span className="text-gray-500 text-sm shrink-0">→</span>
+        </div>
+      </Link>
     );
   }
 
@@ -130,80 +54,80 @@ export default function GoalWidget({ goal: initialGoal, balance, rewards }) {
   const rewardTitle = goal.rewards?.title ?? "награду";
 
   return (
-    <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 flex items-center gap-4">
-      <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
-        <svg width={SIZE} height={SIZE} className="-rotate-90">
-          <circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
-            strokeWidth={STROKE}
-            className="stroke-dark-600"
-            fill="none"
-          />
-          <circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={offset}
-            className={`${ringColorClass} transition-[stroke-dashoffset] duration-1000 ease-out`}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          {achieved ? (
-            <span className="text-3xl">✅</span>
-          ) : (
-            <span className={`text-2xl font-black ${textColorClass}`}>
-              {pct}%
-            </span>
-          )}
+    <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-2xl p-4">
+      <div className="flex items-center gap-4">
+        <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
+          <svg width={SIZE} height={SIZE} className="-rotate-90">
+            <circle
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={RADIUS}
+              strokeWidth={STROKE}
+              className="stroke-dark-600"
+              fill="none"
+            />
+            <circle
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={RADIUS}
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={CIRCUMFERENCE}
+              strokeDashoffset={offset}
+              className={`${ringColorClass} transition-[stroke-dashoffset] duration-1000 ease-out`}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            {achieved ? (
+              <span className="text-2xl">✅</span>
+            ) : (
+              <span className={`text-xl font-black ${textColorClass}`}>
+                {pct}%
+              </span>
+            )}
+          </div>
         </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-gray-500">
+            {achieved ? "Цель достигнута" : "Копишь на"}
+          </p>
+          <p className="font-bold truncate mt-0.5">{rewardTitle}</p>
+          <p className="text-sm mt-1">
+            <span className={achieved ? "text-amber-400" : "text-acid-400"}>
+              {balance.toLocaleString("ru-RU")}
+            </span>
+            <span className="text-gray-500">
+              {" "}
+              / {goal.target_amount.toLocaleString("ru-RU")} coins
+            </span>
+          </p>
+        </div>
+
+        {goal.rewards?.image_url && (
+          <img
+            src={goal.rewards.image_url}
+            alt=""
+            className="w-16 h-16 rounded-xl object-cover shrink-0"
+          />
+        )}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold">
-          {achieved ? "Цель достигнута!" : "Копишь на"}
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-dark-600">
+        <p className="text-xs text-gray-500">
+          {achieved
+            ? "Можно выбрать новую цель"
+            : `Осталось: ${remaining.toLocaleString("ru-RU")} coins`}
         </p>
-        <div className="flex items-center gap-2 mt-0.5">
-          {goal.rewards?.image_url && (
-            <img
-              src={goal.rewards.image_url}
-              alt=""
-              className="w-8 h-8 rounded-lg object-cover shrink-0"
-            />
-          )}
-          <p className="text-sm text-gray-300 truncate">{rewardTitle}</p>
-        </div>
-        <p className="text-xs text-gray-500 mt-1">
-          {goal.target_amount.toLocaleString("ru-RU")} coins
-        </p>
-
-        {achieved ? (
-          <button
-            type="button"
-            onClick={() => setShowForm(true)}
-            className="text-xs text-amber-400 font-semibold mt-2"
-          >
-            Выбрать новую цель →
-          </button>
-        ) : (
-          <>
-            <p className="text-xs text-gray-500 mt-2">
-              Осталось набрать: {remaining.toLocaleString("ru-RU")} coins
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowForm(true)}
-              className="text-xs text-gray-500 mt-1"
-            >
-              Поменять цель
-            </button>
-          </>
-        )}
+        <Link
+          href="/mop/shop"
+          className={`text-xs font-semibold ${
+            achieved ? "text-amber-400" : "text-gray-500"
+          }`}
+        >
+          {achieved ? "Выбрать →" : "Поменять цель →"}
+        </Link>
       </div>
     </div>
   );

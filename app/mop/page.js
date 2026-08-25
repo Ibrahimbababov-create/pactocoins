@@ -6,7 +6,6 @@ import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
-import { getEffectivePrice } from "@/lib/rewardPricing";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -19,7 +18,6 @@ export default async function MopDashboard() {
     { data: pendingRevenue },
     { data: pendingBonus },
     { data: fetchedGoal },
-    { data: goalRewardOptions },
     { data: flashSaleRewards },
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
@@ -43,12 +41,6 @@ export default async function MopDashboard() {
       .maybeSingle(),
     supabase
       .from("rewards")
-      .select("id, title, price_coins, sale_price_coins, sale_ends_at")
-      .eq("is_active", true)
-      .eq("is_variable", false)
-      .order("price_coins"),
-    supabase
-      .from("rewards")
       .select("*")
       .eq("is_active", true)
       .not("sale_price_coins", "is", null)
@@ -69,12 +61,6 @@ export default async function MopDashboard() {
       .single();
     if (achievedGoal) currentGoal = achievedGoal;
   }
-
-  const goalRewards = (goalRewardOptions ?? []).map((r) => ({
-    id: r.id,
-    title: r.title,
-    effectivePrice: getEffectivePrice(r).effectivePrice,
-  }));
 
   return (
     <div className="space-y-6">
@@ -121,11 +107,7 @@ export default async function MopDashboard() {
         </div>
       </div>
 
-      <GoalWidget
-        goal={currentGoal}
-        balance={profile?.balance ?? 0}
-        rewards={goalRewards}
-      />
+      <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
 
       <BirthdayProfile birthday={profile?.birthday} />
 

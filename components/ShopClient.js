@@ -102,6 +102,24 @@ export default function ShopClient({ grouped, balance }) {
     });
   }
 
+  function handleSetGoal(reward) {
+    startTransition(async () => {
+      const res = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rewardId: reward.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Не получилось поставить цель" });
+      } else {
+        setMessage({ type: "success", text: `🎯 Цель поставлена: ${reward.title}` });
+      }
+      setTimeout(() => setMessage(null), 3000);
+    });
+  }
+
   function scrollToCategory(category) {
     const el = document.getElementById(slugify(category));
     if (el) {
@@ -306,13 +324,22 @@ export default function ShopClient({ grouped, balance }) {
                             ✅ Куплено
                           </div>
                         ) : !isConfirming ? (
-                          <button
-                            disabled={!canAfford}
-                            onClick={() => setConfirming(reward.id)}
-                            className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
-                          >
-                            {canAfford ? "Купить" : "Не хватает"}
-                          </button>
+                          <>
+                            <button
+                              disabled={!canAfford}
+                              onClick={() => setConfirming(reward.id)}
+                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+                            >
+                              {canAfford ? "Купить" : "Не хватает"}
+                            </button>
+                            <button
+                              onClick={() => handleSetGoal(reward)}
+                              disabled={isPending}
+                              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 hover:text-acid-400 hover:border-acid-400 transition disabled:opacity-50"
+                            >
+                              🎯 Копить на это
+                            </button>
+                          </>
                         ) : (
                           <div className="flex gap-1 mt-2">
                             <button
