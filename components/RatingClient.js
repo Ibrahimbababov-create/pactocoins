@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { getLevelForAmount } from "@/lib/levels";
 
 const CATEGORY_TABS = [
   { key: "overall", label: "Общее" },
@@ -195,7 +194,6 @@ export default function RatingClient({ currentUserId, users, transactions }) {
         {ranking.map((u, i) => {
           const isMe = u.id === currentUserId;
           const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
-          const level = getLevelForAmount(u.totalEarned);
 
           return (
             <div
@@ -210,7 +208,6 @@ export default function RatingClient({ currentUserId, users, transactions }) {
                 <span className="text-lg font-bold text-gray-500 w-6 text-center">
                   {medal ?? i + 1}
                 </span>
-                <span title={level.name}>{level.icon}</span>
                 <span className={isMe ? "font-bold text-acid-400" : ""}>
                   {u.name} {isMe && "(вы)"}
                 </span>
