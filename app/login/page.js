@@ -33,6 +33,10 @@ export default function LoginPage() {
   // её в Telegram — своего аккаунта у человека пока нет.
   const [pendingRequest, setPendingRequest] = useState(false);
 
+  // Уволенный сотрудник — сюда его отправляет middleware или
+  // /api/auth/telegram, если он всё ещё пытается зайти.
+  const [deactivated, setDeactivated] = useState(false);
+
   function doTelegramLogin(initData, displayName) {
     setDebug("initData найден, отправляем на сервер (XHR)...");
 
@@ -57,6 +61,13 @@ export default function LoginPage() {
         if (data.needsOnboarding) {
           setPendingInitData(initData);
           setNeedsOnboarding(true);
+          setCheckingTelegram(false);
+          setOnboardingLoading(false);
+          return;
+        }
+
+        if (data.error === "account_deactivated") {
+          setDeactivated(true);
           setCheckingTelegram(false);
           setOnboardingLoading(false);
           return;
@@ -93,6 +104,16 @@ export default function LoginPage() {
 
     xhr.send(JSON.stringify({ initData, displayName }));
   }
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("deactivated") === "1") {
+        setDeactivated(true);
+        setCheckingTelegram(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -205,6 +226,21 @@ export default function LoginPage() {
     };
 
     xhr.send(JSON.stringify({}));
+  }
+
+  if (deactivated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-dark-900">
+        <div className="w-full max-w-sm text-center">
+          <p className="text-5xl mb-4">🚫</p>
+          <h1 className="text-2xl font-bold mb-2">Доступ закрыт</h1>
+          <p className="text-gray-500 text-sm">
+            Этот аккаунт больше не активен. Если это ошибка — обратитесь
+            к админу.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (checkingTelegram) {

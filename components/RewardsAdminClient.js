@@ -453,7 +453,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
                 </div>
               </form>
             ) : (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   {r.image_url && (
                     <img
@@ -497,7 +497,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
                   )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
                       setEditIsVariable(r.is_variable ?? false);

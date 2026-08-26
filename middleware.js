@@ -45,40 +45,40 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (user && isLoginPage) {
+  if (user) {
     const { data: profile } = await supabase
       .from("users")
-      .select("role")
+      .select("role, is_active")
       .eq("id", user.id)
       .single();
 
-    return NextResponse.redirect(
-      new URL(homeForRole(profile?.role), request.url)
-    );
-  }
+    // Уволенный сотрудник (is_active = false) не должен пользоваться
+    // приложением, даже если сессия входа технически ещё жива —
+    // проверяем это на каждом защищённом переходе, не только на входе.
+    if (profile?.is_active === false && !isLoginPage) {
+      return NextResponse.redirect(new URL("/login?deactivated=1", request.url));
+    }
 
-  if (user && isAdminPage) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "admin") {
+    if (isLoginPage) {
+      if (profile?.is_active === false) {
+        return response;
+      }
       return NextResponse.redirect(
         new URL(homeForRole(profile?.role), request.url)
       );
     }
-  }
 
-  if (user && isObserverPage) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    if (isAdminPage && profile?.role !== "admin") {
+      return NextResponse.redirect(
+        new URL(homeForRole(profile?.role), request.url)
+      );
+    }
 
-    if (profile?.role !== "observer" && profile?.role !== "admin") {
+    if (
+      isObserverPage &&
+      profile?.role !== "observer" &&
+      profile?.role !== "admin"
+    ) {
       return NextResponse.redirect(
         new URL(homeForRole(profile?.role), request.url)
       );

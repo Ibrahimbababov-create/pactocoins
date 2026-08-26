@@ -106,9 +106,16 @@ export async function POST(request) {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("role")
+    .select("role, is_active")
     .eq("id", user.id)
     .single();
+
+  // Уволен — не пускаем обратно, даже если пароль/сессия ещё технически
+  // валидны. Сразу разлогиниваем, чтобы сессия не висела в браузере.
+  if (profile?.is_active === false) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "account_deactivated" }, { status: 403 });
+  }
 
   const response = NextResponse.json({
     redirect: profile?.role === "admin" ? "/admin" : "/mop",

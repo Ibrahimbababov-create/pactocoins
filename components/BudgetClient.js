@@ -142,7 +142,7 @@ export default function BudgetClient({ topups, expenses }) {
           {topups.map((t) => (
             <div
               key={t.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-3 flex items-center justify-between gap-4"
+              className="bg-dark-800 border border-dark-600 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3"
             >
               <div>
                 <p className="font-semibold">{formatKzt(t.amount_kzt)}</p>
@@ -172,7 +172,7 @@ export default function BudgetClient({ topups, expenses }) {
           {expenses.map((e) => (
             <div
               key={e.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-3 flex items-center justify-between gap-4"
+              className="bg-dark-800 border border-dark-600 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3"
             >
               <div>
                 <p className="font-semibold">{e.rewards?.title}</p>

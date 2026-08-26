@@ -347,8 +347,8 @@ export default function BonusRequestsClient({ requests, employees }) {
               onChange={() => toggleSelected(r.id)}
               className="w-5 h-5 shrink-0"
             />
-            <div className="flex-1 flex items-center justify-between gap-4">
-              <div>
+            <div className="flex-1 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="font-semibold">
                   {r.users?.name}
                   {r.users?.is_guest && (
@@ -378,7 +378,7 @@ export default function BonusRequestsClient({ requests, employees }) {
                   Не в рейтинг (ДР и т.п.)
                 </label>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex flex-wrap gap-2 shrink-0">
                 <button
                   onClick={() => handleApprove(r.id)}
                   disabled={isPending}
@@ -406,9 +406,9 @@ export default function BonusRequestsClient({ requests, employees }) {
           return (
             <div
               key={r.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
+              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-wrap items-center justify-between gap-2"
             >
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold">
                   {r.users?.name}
                   {r.users?.is_guest && (

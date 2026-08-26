@@ -239,8 +239,8 @@ export default function EmployeesClient({ users }) {
                 </div>
               </form>
             ) : (
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="font-semibold">
                     {u.name}{" "}
                     <span className="text-xs text-gray-500">
@@ -275,7 +275,7 @@ export default function EmployeesClient({ users }) {
                     </span>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Link
                     href={`/admin/employees/${u.id}`}
                     className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"

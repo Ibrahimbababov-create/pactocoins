@@ -66,9 +66,9 @@ export default function PurchaseRequestsClient({ purchases }) {
         return (
           <div
             key={p.id}
-            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between gap-4"
+            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
           >
-            <div>
+            <div className="min-w-0">
               <p className="font-semibold">{p.rewards?.title}</p>
               <p className="text-sm text-gray-500">
                 {p.users?.name}
@@ -84,7 +84,7 @@ export default function PurchaseRequestsClient({ purchases }) {
                 {new Date(p.created_at).toLocaleString("ru-RU")}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {currentStatus !== "rejected" && (
                 <input
                   type="number"

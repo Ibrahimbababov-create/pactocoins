@@ -65,7 +65,7 @@ export default function JoinRequestsClient({ requests }) {
         return (
           <div
             key={r.id}
-            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between gap-4"
+            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
           >
             <div>
               <p className="font-semibold">{r.name}</p>
@@ -77,7 +77,7 @@ export default function JoinRequestsClient({ requests }) {
               </p>
             </div>
             {status === "pending" ? (
-              <div className="flex gap-2 shrink-0">
+              <div className="flex flex-wrap gap-2 shrink-0">
                 <button
                   onClick={() => handleApprove(r.id)}
                   disabled={isPending}
