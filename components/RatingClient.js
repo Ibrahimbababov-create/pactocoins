@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Icon from "@/components/Icon";
-import PrizeBoard from "@/components/PrizeBoard";
 import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
 
 const CATEGORY_TABS = [
@@ -150,6 +149,12 @@ export default function RatingClient({
   // Показываем ли текущий (не прошлый) период — тогда «вперёд» некуда
   const now = new Date();
   const atLatest = periodMode === "all" || (range.start <= now && now <= range.end);
+  const prizeCfg =
+    atLatest && periodMode === "week"
+      ? WEEKLY_TOP
+      : atLatest && periodMode === "month"
+      ? MONTHLY_TOP
+      : null;
 
   return (
     <div className="space-y-4 max-w-md mx-auto">
@@ -222,45 +227,60 @@ export default function RatingClient({
         </div>
       )}
 
-      {periodMode === "week" && atLatest && <PrizeBoard cfg={WEEKLY_TOP} />}
-      {periodMode === "month" && atLatest && <PrizeBoard cfg={MONTHLY_TOP} />}
-
       {podium && (
-        <div className="flex items-end gap-2 pt-2">
-          {[1, 0, 2].map((idx) => {
-            const u = ranking[idx];
-            if (!u) return <div key={idx} className="flex-1" />;
-            const isMe = u.id === currentUserId;
-            const barH = idx === 0 ? "h-24" : idx === 1 ? "h-16" : "h-12";
-            const barTone =
-              idx === 0
-                ? "bg-acid-400/20 border-acid-400/50"
-                : "bg-dark-700 border-dark-600";
-            const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
-            return (
-              <div key={u.id} className="flex-1 flex flex-col items-center min-w-0">
-                <span className="text-2xl leading-none">{medal}</span>
-                <span
-                  className={`mt-1 text-xs font-semibold truncate max-w-full ${
-                    isMe ? "text-acid-400" : "text-gray-300"
-                  }`}
-                >
-                  {u.name}
-                  {isMe && " (вы)"}
-                </span>
-                <span className="text-sm font-black tabular-nums">
-                  {fmt(u.value)}
-                </span>
+        <div className="pt-2">
+          <div className="flex items-end gap-2">
+            {[1, 0, 2].map((idx) => {
+              const u = ranking[idx];
+              if (!u) return <div key={idx} className="flex-1" />;
+              const isMe = u.id === currentUserId;
+              const barH = idx === 0 ? "h-24" : idx === 1 ? "h-16" : "h-12";
+              const barTone =
+                idx === 0
+                  ? "bg-acid-400/20 border-acid-400/50"
+                  : "bg-dark-700 border-dark-600";
+              const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
+              const prize = prizeCfg?.prizes[idx];
+              return (
                 <div
-                  className={`mt-2 w-full rounded-t-xl border ${barTone} ${barH} flex items-start justify-center pt-1.5`}
+                  key={u.id}
+                  className="flex-1 flex flex-col items-center min-w-0"
                 >
-                  <span className="text-lg font-black text-gray-500">
-                    {idx + 1}
+                  <span className="text-2xl leading-none">{medal}</span>
+                  <span
+                    className={`mt-1 text-xs font-semibold truncate max-w-full ${
+                      isMe ? "text-acid-400" : "text-gray-300"
+                    }`}
+                  >
+                    {u.name}
+                    {isMe && " (вы)"}
                   </span>
+                  <span className="text-sm font-black tabular-nums">
+                    {fmt(u.value)}
+                  </span>
+                  {prize != null && (
+                    <span className="text-[11px] font-semibold text-acid-400/80 tabular-nums">
+                      🏆 +{fmt(prize)}
+                    </span>
+                  )}
+                  <div
+                    className={`mt-2 w-full rounded-t-xl border ${barTone} ${barH} flex items-start justify-center pt-1.5`}
+                  >
+                    <span className="text-lg font-black text-gray-500">
+                      {idx + 1}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {prizeCfg && (
+            <p className="mt-2 text-xs text-gray-500 text-center">
+              Приз {prizeCfg.label} — тем, кто набрал от{" "}
+              {prizeCfg.min.toLocaleString("ru-RU")} coins. На рейтинг не влияет.
+            </p>
+          )}
         </div>
       )}
 
