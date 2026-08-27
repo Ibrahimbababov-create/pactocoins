@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import ObserverNav from "@/components/ObserverNav";
 import LogoutButton from "@/components/LogoutButton";
+import PageTransition from "@/components/PageTransition";
+import Icon from "@/components/Icon";
 
 export default async function ObserverLayout({ children }) {
   const supabase = createClient();
@@ -19,8 +21,9 @@ export default async function ObserverLayout({ children }) {
     .is("read_at", null);
 
   return (
-    <div className="min-h-screen bg-dark-900">
-      <div className="border-b border-dark-600 bg-dark-800">
+    <div className="relative min-h-screen bg-dark-900">
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(163,255,18,0.06),transparent_70%)]" />
+      <div className="relative border-b border-dark-600 bg-dark-800/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="font-black text-lg">
             Pacto<span className="text-acid-400">Coins</span>{" "}
@@ -28,18 +31,18 @@ export default async function ObserverLayout({ children }) {
               наблюдатель
             </span>
           </h1>
-          <div className="flex items-center gap-4">
-            <Link href="/levels" className="text-gray-400 text-sm">
-              🏆 Звания
+          <div className="flex items-center gap-4 text-gray-400 text-sm">
+            <Link href="/levels" className="flex items-center gap-1.5 hover:text-white transition-colors">
+              <Icon name="award" className="w-4 h-4" /> Звания
             </Link>
-            <Link href="/funds" className="text-gray-400 text-sm">
-              🐷 Копилки
+            <Link href="/funds" className="flex items-center gap-1.5 hover:text-white transition-colors">
+              <Icon name="piggy" className="w-4 h-4" /> Копилки
             </Link>
             <Link
               href="/messages"
-              className="relative text-gray-400 text-sm"
+              className="relative flex items-center gap-1.5 hover:text-white transition-colors"
             >
-              ✉ Сообщения
+              <Icon name="mail" className="w-4 h-4" /> Сообщения
               {unreadCount > 0 && (
                 <span className="absolute -top-2 -right-3 bg-acid-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {unreadCount}
@@ -51,7 +54,9 @@ export default async function ObserverLayout({ children }) {
         </div>
         <ObserverNav />
       </div>
-      <div className="max-w-6xl mx-auto px-4 py-6">{children}</div>
+      <div className="relative max-w-6xl mx-auto px-4 py-6">
+        <PageTransition>{children}</PageTransition>
+      </div>
     </div>
   );
 }

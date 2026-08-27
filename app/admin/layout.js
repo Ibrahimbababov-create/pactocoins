@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 import AdminSideMenu from "@/components/AdminSideMenu";
+import PageTransition from "@/components/PageTransition";
 
 export default async function AdminLayout({ children }) {
   const supabase = createClient();
@@ -31,8 +32,9 @@ export default async function AdminLayout({ children }) {
     .is("read_at", null);
 
   return (
-    <div className="min-h-screen bg-dark-900">
-      <div className="border-b border-dark-600 bg-dark-800">
+    <div className="relative min-h-screen bg-dark-900">
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(163,255,18,0.06),transparent_70%)]" />
+      <div className="relative border-b border-dark-600 bg-dark-800/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="font-black text-lg">
             Pacto<span className="text-acid-400">Coins</span>{" "}
@@ -45,7 +47,9 @@ export default async function AdminLayout({ children }) {
         </div>
         <AdminNav />
       </div>
-      <div className="max-w-6xl mx-auto px-4 py-6">{children}</div>
+      <div className="relative max-w-6xl mx-auto px-4 py-6">
+        <PageTransition>{children}</PageTransition>
+      </div>
     </div>
   );
 }

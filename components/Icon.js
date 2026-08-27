@@ -19,6 +19,12 @@ const PATHS = {
   sparkle: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z",
   menu: "M4 7h16M4 12h16M4 17h16",
   x: "M6 6l12 12M18 6 6 18",
+  megaphone: "M4 10v4a1 1 0 0 0 1 1h2l4 4V5L7 9H5a1 1 0 0 0-1 1ZM15 8a4 4 0 0 1 0 8M18 5a8 8 0 0 1 0 14",
+  link: "M9 15l6-6M8.5 12H7a4 4 0 0 1 0-8h3M15.5 12H17a4 4 0 0 1 0 8h-3",
+  bot: "M9 4h6M12 4v3M6 7h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2ZM9 12h.01M15 12h.01M9 16h6",
+  users: "M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3 20c0-3 2.2-5 5-5s5 2 5 5M16 4.5a3.5 3.5 0 0 1 0 7M15 15c3 0 5 2 5 5",
+  wallet: "M4 7h13a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4V7ZM4 7l1-3h11l1 3M16 13h.01",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2",
 };
 
 export default function Icon({ name, className = "w-5 h-5", strokeWidth = 1.75 }) {

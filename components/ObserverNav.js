@@ -24,8 +24,8 @@ export default function ObserverNav() {
               href={item.href}
               className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm ${
                 active
-                  ? "bg-acid-400 text-black font-bold"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-acid-400/10 text-acid-400 font-semibold"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
               }`}
             >
               {item.label}
