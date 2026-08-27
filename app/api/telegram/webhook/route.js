@@ -9,7 +9,46 @@ import {
   approveJoinRequestInternal,
   rejectJoinRequestInternal,
 } from "@/lib/telegramApprovals";
-import { editTelegramMessage, answerCallbackQuery } from "@/lib/telegramBot";
+import {
+  editTelegramMessage,
+  answerCallbackQuery,
+  sendTelegramMessage,
+  sendTelegramPhoto,
+} from "@/lib/telegramBot";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { renderRatingImage } from "@/lib/ratingImage";
+
+const RATING_CMDS = new Set(["/rating", "/rating_week", "/rating_month"]);
+
+async function handleRatingCommand(msg, cmd) {
+  const admin = createAdminClient();
+
+  const { data: caller } = await admin
+    .from("users")
+    .select("role")
+    .eq("telegram_id", msg.from?.id)
+    .eq("role", "admin")
+    .maybeSingle();
+
+  if (!caller) {
+    await sendTelegramMessage(msg.chat.id, "Команда доступна только админам.");
+    return;
+  }
+
+  const period = cmd === "/rating_month" ? "month" : "week";
+  try {
+    const png = await renderRatingImage(admin, period);
+    await sendTelegramPhoto(
+      msg.chat.id,
+      png,
+      `🏆 Рейтинг · ${period === "month" ? "месяц" : "неделя"}`,
+      "image/png"
+    );
+  } catch (err) {
+    console.error("[rating cmd] failed:", err);
+    await sendTelegramMessage(msg.chat.id, "Не получилось собрать картинку рейтинга.");
+  }
+}
 
 const COIN_ACTIONS = new Set([
   "approve_rev",
@@ -48,6 +87,20 @@ async function forwardToSalesBot(update) {
 
 export async function POST(request) {
   const update = await request.json();
+
+  // Команды бота на картинку рейтинга (только для админов).
+  const text = update.message?.text;
+  if (text) {
+    const cmd = text
+      .trim()
+      .split(/\s+/)[0]
+      .toLowerCase()
+      .replace(/@[a-z0-9_]+$/i, "");
+    if (RATING_CMDS.has(cmd)) {
+      await handleRatingCommand(update.message, cmd);
+      return NextResponse.json({ ok: true });
+    }
+  }
 
   const callback = update.callback_query;
   const data = callback?.data || "";
