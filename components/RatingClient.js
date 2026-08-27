@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Icon from "@/components/Icon";
+import PrizeBoard from "@/components/PrizeBoard";
+import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
 
 const CATEGORY_TABS = [
   { key: "overall", label: "Общее" },
@@ -219,6 +221,8 @@ export default function RatingClient({
           </button>
         </div>
       )}
+
+      <PrizeBoard weekly={WEEKLY_TOP} monthly={MONTHLY_TOP} />
 
       {podium && (
         <div className="flex items-end gap-2 pt-2">

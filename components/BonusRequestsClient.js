@@ -14,6 +14,7 @@ import {
 } from "@/app/admin/ratingExemptActions";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import TopBonus from "@/components/TopBonus";
+import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
 
 const statusLabels = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -207,16 +208,16 @@ export default function BonusRequestsClient({
           periodPhrase="за прошлую неделю"
           periodLabel={weekLabel}
           ranking={weekRanking}
-          min={2500}
-          defaults={["2000", "1000", "300"]}
+          min={WEEKLY_TOP.min}
+          defaults={WEEKLY_TOP.prizes.map(String)}
         />
         <TopBonus
           title="🏆 Топ-3 за прошлый месяц"
           periodPhrase="за прошлый месяц"
           periodLabel={monthLabel}
           ranking={monthRanking}
-          min={8000}
-          defaults={["10000", "5000", "2000"]}
+          min={MONTHLY_TOP.min}
+          defaults={MONTHLY_TOP.prizes.map(String)}
         />
       </div>
 
