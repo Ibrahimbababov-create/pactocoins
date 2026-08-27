@@ -5,6 +5,7 @@ import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 
 const ITEMS = [
+  { href: "/mop/stats", label: "Моя динамика", icon: "📊" },
   { href: "/mop/settings", label: "Настройки", icon: "⚙️" },
   { href: "/levels", label: "Звания", icon: "🏆" },
   { href: "/funds", label: "Копилки", icon: "🐷" },
