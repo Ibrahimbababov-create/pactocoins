@@ -142,8 +142,6 @@ export default async function MopDashboard() {
 
       <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
 
-      {!profile?.is_guest && <TeamFeed events={teamEvents ?? []} />}
-
       <BirthdayProfile birthday={profile?.birthday} />
 
       {profile?.is_guest && (
@@ -204,6 +202,8 @@ export default async function MopDashboard() {
           ))}
         </div>
       )}
+
+      {!profile?.is_guest && <TeamFeed events={teamEvents ?? []} />}
     </div>
   );
 }
