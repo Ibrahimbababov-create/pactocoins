@@ -222,7 +222,8 @@ export default function RatingClient({
         </div>
       )}
 
-      <PrizeBoard weekly={WEEKLY_TOP} monthly={MONTHLY_TOP} />
+      {periodMode === "week" && atLatest && <PrizeBoard cfg={WEEKLY_TOP} />}
+      {periodMode === "month" && atLatest && <PrizeBoard cfg={MONTHLY_TOP} />}
 
       {podium && (
         <div className="flex items-end gap-2 pt-2">
