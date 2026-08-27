@@ -23,6 +23,8 @@ export async function GET(request) {
     });
   } catch (e) {
     console.error("[rating-image]", e);
-    return new Response(`error: ${e.message}`, { status: 500 });
+    return new Response(`error: ${e.message}\n${e.stack || ""}`, {
+      status: 500,
+    });
   }
 }
