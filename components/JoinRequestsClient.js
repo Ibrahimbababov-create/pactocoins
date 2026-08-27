@@ -72,6 +72,15 @@ export default function JoinRequestsClient({ requests }) {
               <p className="text-sm text-gray-500">
                 {r.telegram_username ? `@${r.telegram_username}` : `id ${r.telegram_id}`}
               </p>
+              {r.birthday && (
+                <p className="text-xs text-gray-500">
+                  🎂{" "}
+                  {new Date(r.birthday).toLocaleDateString("ru-RU", {
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </p>
+              )}
               <p className="text-xs text-gray-600">
                 {new Date(r.created_at).toLocaleString("ru-RU")}
               </p>

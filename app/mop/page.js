@@ -56,6 +56,7 @@ export default async function MopDashboard() {
     supabase
       .from("team_events")
       .select("id, user_name, kind, title, icon, created_at")
+      .eq("kind", "purchase")
       .order("created_at", { ascending: false })
       .limit(8),
   ]);
@@ -99,6 +100,10 @@ export default async function MopDashboard() {
         <h1 className="text-2xl font-bold">PactoCoins</h1>
       </div>
 
+      {!profile?.is_guest && (
+        <BirthdayProfile birthday={profile?.birthday} variant="prompt" />
+      )}
+
       {profile?.role === "rop" && (
         <div className="bg-gradient-to-br from-purple-500/10 to-dark-800 border border-purple-500/30 rounded-2xl p-4">
           <p className="font-bold text-purple-300">🚀 Для РОПов скоро новинка</p>
@@ -141,8 +146,6 @@ export default async function MopDashboard() {
       </div>
 
       <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
-
-      <BirthdayProfile birthday={profile?.birthday} />
 
       {profile?.is_guest && (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">

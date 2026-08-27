@@ -11,8 +11,14 @@ const JOIN_REQUEST_CHAT_ID = -1004323139236;
 const JOIN_REQUEST_THREAD_ID = 99;
 
 export async function POST(request) {
-  const { initData, displayName } = await request.json();
+  const { initData, displayName, birthday } = await request.json();
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  // ДР необязателен; принимаем только строгий YYYY-MM-DD, иначе игнорируем
+  const cleanBirthday =
+    typeof birthday === "string" && /^\d{4}-\d{2}-\d{2}$/.test(birthday)
+      ? birthday
+      : null;
 
   const tgUser = validateTelegramInitData(initData, botToken);
   if (!tgUser) {
@@ -71,6 +77,7 @@ export async function POST(request) {
         telegram_id: tgUser.id,
         telegram_username: tgUser.username || null,
         name,
+        birthday: cleanBirthday,
       })
       .select("id")
       .single();
@@ -83,7 +90,7 @@ export async function POST(request) {
       JOIN_REQUEST_CHAT_ID,
       `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${name}</b>\nTelegram: ${
         tgUser.username ? `@${tgUser.username}` : `id ${tgUser.id}`
-      }`,
+      }${cleanBirthday ? `\nДР: ${cleanBirthday}` : ""}`,
       {
         inline_keyboard: [
           [

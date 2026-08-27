@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [pendingInitData, setPendingInitData] = useState(null);
   const [onboardingMode, setOnboardingMode] = useState("choice"); // choice | register
   const [registerName, setRegisterName] = useState("");
+  const [registerBirthday, setRegisterBirthday] = useState("");
   const [onboardingError, setOnboardingError] = useState("");
   const [onboardingLoading, setOnboardingLoading] = useState(false);
 
@@ -37,7 +38,7 @@ export default function LoginPage() {
   // /api/auth/telegram, если он всё ещё пытается зайти.
   const [deactivated, setDeactivated] = useState(false);
 
-  function doTelegramLogin(initData, displayName) {
+  function doTelegramLogin(initData, displayName, birthday) {
     setDebug("initData найден, отправляем на сервер (XHR)...");
 
     const xhr = new XMLHttpRequest();
@@ -102,7 +103,7 @@ export default function LoginPage() {
       setOnboardingLoading(false);
     };
 
-    xhr.send(JSON.stringify({ initData, displayName }));
+    xhr.send(JSON.stringify({ initData, displayName, birthday }));
   }
 
   useEffect(() => {
@@ -192,7 +193,7 @@ export default function LoginPage() {
     }
     setOnboardingError("");
     setOnboardingLoading(true);
-    doTelegramLogin(pendingInitData, registerName.trim());
+    doTelegramLogin(pendingInitData, registerName.trim(), registerBirthday || null);
   }
 
   function handleGuestLogin() {
@@ -328,6 +329,21 @@ export default function LoginPage() {
                   placeholder="Имя Фамилия"
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
                 />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">
+                  День рождения
+                </label>
+                <input
+                  type="date"
+                  value={registerBirthday}
+                  onChange={(e) => setRegisterBirthday(e.target.value)}
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  В этот день начислим 3000 coins. Можно указать и позже в
+                  приложении.
+                </p>
               </div>
               <button
                 type="submit"

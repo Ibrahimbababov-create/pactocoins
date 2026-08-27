@@ -31,20 +31,41 @@ export default function GoalWidget({ goal, balance }) {
 
   if (!goal) {
     return (
-      <Link
-        href="/mop/shop"
-        className="block bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-2xl p-4"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-bold">🎯 На что копишь?</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Выбери награду в магазине — здесь появится прогресс
-            </p>
-          </div>
-          <span className="text-gray-500 text-sm shrink-0">→</span>
-        </div>
-      </Link>
+      <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-acid-400/40 rounded-2xl p-5">
+        <p className="font-bold text-lg">🎯 Поставь себе цель</p>
+        <p className="text-sm text-gray-400 mt-1">
+          Копи на конкретную награду — так виден прогресс и до неё быстрее
+          доходишь.
+        </p>
+
+        <ol className="mt-3 space-y-1.5 text-sm text-gray-300">
+          <li>
+            <span className="text-acid-400 font-bold">1.</span> Открой{" "}
+            <span className="font-semibold">«Магазин»</span> — кнопка{" "}
+            <span className="font-semibold">★</span> внизу экрана
+          </li>
+          <li>
+            <span className="text-acid-400 font-bold">2.</span> Выбери награду,
+            на которую хочешь копить
+          </li>
+          <li>
+            <span className="text-acid-400 font-bold">3.</span> Нажми на её
+            карточке{" "}
+            <span className="font-semibold">«🎯 Копить на это»</span>
+          </li>
+        </ol>
+
+        <Link
+          href="/mop/shop"
+          className="mt-4 block w-full text-center bg-acid-400 text-black font-bold rounded-xl py-3 text-sm"
+        >
+          Открыть магазин →
+        </Link>
+
+        <p className="text-xs text-gray-600 mt-2 text-center">
+          Не обязательно — но с целью интереснее
+        </p>
+      </div>
     );
   }
 
