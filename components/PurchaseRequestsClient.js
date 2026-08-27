@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { updatePurchaseStatus } from "@/app/admin/actions";
 import { updatePurchaseActualSpend } from "@/app/admin/budgetActions";
 
@@ -57,7 +58,7 @@ export default function PurchaseRequestsClient({ purchases }) {
       )}
 
       {purchases.length === 0 && (
-        <p className="text-gray-500 text-sm">Заявок пока нет</p>
+        <EmptyState icon="bag" title="Заявок на покупки нет" />
       )}
 
       {purchases.map((p) => {

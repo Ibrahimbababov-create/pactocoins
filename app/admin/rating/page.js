@@ -30,6 +30,7 @@ export default async function AdminRating() {
         currentUserId={user.id}
         users={users ?? []}
         transactions={transactions ?? []}
+        showCategories
       />
     </div>
   );

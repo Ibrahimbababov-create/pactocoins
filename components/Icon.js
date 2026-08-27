@@ -25,6 +25,8 @@ const PATHS = {
   users: "M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3 20c0-3 2.2-5 5-5s5 2 5 5M16 4.5a3.5 3.5 0 0 1 0 7M15 15c3 0 5 2 5 5",
   wallet: "M4 7h13a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4V7ZM4 7l1-3h11l1 3M16 13h.01",
   clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2",
+  chevronLeft: "M15 6l-6 6 6 6",
+  chevronRight: "M9 6l6 6-6 6",
 };
 
 export default function Icon({ name, className = "w-5 h-5", strokeWidth = 1.75 }) {

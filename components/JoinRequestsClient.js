@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { approveJoinRequest, rejectJoinRequest } from "@/app/admin/joinRequestActions";
+import EmptyState from "@/components/EmptyState";
 
 const STATUS_META = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -56,7 +57,7 @@ export default function JoinRequestsClient({ requests }) {
       )}
 
       {requests.length === 0 && (
-        <p className="text-gray-500 text-sm">Заявок пока нет</p>
+        <EmptyState icon="users" title="Заявок на регистрацию нет" />
       )}
 
       {requests.map((r) => {

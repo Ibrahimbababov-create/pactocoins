@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Icon from "@/components/Icon";
 
 const CATEGORY_TABS = [
   { key: "overall", label: "Общее" },
   { key: "revenue", label: "Выручка" },
   { key: "bonus", label: "Достижения" },
+];
+
+const PERIODS = [
+  { key: "week", label: "Неделя" },
+  { key: "month", label: "Месяц" },
+  { key: "all", label: "Всё время" },
 ];
 
 function classify(desc) {
@@ -41,27 +48,37 @@ function endOfMonth(date) {
   return d;
 }
 
+function stripEra(s) {
+  return s.replace(/\s*г\.?\s*$/i, "");
+}
+
 function formatRange(start, end, mode) {
   if (mode === "month") {
-    return start.toLocaleDateString("ru-RU", {
-      month: "long",
-      year: "numeric",
-    });
+    return stripEra(
+      start.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })
+    );
   }
   const sameMonth = start.getMonth() === end.getMonth();
   const startStr = start.toLocaleDateString(
     "ru-RU",
-    sameMonth ? { day: "numeric" } : { day: "numeric", month: "long" }
+    sameMonth ? { day: "numeric" } : { day: "numeric", month: "short" }
   );
-  const endStr = end.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const endStr = stripEra(
+    end.toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+  );
   return `${startStr} – ${endStr}`;
 }
 
-export default function RatingClient({ currentUserId, users, transactions }) {
+export default function RatingClient({
+  currentUserId,
+  users,
+  transactions,
+  showCategories = false,
+}) {
   const [tab, setTab] = useState("overall");
   const [periodMode, setPeriodMode] = useState("week");
   const [pickedDate, setPickedDate] = useState(() =>
@@ -128,34 +145,36 @@ export default function RatingClient({ currentUserId, users, transactions }) {
   const podium = ranking.length >= 3;
   const listStart = podium ? 3 : 0;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
-        {CATEGORY_TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
-              tab === t.key
-                ? "bg-acid-400/15 text-acid-400"
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+  // Показываем ли текущий (не прошлый) период — тогда «вперёд» некуда
+  const now = new Date();
+  const atLatest = periodMode === "all" || (range.start <= now && now <= range.end);
 
-      <div className="flex gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
-        {[
-          { key: "week", label: "Неделя" },
-          { key: "month", label: "Месяц" },
-          { key: "all", label: "Всё время" },
-        ].map((p) => (
+  return (
+    <div className="space-y-4 max-w-md mx-auto">
+      {showCategories && (
+        <div className="grid grid-cols-3 gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
+          {CATEGORY_TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`py-2 rounded-lg text-sm font-semibold transition ${
+                tab === t.key
+                  ? "bg-acid-400/15 text-acid-400"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
+        {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriodMode(p.key)}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+            className={`py-2 rounded-lg text-sm font-semibold transition ${
               periodMode === p.key
                 ? "bg-acid-400/15 text-acid-400"
                 : "text-gray-400 hover:text-white"
@@ -167,35 +186,37 @@ export default function RatingClient({ currentUserId, users, transactions }) {
       </div>
 
       {periodMode !== "all" && (
-        <div className="bg-dark-800 border border-dark-600 rounded-xl p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => shiftPeriod(-1)}
-              className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
-            >
-              ←
-            </button>
-            <input
-              type="date"
-              value={pickedDate}
-              onChange={(e) => setPickedDate(e.target.value)}
-              className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-            />
-            <button
-              onClick={() => shiftPeriod(1)}
-              className="bg-dark-700 rounded-lg px-3 py-2 text-sm text-gray-300"
-            >
-              →
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-500 capitalize">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => shiftPeriod(-1)}
+            aria-label="Раньше"
+            className="w-9 h-9 shrink-0 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center text-gray-400 hover:text-white active:scale-95"
+          >
+            <Icon name="chevronLeft" className="w-4 h-4" />
+          </button>
+
+          <div className="text-center min-w-0">
+            <p className="text-sm font-semibold capitalize truncate">
               {formatRange(range.start, range.end, periodMode)}
             </p>
-            <button onClick={goToday} className="text-xs text-acid-400">
-              Сегодня
-            </button>
+            {!atLatest && (
+              <button
+                onClick={goToday}
+                className="text-xs text-acid-400 hover:underline"
+              >
+                вернуться к текущей
+              </button>
+            )}
           </div>
+
+          <button
+            onClick={() => shiftPeriod(1)}
+            disabled={atLatest}
+            aria-label="Позже"
+            className="w-9 h-9 shrink-0 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center text-gray-400 hover:text-white active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <Icon name="chevronRight" className="w-4 h-4" />
+          </button>
         </div>
       )}
 

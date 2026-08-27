@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import {
   approveRevenueRequest,
   rejectRevenueRequest,
@@ -165,7 +166,7 @@ export default function RevenueRequestsClient({ requests }) {
         )}
 
         {pending.length === 0 && (
-          <p className="text-gray-600 text-sm">Нет новых заявок</p>
+          <EmptyState icon="receipt" title="Нет новых заявок" hint="Все заявки на выручку разобраны." />
         )}
 
         {pending.map((r) => (

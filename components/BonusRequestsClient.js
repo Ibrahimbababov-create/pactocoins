@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import {
   rejectBonusRequest,
   bulkApproveBonus,
@@ -334,7 +335,7 @@ export default function BonusRequestsClient({ requests, employees }) {
         )}
 
         {pending.length === 0 && (
-          <p className="text-gray-600 text-sm">Нет новых заявок</p>
+          <EmptyState icon="award" title="Нет новых заявок" hint="Все заявки на бонусы разобраны." />
         )}
         {pending.map((r) => (
           <div
