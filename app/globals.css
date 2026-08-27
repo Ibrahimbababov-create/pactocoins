@@ -71,19 +71,20 @@ button:not(:disabled):active {
   transform: scale(0.97);
 }
 
-/* Появление контента при смене экрана */
+/* Появление контента при смене экрана.
+   ВАЖНО: только opacity — никаких transform/filter на этой обёртке,
+   иначе она становится containing block и ломает position: fixed
+   у любых потомков (полноэкранные оверлеи, боковое меню). */
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 .page-enter {
-  animation: page-enter 0.22s ease-out both;
+  animation: page-enter 0.2s ease-out both;
 }
 
 /* Появление элементов списка по очереди */
