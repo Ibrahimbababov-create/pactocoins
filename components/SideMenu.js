@@ -59,7 +59,7 @@ export default function SideMenu({ unreadCount = 0 }) {
                 className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-dark-700 transition"
               >
                 <span className="flex items-center gap-2">
-                  <span>{item.icon}</span>
+                  <span className="w-5 text-center shrink-0">{item.icon}</span>
                   {item.label}
                 </span>
                 {item.href === "/messages" && unreadCount > 0 && (
