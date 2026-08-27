@@ -7,9 +7,14 @@ export const dynamic = "force-dynamic";
 // Берём то, что уже стоит в default-scope (команды sales-bot), убираем
 // ненужные, добавляем свои. Узкие scope (личные чаты, админы групп)
 // чистим, чтобы всё падало на этот общий список.
+// Полный список команд бота для меню "/". checkplan намеренно нет.
 const ADD = [
   { command: "rating", description: "Рейтинг за неделю (картинка)" },
   { command: "rating_month", description: "Рейтинг за месяц (картинка)" },
+  { command: "top5", description: "Топ-5 менеджеров по продажам" },
+  { command: "topall", description: "Топ всех менеджеров" },
+  { command: "topteam", description: "Топ по командам" },
+  { command: "chatid", description: "ID этого чата" },
 ];
 const REMOVE = new Set(["checkplan"]);
 
