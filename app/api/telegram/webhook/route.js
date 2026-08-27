@@ -29,8 +29,53 @@ function escapeHtml(s) {
   );
 }
 
-// Тегаем всех активных сотрудников с привязанным Telegram — ответом на
-// сообщение, в котором был /all.
+// Telegram не отдаёт боту список участников группы, поэтому мы копим ростер
+// сами: каждого, кто хоть раз что-то написал или зашёл в чат, запоминаем в
+// chat_members. Плюс добавляем всех активных сотрудников из базы — на случай
+// молчунов, которые после подключения ростера ещё ничего не писали.
+async function recordChatMembers(msg) {
+  const type = msg.chat?.type;
+  if (type !== "group" && type !== "supergroup") return;
+
+  const chatId = msg.chat.id;
+  const admin = createAdminClient();
+  const rows = [];
+
+  const add = (u) => {
+    if (!u || u.is_bot || !u.id) return;
+    const name =
+      [u.first_name, u.last_name].filter(Boolean).join(" ") ||
+      u.username ||
+      "участник";
+    rows.push({
+      chat_id: chatId,
+      user_id: u.id,
+      name,
+      username: u.username ?? null,
+      last_seen: new Date().toISOString(),
+    });
+  };
+
+  add(msg.from);
+  (msg.new_chat_members || []).forEach(add);
+
+  if (msg.left_chat_member?.id) {
+    await admin
+      .from("chat_members")
+      .delete()
+      .eq("chat_id", chatId)
+      .eq("user_id", msg.left_chat_member.id);
+  }
+
+  if (rows.length) {
+    await admin
+      .from("chat_members")
+      .upsert(rows, { onConflict: "chat_id,user_id" });
+  }
+}
+
+// Тегаем всех участников чата (по накопленному ростеру + базе сотрудников) —
+// ответом на сообщение, в котором был /all.
 async function handleAllCommand(msg) {
   const admin = createAdminClient();
 
@@ -43,19 +88,39 @@ async function handleAllCommand(msg) {
   // Тихо игнорируем, если пишет не админ/РОП — чтобы не спамить в группе.
   if (!["admin", "rop"].includes(caller?.role)) return;
 
-  const { data: people } = await admin
-    .from("users")
-    .select("name, telegram_id")
-    .in("role", ["mop", "rop"])
-    .eq("is_active", true)
-    .eq("is_guest", false)
-    .not("telegram_id", "is", null)
-    .not("email", "like", "%.test@pactocoins.local");
+  const [{ data: roster }, { data: staff }] = await Promise.all([
+    admin
+      .from("chat_members")
+      .select("user_id, name")
+      .eq("chat_id", msg.chat.id),
+    admin
+      .from("users")
+      .select("name, telegram_id")
+      .in("role", ["mop", "rop"])
+      .eq("is_active", true)
+      .eq("is_guest", false)
+      .not("telegram_id", "is", null)
+      .not("email", "like", "%.test@pactocoins.local"),
+  ]);
 
-  if (!people?.length) {
+  const byId = new Map();
+  for (const r of roster || []) {
+    byId.set(String(r.user_id), r.name || "участник");
+  }
+  for (const s of staff || []) {
+    byId.set(
+      String(s.telegram_id),
+      s.name || byId.get(String(s.telegram_id)) || "сотрудник"
+    );
+  }
+
+  // Самого автора не тегаем — он и так тут.
+  if (msg.from?.id) byId.delete(String(msg.from.id));
+
+  if (byId.size === 0) {
     await sendTelegramMessage(
       msg.chat.id,
-      "Некого тегать — ни у кого не привязан Telegram.",
+      "Пока некого тегать — ещё никто не засветился в чате.",
       undefined,
       msg.message_thread_id,
       msg.message_id
@@ -63,22 +128,23 @@ async function handleAllCommand(msg) {
     return;
   }
 
-  const mentions = people
-    .map(
-      (p) =>
-        `<a href="tg://user?id=${p.telegram_id}">${escapeHtml(
-          p.name || "сотрудник"
-        )}</a>`
-    )
-    .join(" ");
-
-  await sendTelegramMessage(
-    msg.chat.id,
-    `📣 ${mentions}`,
-    undefined,
-    msg.message_thread_id,
-    msg.message_id
+  const mentions = [...byId.entries()].map(
+    ([id, name]) =>
+      `<a href="tg://user?id=${id}">${escapeHtml(name)}</a>`
   );
+
+  // Длинные сообщения Telegram режет — шлём пачками по 50 упоминаний.
+  const CHUNK = 50;
+  for (let i = 0; i < mentions.length; i += CHUNK) {
+    const part = mentions.slice(i, i + CHUNK).join(" ");
+    await sendTelegramMessage(
+      msg.chat.id,
+      i === 0 ? `📣 ${part}` : part,
+      undefined,
+      msg.message_thread_id,
+      i === 0 ? msg.message_id : undefined
+    );
+  }
 }
 
 function parseCommand(text) {
@@ -180,6 +246,15 @@ export async function POST(request) {
 
   // Команды бота на картинку рейтинга (только для админов).
   const msg = update.message || update.edited_message;
+
+  // Копим ростер участников групп для /all — Telegram список не отдаёт.
+  if (msg) {
+    try {
+      await recordChatMembers(msg);
+    } catch (err) {
+      console.error("[roster] failed:", err);
+    }
+  }
 
   if (msg?.text && ALL_RE.test(msg.text)) {
     await handleAllCommand(msg);

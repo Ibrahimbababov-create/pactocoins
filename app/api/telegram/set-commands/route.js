@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // чистим, чтобы всё падало на этот общий список.
 // Полный список команд бота для меню "/". checkplan намеренно нет.
 const ADD = [
-  { command: "all", description: "Тегнуть всех сотрудников" },
+  { command: "all", description: "Тегнуть всех в чате" },
   { command: "rating", description: "Рейтинг за неделю (картинка)" },
   { command: "rating_month", description: "Рейтинг за месяц (картинка)" },
   { command: "top5", description: "Топ-5 менеджеров по продажам" },
