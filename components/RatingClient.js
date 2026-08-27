@@ -278,7 +278,7 @@ export default function RatingClient({
           {prizeCfg && (
             <p className="mt-2 text-xs text-gray-500 text-center">
               Приз {prizeCfg.label} — тем, кто набрал от{" "}
-              {prizeCfg.min.toLocaleString("ru-RU")} coins. На рейтинг не влияет.
+              {prizeCfg.min.toLocaleString("ru-RU")} coins.
             </p>
           )}
         </div>
