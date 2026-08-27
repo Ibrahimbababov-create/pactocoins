@@ -18,3 +18,44 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Полноэкранный момент повышения ранга */
+@keyframes levelup-confetti {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 0), 110vh, 0) rotate(720deg);
+    opacity: 0.9;
+  }
+}
+
+@keyframes levelup-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes levelup-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .levelup-confetti-piece {
+    display: none;
+  }
+}

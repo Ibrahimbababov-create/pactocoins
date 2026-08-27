@@ -5,7 +5,9 @@ import BonusRequestForm from "@/components/BonusRequestForm";
 import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
+import LevelUpCelebration from "@/components/LevelUpCelebration";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import { getLevelForAmount } from "@/lib/levels";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -51,6 +53,11 @@ export default async function MopDashboard() {
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
 
+  // Достиг нового ранга и ещё не видел полноэкранную анимацию про него.
+  const currentLevel = getLevelForAmount(profile?.total_earned ?? 0);
+  const showLevelUp =
+    !!profile && currentLevel.id > (profile.celebrated_level_id ?? 1);
+
   let currentGoal = fetchedGoal;
   if (currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
     const { data: achievedGoal } = await supabase
@@ -64,6 +71,8 @@ export default async function MopDashboard() {
 
   return (
     <div className="space-y-6">
+      {showLevelUp && <LevelUpCelebration level={currentLevel} />}
+
       <div>
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
         <h1 className="text-2xl font-bold">PactoCoins</h1>

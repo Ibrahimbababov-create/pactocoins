@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { nowInAlmaty } from "@/lib/timezone";
+import { getLevelForAmount } from "@/lib/levels";
 
 export async function updateMyName(formData) {
   const supabase = createClient();
@@ -54,6 +55,39 @@ export async function updateReminderSettings(formData) {
   if (error) return { error: error.message };
 
   revalidatePath("/mop/settings");
+  return { success: true };
+}
+
+// Пользователь досмотрел полноэкранную анимацию нового ранга —
+// запоминаем, чтобы не показывать её снова. Ранг считаем заново из
+// total_earned, значение с клиента не принимаем.
+export async function markLevelCelebrated() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Не авторизован" };
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("total_earned")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) return { error: "Профиль не найден" };
+
+  const level = getLevelForAmount(profile.total_earned);
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("users")
+    .update({ celebrated_level_id: level.id })
+    .eq("id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop");
   return { success: true };
 }
 
