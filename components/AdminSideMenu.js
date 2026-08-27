@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import Icon from "@/components/Icon";
@@ -41,8 +42,10 @@ export default function AdminSideMenu({ unreadMessages = 0, unreadBotMessages = 
         )}
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[60]">
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[60]">
           <div
             className="absolute inset-0 bg-black/60"
             onClick={() => setOpen(false)}
@@ -88,8 +91,9 @@ export default function AdminSideMenu({ unreadMessages = 0, unreadBotMessages = 
               <LogoutButton />
             </div>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
