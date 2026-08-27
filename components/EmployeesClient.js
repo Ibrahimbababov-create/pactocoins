@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
+import Icon from "@/components/Icon";
 import {
   createMop,
   updateMop,
@@ -11,6 +12,24 @@ import {
   reinstateEmployee,
 } from "@/app/admin/actions";
 
+const GROUPS = [
+  { key: "mop", label: "МОПы" },
+  { key: "rop", label: "РОПы" },
+  { key: "observer", label: "Наблюдатели" },
+  { key: "admin", label: "Админы" },
+  { key: "test", label: "🤖 Тестовые (Claude)" },
+  { key: "offboarded", label: "Уволенные" },
+];
+
+function groupOf(u) {
+  if (u.email?.endsWith(".test@pactocoins.local")) return "test";
+  if (!u.is_active) return "offboarded";
+  if (u.role === "rop") return "rop";
+  if (u.role === "observer") return "observer";
+  if (u.role === "admin") return "admin";
+  return "mop";
+}
+
 export default function EmployeesClient({ users }) {
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
@@ -19,6 +38,21 @@ export default function EmployeesClient({ users }) {
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [message, setMessage] = useState(null);
+  const [openGroups, setOpenGroups] = useState(() => new Set(["mop", "rop"]));
+
+  const grouped = useMemo(() => {
+    const g = Object.fromEntries(GROUPS.map((x) => [x.key, []]));
+    for (const u of users) g[groupOf(u)].push(u);
+    return g;
+  }, [users]);
+
+  function toggleGroup(key) {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -172,12 +206,38 @@ export default function EmployeesClient({ users }) {
         </form>
       )}
 
-      <div className="space-y-2">
-        {users.map((u) => (
+      {GROUPS.map((g) => {
+        const list = grouped[g.key];
+        if (!list.length) return null;
+        const isOpen = openGroups.has(g.key);
+        return (
           <div
-            key={u.id}
-            className="bg-dark-800 border border-dark-600 rounded-xl p-4 space-y-3"
+            key={g.key}
+            className="border border-dark-600 rounded-2xl overflow-hidden"
           >
+            <button
+              type="button"
+              onClick={() => toggleGroup(g.key)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-dark-800 hover:bg-dark-700 transition"
+            >
+              <span className="font-semibold text-sm">
+                {g.label}{" "}
+                <span className="text-gray-500 font-normal">· {list.length}</span>
+              </span>
+              <Icon
+                name="chevronRight"
+                className={`w-4 h-4 text-gray-500 transition-transform ${
+                  isOpen ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+            {isOpen && (
+              <div className="p-2 space-y-2 bg-dark-900/40">
+                {list.map((u) => (
+                  <div
+                    key={u.id}
+                    className="bg-dark-800 border border-dark-600 rounded-xl p-4 space-y-3"
+                  >
             {editingId === u.id ? (
               <form
                 action={(fd) => handleUpdate(u.id, fd)}
@@ -361,9 +421,13 @@ export default function EmployeesClient({ users }) {
                 </div>
               </div>
             )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
