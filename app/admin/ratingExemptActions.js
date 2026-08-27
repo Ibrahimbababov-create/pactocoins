@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { notifyUser } from "@/lib/notifyUser";
+import { sendTelegramMessage } from "@/lib/telegramBot";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -36,13 +37,16 @@ export async function awardWeeklyTop3(items, reason) {
   );
   if (clean.length === 0) return { error: "Укажи суммы для победителей" };
 
+  const MEDALS = ["🥇", "🥈", "🥉"];
+  const awarded = [];
   let count = 0;
-  for (const { userId, amount } of clean) {
+  for (let idx = 0; idx < clean.length; idx++) {
+    const { userId, amount, name } = clean[idx];
     const amt = Math.round(Number(amount));
 
     const { data: profile } = await admin
       .from("users")
-      .select("balance, total_earned, month_earned")
+      .select("name, balance, total_earned, month_earned")
       .eq("id", userId)
       .single();
     if (!profile) continue;
@@ -73,7 +77,33 @@ export async function awardWeeklyTop3(items, reason) {
       "notify_requests"
     );
 
+    awarded.push({
+      medal: MEDALS[idx] ?? "🏅",
+      name: name || profile.name || "—",
+      amt,
+    });
     count++;
+  }
+
+  // Объявление в общий чат — тот же, куда идут поздравления с ДР/рангами.
+  const groupChatId = process.env.TELEGRAM_ANNOUNCE_CHAT_ID;
+  if (groupChatId && awarded.length) {
+    const threadId = process.env.TELEGRAM_ANNOUNCE_THREAD_ID
+      ? Number(process.env.TELEGRAM_ANNOUNCE_THREAD_ID)
+      : undefined;
+    const lines = awarded
+      .map((a) => `${a.medal} <b>${a.name}</b> — +${a.amt} coins`)
+      .join("\n");
+    try {
+      await sendTelegramMessage(
+        groupChatId,
+        `🏆 <b>Бонусы за топ прошлой недели</b>\n\n${lines}\n\nОстальные — на этой неделе есть за что бороться 💪`,
+        undefined,
+        threadId
+      );
+    } catch (err) {
+      console.error("[awardWeeklyTop3] group announce failed:", err);
+    }
   }
 
   revalidatePath("/admin/bonus-requests");

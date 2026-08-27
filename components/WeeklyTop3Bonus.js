@@ -5,10 +5,11 @@ import { awardWeeklyTop3 } from "@/app/admin/ratingExemptActions";
 
 const MIN = 2500;
 const PLACE = ["🥇 1 место", "🥈 2 место", "🥉 3 место"];
+const DEFAULT_AMOUNTS = ["2000", "1000", "300"];
 
 export default function WeeklyTop3Bonus({ ranking = [], weekLabel = "" }) {
   const [isPending, startTransition] = useTransition();
-  const [amounts, setAmounts] = useState(["", "", ""]);
+  const [amounts, setAmounts] = useState(DEFAULT_AMOUNTS);
   const [reason, setReason] = useState(`ТОП-3 за неделю ${weekLabel}`);
   const [msg, setMsg] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -19,7 +20,11 @@ export default function WeeklyTop3Bonus({ ranking = [], weekLabel = "" }) {
 
   function submit() {
     const items = winners
-      .map((w, i) => ({ userId: w.id, amount: Number(amounts[i]) }))
+      .map((w, i) => ({
+        userId: w.id,
+        name: w.name,
+        amount: Number(amounts[i]),
+      }))
       .filter((x) => x.amount > 0);
     if (!items.length) {
       setMsg({ type: "error", text: "Впиши суммы победителям" });
@@ -43,7 +48,8 @@ export default function WeeklyTop3Bonus({ ranking = [], weekLabel = "" }) {
       </div>
       <p className="text-xs text-gray-500 mt-1">
         Не учитывается в рейтинге. Порог участия —{" "}
-        {MIN.toLocaleString("ru-RU")} coins за неделю.
+        {MIN.toLocaleString("ru-RU")} coins за неделю. При начислении победители
+        получат уведомление в ЛС, и объявление уйдёт в общий чат.
       </p>
 
       {msg && (
