@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { haptic } from "@/lib/haptics";
+import Icon from "@/components/Icon";
 
 const items = [
-  { href: "/mop", label: "Баланс", icon: "◆" },
-  { href: "/mop/rating", label: "Рейтинг", icon: "▲" },
-  { href: "/mop/history", label: "История", icon: "≡" },
-  { href: "/mop/shop", label: "Магазин", icon: "★" },
+  { href: "/mop", label: "Баланс", icon: "home" },
+  { href: "/mop/rating", label: "Рейтинг", icon: "chart" },
+  { href: "/mop/history", label: "История", icon: "history" },
+  { href: "/mop/shop", label: "Магазин", icon: "bag" },
 ];
 
 export default function BottomNav() {
@@ -24,11 +25,15 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               onClick={() => haptic.light()}
-              className={`flex flex-col items-center justify-center py-2.5 gap-1 text-xs ${
+              className={`flex flex-col items-center justify-center py-2.5 gap-1 text-[11px] transition-colors ${
                 active ? "text-acid-400" : "text-gray-500"
               }`}
             >
-              <span className="text-lg leading-none">{item.icon}</span>
+              <Icon
+                name={item.icon}
+                className="w-[22px] h-[22px]"
+                strokeWidth={active ? 2 : 1.75}
+              />
               {item.label}
             </Link>
           );

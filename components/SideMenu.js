@@ -3,15 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
+import Icon from "@/components/Icon";
 
 const ITEMS = [
-  { href: "/mop/stats", label: "Моя динамика", icon: "📊" },
-  { href: "/mop/settings", label: "Настройки", icon: "⚙️" },
-  { href: "/levels", label: "Звания", icon: "🏆" },
-  { href: "/funds", label: "Копилки", icon: "🐷" },
-  { href: "/mop/purchases", label: "Покупки", icon: "◈" },
-  { href: "/messages", label: "Сообщения", icon: "✉️" },
-  { href: "/mop/help", label: "Инструкция", icon: "❓" },
+  { href: "/mop/stats", label: "Моя динамика", icon: "chart" },
+  { href: "/mop/settings", label: "Настройки", icon: "settings" },
+  { href: "/levels", label: "Звания", icon: "award" },
+  { href: "/funds", label: "Копилки", icon: "piggy" },
+  { href: "/mop/purchases", label: "Покупки", icon: "receipt" },
+  { href: "/messages", label: "Сообщения", icon: "mail" },
+  { href: "/mop/help", label: "Инструкция", icon: "help" },
 ];
 
 export default function SideMenu({ unreadCount = 0 }) {
@@ -24,7 +25,7 @@ export default function SideMenu({ unreadCount = 0 }) {
         aria-label="Меню"
         className="relative flex items-center gap-1.5 text-gray-300 text-sm p-1"
       >
-        <span className="text-xl leading-none">☰</span>
+        <Icon name="menu" className="w-5 h-5" />
         Меню
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-acid-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -45,9 +46,9 @@ export default function SideMenu({ unreadCount = 0 }) {
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Закрыть"
-                className="text-gray-500 text-lg leading-none p-1"
+                className="text-gray-500 p-1"
               >
-                ✕
+                <Icon name="x" className="w-5 h-5" />
               </button>
             </div>
 
@@ -58,8 +59,8 @@ export default function SideMenu({ unreadCount = 0 }) {
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-dark-700 transition"
               >
-                <span className="flex items-center gap-2">
-                  <span className="w-5 text-center shrink-0">{item.icon}</span>
+                <span className="flex items-center gap-3">
+                  <Icon name={item.icon} className="w-5 h-5 shrink-0 text-gray-400" />
                   {item.label}
                 </span>
                 {item.href === "/messages" && unreadCount > 0 && (

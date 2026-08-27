@@ -113,13 +113,20 @@ export default function LiveBalance({
     };
   }, [userId]);
 
-  return (
-    <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-3xl p-6">
-      <p className="text-gray-500 text-sm mb-1">Текущий баланс</p>
+  const fmt = (n) => Number(n).toLocaleString("ru-RU");
 
-      <div className="relative inline-block">
-        <span className="block text-6xl font-black text-acid-400 tracking-tight">
-          {shownBalance}
+  return (
+    <div className="relative overflow-hidden rounded-3xl p-6 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800 shadow-[0_0_50px_-16px_rgba(163,255,18,0.3)]">
+      {/* тонкий световой блик по верхней кромке */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+      <p className="text-gray-400 text-xs uppercase tracking-widest">
+        Текущий баланс
+      </p>
+
+      <div className="relative mt-1 inline-block">
+        <span className="block text-6xl font-black text-acid-400 tracking-tight tabular-nums">
+          {fmt(shownBalance)}
         </span>
         {floaters.map((f) => (
           <span
@@ -128,21 +135,29 @@ export default function LiveBalance({
               f.delta > 0 ? "text-acid-400" : "text-red-400"
             }`}
           >
-            {f.delta > 0 ? `↑ +${f.delta}` : `↓ ${f.delta}`}
+            {f.delta > 0 ? `↑ +${fmt(f.delta)}` : `↓ ${fmt(f.delta)}`}
           </span>
         ))}
       </div>
 
       <p className="text-gray-500 text-sm mt-1">coins</p>
 
-      <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-dark-600">
+      <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/10">
         <div>
-          <p className="text-gray-500 text-xs">Всего заработано</p>
-          <p className="text-xl font-bold">{totalEarned}</p>
+          <p className="text-gray-400 text-[11px] uppercase tracking-wider">
+            Всего заработано
+          </p>
+          <p className="text-xl font-bold tabular-nums mt-0.5">
+            {fmt(totalEarned)}
+          </p>
         </div>
         <div>
-          <p className="text-gray-500 text-xs">За этот месяц</p>
-          <p className="text-xl font-bold">{monthEarned}</p>
+          <p className="text-gray-400 text-[11px] uppercase tracking-wider">
+            За этот месяц
+          </p>
+          <p className="text-xl font-bold tabular-nums mt-0.5">
+            {fmt(monthEarned)}
+          </p>
         </div>
       </div>
     </div>

@@ -26,7 +26,10 @@ export default async function MopLayout({ children }) {
     .is("read_at", null);
 
   return (
-    <div className="min-h-screen bg-dark-900 pb-20">
+    <div className="relative min-h-screen bg-dark-900 pb-20">
+      {/* мягкое свечение сверху за шапкой */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(163,255,18,0.07),transparent_70%)]" />
+
       {profile?.role === "admin" && (
         <div className="bg-acid-400 text-black text-sm font-bold px-4 py-2 flex items-center justify-between gap-2">
           <span>👁 Просмотр как МОП</span>
@@ -35,7 +38,7 @@ export default async function MopLayout({ children }) {
           </Link>
         </div>
       )}
-      <div className="max-w-lg mx-auto px-4 pt-6">
+      <div className="relative max-w-lg mx-auto px-4 pt-6">
         <div className="flex justify-end items-center mb-2">
           <SideMenu unreadCount={unreadCount ?? 0} />
         </div>
