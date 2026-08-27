@@ -7,6 +7,7 @@ import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import LevelUpCelebration from "@/components/LevelUpCelebration";
 import TeamFeed from "@/components/TeamFeed";
+import AnimatedNumber from "@/components/AnimatedNumber";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
@@ -119,9 +120,12 @@ export default async function MopDashboard() {
       {/* Баланс — крупная цифра */}
       <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-3xl p-6">
         <p className="text-gray-500 text-sm mb-1">Текущий баланс</p>
-        <p className="text-6xl font-black text-acid-400 tracking-tight">
-          {profile?.balance ?? 0}
-        </p>
+        <AnimatedNumber
+          value={profile?.balance ?? 0}
+          storageKey="pc-anim-balance"
+          format={false}
+          className="block text-6xl font-black text-acid-400 tracking-tight"
+        />
         <p className="text-gray-500 text-sm mt-1">coins</p>
 
         <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-dark-600">

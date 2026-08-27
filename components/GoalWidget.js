@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import AnimatedNumber from "@/components/AnimatedNumber";
 
 const SIZE = 96;
 const STROKE = 8;
@@ -83,7 +84,7 @@ export default function GoalWidget({ goal, balance }) {
               <span className="text-2xl">✅</span>
             ) : (
               <span className={`text-xl font-black ${textColorClass}`}>
-                {pct}%
+                <AnimatedNumber value={pct} format={false} />%
               </span>
             )}
           </div>
@@ -96,7 +97,7 @@ export default function GoalWidget({ goal, balance }) {
           <p className="font-bold truncate mt-0.5">{rewardTitle}</p>
           <p className="text-sm mt-1">
             <span className={achieved ? "text-amber-400" : "text-acid-400"}>
-              {balance.toLocaleString("ru-RU")}
+              <AnimatedNumber value={balance} storageKey="pc-anim-balance" />
             </span>
             <span className="text-gray-500">
               {" "}

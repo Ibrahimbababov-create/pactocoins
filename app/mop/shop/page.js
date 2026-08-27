@@ -40,6 +40,14 @@ export default async function ShopPage() {
 
   return (
     <div className="space-y-6">
+      <div className="bg-gradient-to-br from-amber-500/10 to-dark-800 border border-amber-500/30 rounded-2xl p-4">
+        <p className="font-bold text-amber-300">🎁 Скоро: сундуки</p>
+        <p className="text-sm text-gray-400 mt-1">
+          Купил сундук за коины — открыл и получил случайный приз. Готовим,
+          следите за магазином.
+        </p>
+      </div>
+
       <ShopClient grouped={grouped} balance={profile?.balance ?? 0} />
     </div>
   );
