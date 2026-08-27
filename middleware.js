@@ -40,6 +40,10 @@ export async function middleware(request) {
   const isLoginPage = path === "/login";
   const isAdminPage = path.startsWith("/admin");
   const isObserverPage = path.startsWith("/observer");
+  // Гость нажал «выйти» — ему нужен экран выбора, даже если сессия
+  // технически ещё не успела очиститься. Не редиректим его с /login.
+  const forceWelcome =
+    isLoginPage && request.nextUrl.searchParams.get("welcome") === "1";
 
   if (!user && !isLoginPage) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -60,7 +64,7 @@ export async function middleware(request) {
     }
 
     if (isLoginPage) {
-      if (profile?.is_active === false) {
+      if (profile?.is_active === false || forceWelcome) {
         return response;
       }
       return NextResponse.redirect(

@@ -116,6 +116,21 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Гость вышел из демо-режима — сразу показываем выбор «гость / регистрация»,
+  // минуя авто-вход телеграма.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("welcome") !== "1") return;
+
+    cancelledRef.current = true;
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.initData) setPendingInitData(tg.initData);
+    setNeedsOnboarding(true);
+    setOnboardingMode("choice");
+    setCheckingTelegram(false);
+  }, []);
+
   // Приход по magic-link: в hash лежат access_token/refresh_token —
   // ставим сессию и уходим на главную. Стандартное завершение OTP-входа
   // Supabase, срабатывает раньше телеграм-проверки.
@@ -154,12 +169,14 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    // Пришли по magic-link — телеграм-проверку не запускаем вообще.
-    if (
-      typeof window !== "undefined" &&
-      (window.location.hash || "").includes("access_token")
-    ) {
-      return;
+    // Пришли по magic-link или после гостевого выхода (?welcome=1) —
+    // телеграм-проверку не запускаем вообще.
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash || "";
+      const params = new URLSearchParams(window.location.search);
+      if (hash.includes("access_token") || params.get("welcome") === "1") {
+        return;
+      }
     }
 
     cancelledRef.current = false;
