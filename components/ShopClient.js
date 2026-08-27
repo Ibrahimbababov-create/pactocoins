@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import { purchaseReward, purchaseVariableReward } from "@/app/mop/shop/actions";
 import { getEffectivePrice } from "@/lib/rewardPricing";
+import { haptic } from "@/lib/haptics";
 
 const GLOW_STYLES = {
   gold: "0 0 24px rgba(250, 204, 21, 0.55)",
@@ -64,8 +65,10 @@ export default function ShopClient({ grouped, balance }) {
           return next;
         });
         setMessage({ type: "error", text: res.error });
+        haptic.error();
       } else {
         setMessage({ type: "success", text: `Куплено: ${reward.title}` });
+        haptic.success();
       }
       setTimeout(() => setMessage(null), 3000);
     });
@@ -91,7 +94,9 @@ export default function ShopClient({ grouped, balance }) {
           return next;
         });
         setMessage({ type: "error", text: res.error });
+        haptic.error();
       } else {
+        haptic.success();
         setMessage({
           type: "success",
           text: `Куплено: ${reward.title} — ${kzt.toLocaleString("ru-RU")} ₸`,
@@ -113,8 +118,10 @@ export default function ShopClient({ grouped, balance }) {
 
       if (!res.ok) {
         setMessage({ type: "error", text: data.error || "Не получилось поставить цель" });
+        haptic.error();
       } else {
         setMessage({ type: "success", text: `🎯 Цель поставлена: ${reward.title}` });
+        haptic.success();
       }
       setTimeout(() => setMessage(null), 3000);
     });
@@ -276,7 +283,10 @@ export default function ShopClient({ grouped, balance }) {
                             )}
                             <button
                               disabled={!canAfford}
-                              onClick={() => setConfirmingVariable(reward.id)}
+                              onClick={() => {
+                                haptic.light();
+                                setConfirmingVariable(reward.id);
+                              }}
                               className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
                             >
                               {Number(kztValue) > 0 && !canAfford
@@ -327,7 +337,10 @@ export default function ShopClient({ grouped, balance }) {
                           <>
                             <button
                               disabled={!canAfford}
-                              onClick={() => setConfirming(reward.id)}
+                              onClick={() => {
+                                haptic.light();
+                                setConfirming(reward.id);
+                              }}
                               className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
                             >
                               {canAfford ? "Купить" : "Не хватает"}

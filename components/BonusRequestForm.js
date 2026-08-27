@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitBonusRequest } from "@/app/mop/bonus/actions";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import { haptic } from "@/lib/haptics";
 
 export default function BonusRequestForm() {
   const router = useRouter();
@@ -23,8 +24,10 @@ export default function BonusRequestForm() {
       const res = await submitBonusRequest(category, comment, customAmount);
       if (res.error) {
         setMessage({ type: "error", text: res.error });
+        haptic.error();
       } else {
         setMessage({ type: "success", text: "Заявка отправлена" });
+        haptic.success();
         setComment("");
         setCustomAmount("");
         setOpen(false);
@@ -50,7 +53,10 @@ export default function BonusRequestForm() {
 
       {!open ? (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            haptic.light();
+            setOpen(true);
+          }}
           className="w-full bg-dark-800 border border-dark-600 text-white font-bold rounded-2xl py-4 hover:border-acid-400 transition"
         >
           + Отправить достижение

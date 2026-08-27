@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { markLevelCelebrated } from "@/app/mop/actions";
+import { haptic } from "@/lib/haptics";
 
 const CONFETTI_COLORS = [
   "#a3ff12",
@@ -21,6 +22,7 @@ export default function LevelUpCelebration({ level }) {
 
   // Конфетти генерируем только на клиенте — иначе рассинхрон гидрации.
   useEffect(() => {
+    haptic.success();
     const next = Array.from({ length: 70 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,

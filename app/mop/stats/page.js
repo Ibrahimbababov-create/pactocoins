@@ -65,7 +65,7 @@ export default async function MyStatsPage() {
           </p>
         ) : (
           <div className="flex justify-between gap-1.5">
-            {series.map((s) => {
+            {series.map((s, i) => {
               const h = s.value > 0 ? Math.max(6, (s.value / max) * 100) : 0;
               const isBest = s.value > 0 && s.value === bestValue;
               return (
@@ -82,10 +82,13 @@ export default async function MyStatsPage() {
                   </span>
                   <div className="w-full h-28 flex items-end">
                     <div
-                      className={`w-full rounded-t ${
+                      className={`w-full rounded-t grow-bar ${
                         isBest ? "bg-acid-400" : "bg-acid-400/40"
                       }`}
-                      style={{ height: `${h}%` }}
+                      style={{
+                        height: `${h}%`,
+                        animationDelay: `${i * 45}ms`,
+                      }}
                     />
                   </div>
                   <span className="text-[10px] text-gray-500 leading-tight text-center">

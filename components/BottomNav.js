@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { haptic } from "@/lib/haptics";
 
 const items = [
   { href: "/mop", label: "Баланс", icon: "◆" },
@@ -22,6 +23,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => haptic.light()}
               className={`flex flex-col items-center justify-center py-2.5 gap-1 text-xs ${
                 active ? "text-acid-400" : "text-gray-500"
               }`}

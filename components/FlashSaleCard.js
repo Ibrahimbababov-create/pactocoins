@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { purchaseReward } from "@/app/mop/shop/actions";
+import { haptic } from "@/lib/haptics";
 
 export default function FlashSaleCard({ reward, balance }) {
   const [isPending, startTransition] = useTransition();
@@ -28,7 +29,10 @@ export default function FlashSaleCard({ reward, balance }) {
         setDisplayBalance((prev) => prev + reward.sale_price_coins);
         setPurchased(false);
         setMessage({ type: "error", text: res.error });
+        haptic.error();
         setTimeout(() => setMessage(null), 4000);
+      } else {
+        haptic.success();
       }
     });
   }

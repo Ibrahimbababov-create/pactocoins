@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
+import { haptic } from "@/lib/haptics";
 
 export default function RevenueRequestForm() {
   const router = useRouter();
@@ -23,11 +24,13 @@ export default function RevenueRequestForm() {
     const amountNum = Number(amount);
     if (!amountNum || amountNum <= 0) {
       setError("Введите корректную сумму");
+      haptic.error();
       return;
     }
 
     if (!receiptConfirmed) {
       setError("Подтверди, что отправил чек в группу");
+      haptic.error();
       return;
     }
 
@@ -36,8 +39,11 @@ export default function RevenueRequestForm() {
 
       if (res.error) {
         setError(res.error);
+        haptic.error();
         return;
       }
+
+      haptic.success();
 
       setAmount("");
       setComment("");
@@ -50,7 +56,10 @@ export default function RevenueRequestForm() {
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          haptic.light();
+          setOpen(true);
+        }}
         className="w-full bg-acid-400 text-black font-bold rounded-2xl py-4 hover:bg-acid-500 transition"
       >
         + Отправить заявку на выручку
