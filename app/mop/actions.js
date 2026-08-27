@@ -30,6 +30,34 @@ export async function updateMyName(formData) {
   return { success: true };
 }
 
+const NOTIFY_PREFS = new Set([
+  "notify_requests",
+  "notify_shop",
+  "notify_goal",
+  "notify_rating",
+]);
+
+export async function updateNotificationPref(key, enabled) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Не авторизован" };
+  if (!NOTIFY_PREFS.has(key)) return { error: "Неизвестная настройка" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("users")
+    .update({ [key]: !!enabled })
+    .eq("id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/settings");
+  return { success: true };
+}
+
 export async function updateReminderSettings(formData) {
   const supabase = createClient();
   const {

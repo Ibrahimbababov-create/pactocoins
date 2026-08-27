@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import EditableName from "@/components/EditableName";
 import RulesAccordion from "@/components/RulesAccordion";
 import ReminderSettings from "@/components/ReminderSettings";
+import NotificationSettings from "@/components/NotificationSettings";
 
 export default async function SettingsPage() {
   const supabase = createClient();
@@ -11,7 +12,9 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name, reminder_enabled, reminder_time")
+    .select(
+      "name, reminder_enabled, reminder_time, notify_requests, notify_shop, notify_goal, notify_rating"
+    )
     .eq("id", user.id)
     .single();
 
@@ -23,6 +26,8 @@ export default async function SettingsPage() {
         <p className="text-sm text-gray-500">Профиль</p>
         <EditableName name={profile?.name ?? ""} />
       </div>
+
+      <NotificationSettings prefs={profile ?? {}} />
 
       <ReminderSettings
         enabled={profile?.reminder_enabled ?? false}

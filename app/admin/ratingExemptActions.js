@@ -181,7 +181,8 @@ export async function approveBonusRequestExempt(requestId, ratingExempt) {
   await notifyUser(
     admin,
     request.user_id,
-    `✅ Заявка на бонус одобрена — +${coins} coins`
+    `✅ Заявка на бонус одобрена — +${coins} coins`,
+    "notify_requests"
   );
 
   revalidatePath("/admin/bonus-requests");

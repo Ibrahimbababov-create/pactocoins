@@ -8,6 +8,7 @@ import { almatyDatetimeToUtcIso } from "@/lib/timezone";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser } from "@/lib/notifyUser";
+import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -224,7 +225,8 @@ export async function approveRevenueRequest(requestId, earnedAtDate) {
   await notifyUser(
     admin,
     request.user_id,
-    `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} coins`
+    `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} coins`,
+    "notify_requests"
   );
 
   revalidatePath("/admin/revenue-requests");
@@ -309,7 +311,8 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
     await notifyUser(
       admin,
       purchase.user_id,
-      `✅ Покупка «${reward?.title ?? "награда"}» одобрена`
+      `✅ Покупка «${reward?.title ?? "награда"}» одобрена`,
+      "notify_requests"
     );
   }
 
@@ -365,6 +368,15 @@ export async function createReward(formData) {
 
   if (error) return { error: error.message };
 
+  await announceFlashSaleIfNew(admin, {
+    title: formData.get("title"),
+    priceCoins: isVariable ? null : priceCoins,
+    salePriceCoins: sale.sale_price_coins,
+    saleEndsAt: sale.sale_ends_at,
+    prevSaleEndsAt: null,
+    isVariable,
+  });
+
   revalidatePath("/admin/rewards");
   revalidatePath("/mop/shop");
   return { success: true };
@@ -405,6 +417,12 @@ export async function updateReward(rewardId, formData) {
   const sale = parseSale(formData);
   if (sale.error) return { error: sale.error };
 
+  const { data: prevReward } = await admin
+    .from("rewards")
+    .select("sale_ends_at")
+    .eq("id", rewardId)
+    .single();
+
   const { url: imageUrl, error: photoError } = await uploadPhoto(
     admin,
     "reward-photos",
@@ -434,6 +452,15 @@ export async function updateReward(rewardId, formData) {
     .eq("id", rewardId);
 
   if (error) return { error: error.message };
+
+  await announceFlashSaleIfNew(admin, {
+    title: formData.get("title"),
+    priceCoins: isVariable ? null : priceCoins,
+    salePriceCoins: sale.sale_price_coins,
+    saleEndsAt: sale.sale_ends_at,
+    prevSaleEndsAt: prevReward?.sale_ends_at ?? null,
+    isVariable,
+  });
 
   revalidatePath("/admin/rewards");
   revalidatePath("/mop/shop");
@@ -495,7 +522,8 @@ export async function approveBonusRequest(requestId) {
   await notifyUser(
     admin,
     request.user_id,
-    `✅ Заявка на бонус одобрена — +${coins} coins`
+    `✅ Заявка на бонус одобрена — +${coins} coins`,
+    "notify_requests"
   );
 
   revalidatePath("/admin/bonus-requests");
