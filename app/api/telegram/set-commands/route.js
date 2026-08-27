@@ -3,13 +3,15 @@ import { createAdminClient } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Регистрирует команды рейтинга в меню бота — точечно, только в личных
-// чатах админов (scope chat), чтобы не трогать общий список команд,
-// которым управляет sales-bot.
-const CMDS = [
+// Единый список команд бота (виден по "/" везде: личка, группы, всем).
+// Берём то, что уже стоит в default-scope (команды sales-bot), убираем
+// ненужные, добавляем свои. Узкие scope (личные чаты, админы групп)
+// чистим, чтобы всё падало на этот общий список.
+const ADD = [
   { command: "rating", description: "Рейтинг за неделю (картинка)" },
   { command: "rating_month", description: "Рейтинг за месяц (картинка)" },
 ];
+const REMOVE = new Set(["checkplan"]);
 
 export async function GET(request) {
   const secret = process.env.DEV_LOGIN_SECRET;
@@ -21,47 +23,49 @@ export async function GET(request) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return new Response("no bot token", { status: 500 });
 
-  const admin = createAdminClient();
-  const { data: admins } = await admin
-    .from("users")
-    .select("telegram_id, name")
-    .eq("role", "admin")
-    .not("telegram_id", "is", null);
-
   const tg = (method, body) =>
     fetch(`https://api.telegram.org/bot${token}/${method}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body ?? {}),
     }).then((r) => r.json());
 
-  const results = [];
-
-  // 1) Личные чаты админов
-  for (const a of admins ?? []) {
-    results.push({
-      scope: `chat ${a.name}`,
-      tg: await tg("setMyCommands", {
-        commands: CMDS,
-        scope: { type: "chat", chat_id: a.telegram_id },
-      }),
-    });
-  }
-
-  // 2) Админы во всех группах — мержим с тем, что уже там (не затираем
-  //    команды sales-bot, если он их туда клал).
-  const scope = { type: "all_chat_administrators" };
-  const existing = await tg("getMyCommands", { scope });
-  const mine = new Set(CMDS.map((c) => c.command));
+  // 1) Собираем общий default-список
+  const existing = (await tg("getMyCommands"))?.result ?? [];
+  const addCmds = new Set(ADD.map((c) => c.command));
   const merged = [
-    ...(existing?.result ?? []).filter((c) => !mine.has(c.command)),
-    ...CMDS,
+    ...existing.filter(
+      (c) => !REMOVE.has(c.command) && !addCmds.has(c.command)
+    ),
+    ...ADD,
   ];
-  results.push({
-    scope: "all_chat_administrators",
-    kept: (existing?.result ?? []).length,
-    tg: await tg("setMyCommands", { commands: merged, scope }),
+  const setDefault = await tg("setMyCommands", { commands: merged });
+
+  // 2) Чистим узкие scope, чтобы они не перекрывали общий список
+  const admin = createAdminClient();
+  const { data: admins } = await admin
+    .from("users")
+    .select("telegram_id")
+    .eq("role", "admin")
+    .not("telegram_id", "is", null);
+
+  const cleaned = [];
+  for (const a of admins ?? []) {
+    cleaned.push(
+      await tg("deleteMyCommands", {
+        scope: { type: "chat", chat_id: a.telegram_id },
+      })
+    );
+  }
+  const cleanedAdmins = await tg("deleteMyCommands", {
+    scope: { type: "all_chat_administrators" },
   });
 
-  return Response.json({ count: results.length, results });
+  return Response.json({
+    before: existing.map((c) => c.command),
+    after: merged.map((c) => c.command),
+    setDefault,
+    cleanedChatScopes: cleaned.length,
+    cleanedAdmins,
+  });
 }
