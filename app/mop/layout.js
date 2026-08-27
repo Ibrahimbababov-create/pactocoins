@@ -36,9 +36,9 @@ export default async function MopLayout({ children }) {
       />
 
       {profile?.role === "admin" && (
-        <div className="bg-acid-400 text-black text-sm font-bold px-4 py-2 flex items-center justify-between gap-2">
-          <span>👁 Просмотр как МОП</span>
-          <Link href="/admin" className="underline">
+        <div className="relative bg-acid-400/[0.08] border-b border-acid-400/20 text-acid-400 text-sm px-4 py-2 flex items-center justify-between gap-2">
+          <span className="font-semibold">👁 Просмотр как МОП</span>
+          <Link href="/admin" className="underline underline-offset-2">
             Вернуться в админку
           </Link>
         </div>
