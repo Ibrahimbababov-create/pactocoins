@@ -359,7 +359,7 @@ export default function BonusRequestsClient({ requests, employees }) {
                 <p className="text-sm">
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category} →{" "}
                   <span className="text-acid-400 font-bold">
-                    {r.amount_coins} coins
+                    {r.amount_coins.toLocaleString("ru-RU")} coins
                   </span>
                 </p>
                 {r.comment && (
@@ -418,7 +418,7 @@ export default function BonusRequestsClient({ requests, employees }) {
                 </p>
                 <p className="text-sm text-gray-500">
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category} ·{" "}
-                  {r.amount_coins} coins
+                  {r.amount_coins.toLocaleString("ru-RU")} coins
                 </p>
               </div>
               <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>

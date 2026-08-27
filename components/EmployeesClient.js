@@ -256,9 +256,13 @@ export default function EmployeesClient({ users }) {
                     )}
                   </p>
                   <p className="text-xs text-gray-500">{u.email}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Баланс: <span className="text-acid-400">{u.balance}</span>{" "}
-                    · всего {u.total_earned} · месяц {u.month_earned}
+                  <p className="text-xs text-gray-500 mt-1 tabular-nums">
+                    Баланс:{" "}
+                    <span className="text-acid-400">
+                      {u.balance.toLocaleString("ru-RU")}
+                    </span>{" "}
+                    · всего {u.total_earned.toLocaleString("ru-RU")} · месяц{" "}
+                    {u.month_earned.toLocaleString("ru-RU")}
                   </p>
                   {u.goal ? (
                     <span className="inline-block mt-1.5 text-xs bg-acid-400/10 text-acid-400 px-2 py-0.5 rounded-full">

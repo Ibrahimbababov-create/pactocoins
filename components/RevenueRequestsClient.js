@@ -193,7 +193,7 @@ export default function RevenueRequestsClient({ requests }) {
                 <p className="text-sm">
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ →{" "}
                   <span className="text-acid-400 font-bold">
-                    {r.calculated_coins} coins
+                    {r.calculated_coins.toLocaleString("ru-RU")} coins
                   </span>
                 </p>
                 {r.comment && (
@@ -283,7 +283,7 @@ export default function RevenueRequestsClient({ requests }) {
                 </p>
                 <p className="text-sm text-gray-500">
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ ·{" "}
-                  {r.calculated_coins} coins
+                  {r.calculated_coins.toLocaleString("ru-RU")} coins
                 </p>
                 <p className="text-xs text-gray-600">
                   {new Date(

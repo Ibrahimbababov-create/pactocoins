@@ -177,7 +177,7 @@ export default function BudgetClient({ topups, expenses }) {
               <div>
                 <p className="font-semibold">{e.rewards?.title}</p>
                 <p className="text-sm text-gray-500">
-                  {e.users?.name} · {e.price_coins} coins
+                  {e.users?.name} · {e.price_coins.toLocaleString("ru-RU")} coins
                 </p>
               </div>
               <p className="font-bold">{formatKzt(e.actual_kzt_amount)}</p>

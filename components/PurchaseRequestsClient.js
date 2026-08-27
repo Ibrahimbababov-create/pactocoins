@@ -78,7 +78,7 @@ export default function PurchaseRequestsClient({ purchases }) {
                   : p.users?.role === "observer"
                   ? " (наблюдатель)"
                   : ""}{" "}
-                · {p.price_coins} coins
+                · {p.price_coins.toLocaleString("ru-RU")} coins
                 {p.kzt_amount ? ` · ${p.kzt_amount.toLocaleString("ru-RU")} ₸` : ""}
               </p>
               <p className="text-xs text-gray-600">
