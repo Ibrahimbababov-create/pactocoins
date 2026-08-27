@@ -38,7 +38,7 @@ export default function EmployeesClient({ users }) {
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [message, setMessage] = useState(null);
-  const [openGroups, setOpenGroups] = useState(() => new Set(["mop", "rop"]));
+  const [openGroups, setOpenGroups] = useState(() => new Set());
 
   const grouped = useMemo(() => {
     const g = Object.fromEntries(GROUPS.map((x) => [x.key, []]));
