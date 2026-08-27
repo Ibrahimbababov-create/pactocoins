@@ -20,6 +20,67 @@ import { renderRatingImage } from "@/lib/ratingImage";
 
 const RATING_CMDS = new Set(["/rating", "/rating_week", "/rating_month"]);
 
+// /all может стоять где угодно в сообщении (обычно в конце анонса).
+const ALL_RE = /(^|\s)\/all(@[a-z0-9_]+)?(\s|$)/i;
+
+function escapeHtml(s) {
+  return String(s).replace(/[<>&"]/g, (c) =>
+    ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c])
+  );
+}
+
+// Тегаем всех активных сотрудников с привязанным Telegram — ответом на
+// сообщение, в котором был /all.
+async function handleAllCommand(msg) {
+  const admin = createAdminClient();
+
+  const { data: caller } = await admin
+    .from("users")
+    .select("role")
+    .eq("telegram_id", msg.from?.id)
+    .maybeSingle();
+
+  // Тихо игнорируем, если пишет не админ/РОП — чтобы не спамить в группе.
+  if (!["admin", "rop"].includes(caller?.role)) return;
+
+  const { data: people } = await admin
+    .from("users")
+    .select("name, telegram_id")
+    .in("role", ["mop", "rop"])
+    .eq("is_active", true)
+    .eq("is_guest", false)
+    .not("telegram_id", "is", null)
+    .not("email", "like", "%.test@pactocoins.local");
+
+  if (!people?.length) {
+    await sendTelegramMessage(
+      msg.chat.id,
+      "Некого тегать — ни у кого не привязан Telegram.",
+      undefined,
+      msg.message_thread_id,
+      msg.message_id
+    );
+    return;
+  }
+
+  const mentions = people
+    .map(
+      (p) =>
+        `<a href="tg://user?id=${p.telegram_id}">${escapeHtml(
+          p.name || "сотрудник"
+        )}</a>`
+    )
+    .join(" ");
+
+  await sendTelegramMessage(
+    msg.chat.id,
+    `📣 ${mentions}`,
+    undefined,
+    msg.message_thread_id,
+    msg.message_id
+  );
+}
+
 function parseCommand(text) {
   if (!text) return null;
   const first = text.trim().split(/\s+/)[0].toLowerCase();
@@ -119,6 +180,12 @@ export async function POST(request) {
 
   // Команды бота на картинку рейтинга (только для админов).
   const msg = update.message || update.edited_message;
+
+  if (msg?.text && ALL_RE.test(msg.text)) {
+    await handleAllCommand(msg);
+    return NextResponse.json({ ok: true });
+  }
+
   const cmd = parseCommand(msg?.text);
   if (cmd) {
     console.log("[webhook] command:", cmd, "chat", msg.chat?.type, msg.chat?.id);
