@@ -128,23 +128,19 @@ async function handleAllCommand(msg) {
     return;
   }
 
-  const mentions = [...byId.entries()].map(
-    ([id, name]) =>
-      `<a href="tg://user?id=${id}">${escapeHtml(name)}</a>`
-  );
+  // Прячем упоминания за невидимым символом — сообщение остаётся коротким
+  // ("📣 Всем"), но каждый привязанный пользователь получает пинг.
+  const mentions = [...byId.keys()]
+    .map((id) => `<a href="tg://user?id=${id}">⁣</a>`)
+    .join("");
 
-  // Длинные сообщения Telegram режет — шлём пачками по 50 упоминаний.
-  const CHUNK = 50;
-  for (let i = 0; i < mentions.length; i += CHUNK) {
-    const part = mentions.slice(i, i + CHUNK).join(" ");
-    await sendTelegramMessage(
-      msg.chat.id,
-      i === 0 ? `📣 ${part}` : part,
-      undefined,
-      msg.message_thread_id,
-      i === 0 ? msg.message_id : undefined
-    );
-  }
+  await sendTelegramMessage(
+    msg.chat.id,
+    `📣 Всем${mentions}`,
+    undefined,
+    msg.message_thread_id,
+    msg.message_id
+  );
 }
 
 function parseCommand(text) {
