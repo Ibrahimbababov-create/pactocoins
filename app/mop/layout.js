@@ -2,9 +2,8 @@ import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
-import SideMenu from "@/components/SideMenu";
 import PageTransition from "@/components/PageTransition";
-import StickyBalance from "@/components/StickyBalance";
+import MopTopBar from "@/components/MopTopBar";
 
 export default async function MopLayout({ children }) {
   const supabase = createClient();
@@ -31,7 +30,10 @@ export default async function MopLayout({ children }) {
       {/* мягкое свечение сверху за шапкой */}
       <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(163,255,18,0.07),transparent_70%)]" />
 
-      <StickyBalance balance={profile?.balance ?? 0} />
+      <MopTopBar
+        balance={profile?.balance ?? 0}
+        unreadCount={unreadCount ?? 0}
+      />
 
       {profile?.role === "admin" && (
         <div className="bg-acid-400 text-black text-sm font-bold px-4 py-2 flex items-center justify-between gap-2">
@@ -41,10 +43,7 @@ export default async function MopLayout({ children }) {
           </Link>
         </div>
       )}
-      <div className="relative max-w-lg mx-auto px-4 pt-6">
-        <div className="flex justify-end items-center mb-2">
-          <SideMenu unreadCount={unreadCount ?? 0} />
-        </div>
+      <div className="relative max-w-lg mx-auto px-4 pt-4">
         <PageTransition>{children}</PageTransition>
       </div>
       <BottomNav />
