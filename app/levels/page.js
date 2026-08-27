@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import { LEVELS, getLevelForAmount } from "@/lib/levels";
+import Icon from "@/components/Icon";
 
 export default async function LevelsPage() {
   const supabase = createClient();
@@ -31,7 +32,10 @@ export default async function LevelsPage() {
       <Link href={homeHref} className="text-gray-500 text-sm">
         ← На главную
       </Link>
-      <h1 className="text-2xl font-bold">🏆 Звания</h1>
+      <h1 className="text-2xl font-bold flex items-center gap-2">
+        <Icon name="award" className="w-6 h-6 text-gray-400" />
+        Звания
+      </h1>
 
       <div className="space-y-3">
         {reversedLevels.map((level) => {

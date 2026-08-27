@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import Link from "next/link";
 import FundsClient from "@/components/FundsClient";
+import Icon from "@/components/Icon";
 
 export default async function FundsPage() {
   const supabase = createClient();
@@ -47,7 +48,10 @@ export default async function FundsPage() {
       <Link href={homeHref} className="text-gray-500 text-sm">
         ← На главную
       </Link>
-      <h1 className="text-2xl font-bold">🐷 Копилки</h1>
+      <h1 className="text-2xl font-bold flex items-center gap-2">
+        <Icon name="piggy" className="w-6 h-6 text-gray-400" />
+        Копилки
+      </h1>
       <FundsClient
         funds={funds ?? []}
         contributions={contributions ?? []}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { recentDaysAlmaty, almatyDayKey } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
+import Icon from "@/components/Icon";
 
 const DAYS = 10;
 
@@ -55,7 +56,10 @@ export default async function MyStatsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">📊 Моя динамика</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Icon name="chart" className="w-6 h-6 text-gray-400" />
+          Моя динамика
+        </h1>
         <p className="text-gray-500 text-sm mt-1">
           Заработок за последние {DAYS} дней
         </p>
