@@ -103,15 +103,27 @@ async function handleAllCommand(msg) {
       .not("email", "like", "%.test@pactocoins.local"),
   ]);
 
+  const rosterIds = new Set((roster || []).map((r) => String(r.user_id)));
+
+  // Список сотрудников из базы подставляем только в рабочих чатах — там, где
+  // кто-то из команды уже писал, либо это основной чат согласований. В личной
+  // группе (семья и т.п.) тегаем строго тех, кто есть в этом чате.
+  const announceChat = String(process.env.TELEGRAM_ANNOUNCE_CHAT_ID || "");
+  const isWorkChat =
+    (announceChat && String(msg.chat.id) === announceChat) ||
+    (staff || []).some((s) => rosterIds.has(String(s.telegram_id)));
+
   const byId = new Map();
   for (const r of roster || []) {
     byId.set(String(r.user_id), r.name || "участник");
   }
-  for (const s of staff || []) {
-    byId.set(
-      String(s.telegram_id),
-      s.name || byId.get(String(s.telegram_id)) || "сотрудник"
-    );
+  if (isWorkChat) {
+    for (const s of staff || []) {
+      byId.set(
+        String(s.telegram_id),
+        s.name || byId.get(String(s.telegram_id)) || "сотрудник"
+      );
+    }
   }
 
   // Самого автора не тегаем — он и так тут.
