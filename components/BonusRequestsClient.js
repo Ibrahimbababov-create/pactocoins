@@ -13,6 +13,7 @@ import {
   approveBonusRequestExempt,
 } from "@/app/admin/ratingExemptActions";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import WeeklyTop3Bonus from "@/components/WeeklyTop3Bonus";
 
 const statusLabels = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -20,7 +21,12 @@ const statusLabels = {
   rejected: { label: "Отклонено", color: "bg-red-500/10 text-red-400" },
 };
 
-export default function BonusRequestsClient({ requests, employees }) {
+export default function BonusRequestsClient({
+  requests,
+  employees,
+  weekRanking = [],
+  weekLabel = "",
+}) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -193,13 +199,17 @@ export default function BonusRequestsClient({ requests, employees }) {
         </div>
       )}
 
+      <WeeklyTop3Bonus ranking={weekRanking} weekLabel={weekLabel} />
+
       <div className="grid md:grid-cols-2 gap-4">
         {/* Одному участнику */}
         <form
           onSubmit={handleSingleSubmit}
           className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
         >
-          <p className="text-sm text-gray-500">Добавить одному участнику</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider">
+            Добавить одному участнику
+          </p>
           <select
             value={singleUserId}
             onChange={(e) => setSingleUserId(e.target.value)}
@@ -246,7 +256,7 @@ export default function BonusRequestsClient({ requests, employees }) {
           onSubmit={handleEmployeeBulkSubmit}
           className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
         >
-          <p className="text-sm text-gray-500">
+          <p className="text-xs text-gray-400 uppercase tracking-wider">
             Добавить нескольким одинаково
           </p>
           <div className="max-h-32 overflow-y-auto space-y-1 bg-dark-700 border border-dark-600 rounded-lg p-2">
@@ -297,8 +307,8 @@ export default function BonusRequestsClient({ requests, employees }) {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            Заявки от сотрудников, ожидают подтверждения ({pending.length})
+          <p className="text-xs text-gray-400 uppercase tracking-wider">
+            Заявки от сотрудников ({pending.length})
           </p>
           {pending.length > 0 && (
             <button
@@ -401,7 +411,7 @@ export default function BonusRequestsClient({ requests, employees }) {
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm text-gray-500">История</p>
+        <p className="text-xs text-gray-400 uppercase tracking-wider">История</p>
         {processed.map((r) => {
           const meta = statusLabels[r.status];
           return (

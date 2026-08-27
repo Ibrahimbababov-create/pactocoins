@@ -25,6 +25,62 @@ async function requireAdmin() {
   return user;
 }
 
+// Еженедельный бонус топ-3 за прошлую неделю. items = [{ userId, amount }].
+// Всегда rating_exempt = true (не должно влиять на рейтинг).
+export async function awardWeeklyTop3(items, reason) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const clean = (items ?? []).filter(
+    (i) => i && i.userId && Number(i.amount) > 0
+  );
+  if (clean.length === 0) return { error: "Укажи суммы для победителей" };
+
+  let count = 0;
+  for (const { userId, amount } of clean) {
+    const amt = Math.round(Number(amount));
+
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance, total_earned, month_earned")
+      .eq("id", userId)
+      .single();
+    if (!profile) continue;
+
+    await admin
+      .from("users")
+      .update({
+        balance: profile.balance + amt,
+        total_earned: profile.total_earned + amt,
+        month_earned: profile.month_earned + amt,
+      })
+      .eq("id", userId);
+
+    await checkAndApplyLevelUp(userId, admin);
+
+    await admin.from("transactions").insert({
+      user_id: userId,
+      type: "manual_add",
+      amount_coins: amt,
+      description: reason || "ТОП-3 за неделю",
+      rating_exempt: true,
+    });
+
+    await notifyUser(
+      admin,
+      userId,
+      `🏆 ${reason || "Бонус за топ прошлой недели"} — +${amt} coins`,
+      "notify_requests"
+    );
+
+    count++;
+  }
+
+  revalidatePath("/admin/bonus-requests");
+  revalidatePath("/admin");
+  return { success: true, count };
+}
+
 export async function manualAdjustBalanceExempt(
   userId,
   amount,
