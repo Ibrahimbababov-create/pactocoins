@@ -24,16 +24,14 @@ export default function MopTopBar({ balance, unreadCount = 0 }) {
             Pacto<span className="text-acid-400">Coins</span>
           </span>
           <div className="flex items-center gap-3">
-            <span
-              className={`text-sm transition-opacity duration-200 ${
-                scrolled ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
-            >
-              <span className="text-gray-500">баланс </span>
-              <span className="font-black text-acid-400 tabular-nums">
-                {Number(balance).toLocaleString("ru-RU")}
+            {scrolled && (
+              <span className="text-sm">
+                <span className="text-gray-500">баланс </span>
+                <span className="font-black text-acid-400 tabular-nums">
+                  {Number(balance).toLocaleString("ru-RU")}
+                </span>
               </span>
-            </span>
+            )}
             <SideMenu unreadCount={unreadCount} />
           </div>
         </div>
