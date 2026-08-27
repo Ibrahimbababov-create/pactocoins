@@ -28,21 +28,40 @@ export async function GET(request) {
     .eq("role", "admin")
     .not("telegram_id", "is", null);
 
+  const tg = (method, body) =>
+    fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).then((r) => r.json());
+
   const results = [];
+
+  // 1) Личные чаты админов
   for (const a of admins ?? []) {
-    const r = await fetch(
-      `https://api.telegram.org/bot${token}/setMyCommands`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          commands: CMDS,
-          scope: { type: "chat", chat_id: a.telegram_id },
-        }),
-      }
-    );
-    results.push({ name: a.name, chat_id: a.telegram_id, tg: await r.json() });
+    results.push({
+      scope: `chat ${a.name}`,
+      tg: await tg("setMyCommands", {
+        commands: CMDS,
+        scope: { type: "chat", chat_id: a.telegram_id },
+      }),
+    });
   }
+
+  // 2) Админы во всех группах — мержим с тем, что уже там (не затираем
+  //    команды sales-bot, если он их туда клал).
+  const scope = { type: "all_chat_administrators" };
+  const existing = await tg("getMyCommands", { scope });
+  const mine = new Set(CMDS.map((c) => c.command));
+  const merged = [
+    ...(existing?.result ?? []).filter((c) => !mine.has(c.command)),
+    ...CMDS,
+  ];
+  results.push({
+    scope: "all_chat_administrators",
+    kept: (existing?.result ?? []).length,
+    tg: await tg("setMyCommands", { commands: merged, scope }),
+  });
 
   return Response.json({ count: results.length, results });
 }
