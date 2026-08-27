@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import EmptyState from "@/components/EmptyState";
 
 const typeLabels = {
   earn: { label: "Начисление", color: "text-acid-400", sign: "+" },
@@ -40,7 +41,11 @@ export default function HistoryClient({ transactions, requests }) {
       {tab === "transactions" ? (
         <div className="space-y-2">
           {transactions.length === 0 && (
-            <p className="text-gray-500 text-sm">Операций пока нет</p>
+            <EmptyState
+              icon="history"
+              title="Операций пока нет"
+              hint="Здесь будут все начисления и списания коинов."
+            />
           )}
 
           {transactions.map((t) => {
@@ -76,7 +81,11 @@ export default function HistoryClient({ transactions, requests }) {
       ) : (
         <div className="space-y-2">
           {requests.length === 0 && (
-            <p className="text-gray-500 text-sm">Заявок пока нет</p>
+            <EmptyState
+              icon="receipt"
+              title="Заявок пока нет"
+              hint="Отправленные заявки на выручку и бонусы появятся здесь."
+            />
           )}
 
           {requests.map((r) => {

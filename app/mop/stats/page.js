@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { recentDaysAlmaty, almatyDayKey } from "@/lib/timezone";
+import EmptyState from "@/components/EmptyState";
 
 const DAYS = 10;
 
@@ -48,6 +50,8 @@ export default async function MyStatsPage() {
   const topCat = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0];
   const totalPurchases = (purchases ?? []).length;
 
+  const hasNothing = total === 0 && totalPurchases === 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -57,6 +61,24 @@ export default async function MyStatsPage() {
         </p>
       </div>
 
+      {hasNothing && (
+        <EmptyState
+          icon="chart"
+          title="Пока нет данных"
+          hint="Как начнёшь сдавать выручку и получать бонусы — здесь появится график по дням и любимая категория покупок."
+          action={
+            <Link
+              href="/mop"
+              className="inline-block bg-acid-400 text-black font-bold rounded-xl px-5 py-2.5 text-sm"
+            >
+              На главную
+            </Link>
+          }
+        />
+      )}
+
+      {!hasNothing && (
+        <>
       {/* Столбики по дням */}
       <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-2xl p-4">
         {total === 0 ? (
@@ -136,6 +158,8 @@ export default async function MyStatsPage() {
           <p className="text-sm text-gray-500">Пока ничего не покупал</p>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,16 +1,12 @@
 export default function Loading() {
   return (
-    <div className="space-y-4 animate-pulse">
-      <div className="h-7 w-28 bg-dark-800 rounded" />
-      <div className="h-11 bg-dark-800 border border-dark-600 rounded-xl" />
-      <div className="h-11 bg-dark-800 border border-dark-600 rounded-xl" />
-      <div className="h-24 bg-dark-800 border border-dark-600 rounded-xl" />
-      <div className="space-y-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="bg-dark-800 border border-dark-600 rounded-xl h-16"
-          />
+    <div className="space-y-4">
+      <div className="skeleton h-7 w-28" />
+      <div className="skeleton h-10 rounded-xl" />
+      <div className="skeleton h-10 rounded-xl" />
+      <div className="space-y-2 pt-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="skeleton h-16 rounded-xl" />
         ))}
       </div>
     </div>

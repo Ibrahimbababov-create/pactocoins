@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import EmptyState from "@/components/EmptyState";
 
 const typeLabels = {
   earn: { label: "Начисление", color: "text-acid-400" },
@@ -25,7 +26,7 @@ export default async function ObserverActivity() {
 
       <div className="space-y-2">
         {transactions?.length === 0 && (
-          <p className="text-gray-600 text-sm">Пока пусто</p>
+          <EmptyState icon="history" title="Пока пусто" hint="Операции сотрудников появятся здесь." />
         )}
         {transactions?.map((t) => {
           const meta = typeLabels[t.type] ?? {

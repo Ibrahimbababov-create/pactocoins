@@ -1,12 +1,14 @@
 export default function Loading() {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div>
-        <div className="h-4 w-24 bg-dark-800 rounded mb-2" />
-        <div className="h-7 w-40 bg-dark-800 rounded" />
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="skeleton h-4 w-24" />
+        <div className="skeleton h-7 w-40" />
       </div>
-      <div className="bg-dark-800 border border-dark-600 rounded-3xl p-6 h-48" />
-      <div className="bg-dark-800 border border-dark-600 rounded-2xl h-14" />
+      <div className="skeleton h-52 rounded-3xl" />
+      <div className="skeleton h-24 rounded-2xl" />
+      <div className="skeleton h-14 rounded-2xl" />
+      <div className="skeleton h-14 rounded-2xl" />
     </div>
   );
 }
