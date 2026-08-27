@@ -258,7 +258,10 @@ export default function ShopClient({ grouped, balance }) {
                         </p>
 
                         {isPurchased ? (
-                          <div className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400">
+                          <div
+                            className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+                            style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
+                          >
                             ✅ Куплено
                           </div>
                         ) : !isConfirmingVariable ? (
@@ -330,7 +333,10 @@ export default function ShopClient({ grouped, balance }) {
                         )}
 
                         {isPurchased ? (
-                          <div className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400">
+                          <div
+                            className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+                            style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
+                          >
                             ✅ Куплено
                           </div>
                         ) : !isConfirming ? (

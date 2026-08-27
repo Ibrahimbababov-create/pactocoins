@@ -75,7 +75,10 @@ export default function FlashSaleCard({ reward, balance }) {
       )}
 
       {purchased ? (
-        <div className="w-full mt-4 rounded-xl py-3 text-sm font-bold text-center bg-acid-400/10 text-acid-400">
+        <div
+          className="w-full mt-4 rounded-xl py-3 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+          style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
+        >
           ✅ Куплено
         </div>
       ) : !confirming ? (
