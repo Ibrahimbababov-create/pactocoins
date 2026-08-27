@@ -12,7 +12,8 @@ export default async function AdminRating() {
     .select("id, name, total_earned")
     .eq("role", "mop")
     .eq("is_active", true)
-    .eq("is_guest", false);
+    .eq("is_guest", false)
+    .not("email", "like", "%.test@pactocoins.local");
 
   const userIds = users?.map((u) => u.id) ?? [];
 

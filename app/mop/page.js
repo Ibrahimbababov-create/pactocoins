@@ -57,6 +57,7 @@ export default async function MopDashboard() {
       .from("team_events")
       .select("id, user_name, kind, title, icon, created_at")
       .eq("kind", "purchase")
+      .not("user_name", "like", "🤖%")
       .order("created_at", { ascending: false })
       .limit(8),
   ]);

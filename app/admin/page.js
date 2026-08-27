@@ -33,6 +33,7 @@ export default async function AdminOverview({ searchParams }) {
       .eq("role", "mop")
       .eq("is_active", true)
       .eq("is_guest", false)
+      .not("email", "like", "%.test@pactocoins.local")
       .order("balance", { ascending: false }),
     supabase
       .from("revenue_requests")
