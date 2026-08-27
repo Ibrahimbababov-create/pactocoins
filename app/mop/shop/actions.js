@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { getEffectivePrice } from "@/lib/rewardPricing";
 import { sendTelegramMessage } from "@/lib/telegramBot";
+import { recordTeamEvent } from "@/lib/teamEvents";
 
 async function notifyPurchaseGroup(purchaseId, employeeName, text) {
   const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
@@ -41,7 +42,7 @@ export async function purchaseReward(rewardId) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("name, balance")
+    .select("name, balance, is_guest")
     .eq("id", user.id)
     .single();
 
@@ -91,6 +92,16 @@ export async function purchaseReward(rewardId) {
     created_by: user.id,
   });
 
+  if (!profile?.is_guest) {
+    await recordTeamEvent(admin, {
+      userId: user.id,
+      userName: profile?.name ?? "Кто-то",
+      kind: "purchase",
+      title: reward.title,
+      icon: "🛍",
+    });
+  }
+
   await notifyPurchaseGroup(
     inserted.id,
     profile?.name ?? "МОП",
@@ -135,7 +146,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("name, balance")
+    .select("name, balance, is_guest")
     .eq("id", user.id)
     .single();
 
@@ -173,6 +184,16 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     description: `Покупка: ${reward.title} — ${kzt.toLocaleString("ru-RU")} ₸`,
     created_by: user.id,
   });
+
+  if (!profile?.is_guest) {
+    await recordTeamEvent(admin, {
+      userId: user.id,
+      userName: profile?.name ?? "Кто-то",
+      kind: "purchase",
+      title: reward.title,
+      icon: "🛍",
+    });
+  }
 
   await notifyPurchaseGroup(
     inserted.id,

@@ -6,6 +6,9 @@ import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import LevelUpCelebration from "@/components/LevelUpCelebration";
+import TeamFeed from "@/components/TeamFeed";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getLevelForAmount } from "@/lib/levels";
 
@@ -21,6 +24,7 @@ export default async function MopDashboard() {
     { data: pendingBonus },
     { data: fetchedGoal },
     { data: flashSaleRewards },
+    { data: teamEvents },
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
     supabase
@@ -48,6 +52,11 @@ export default async function MopDashboard() {
       .not("sale_price_coins", "is", null)
       .not("sale_ends_at", "is", null)
       .gt("sale_ends_at", new Date().toISOString()),
+    supabase
+      .from("team_events")
+      .select("id, user_name, kind, title, icon, created_at")
+      .order("created_at", { ascending: false })
+      .limit(8),
   ]);
 
   const hasPending =
@@ -66,7 +75,18 @@ export default async function MopDashboard() {
       .eq("id", currentGoal.id)
       .select("*, rewards(title, image_url)")
       .single();
-    if (achievedGoal) currentGoal = achievedGoal;
+    if (achievedGoal) {
+      currentGoal = achievedGoal;
+      if (!profile?.is_guest) {
+        await recordTeamEvent(createAdminClient(), {
+          userId: user.id,
+          userName: profile?.name ?? "Кто-то",
+          kind: "goal_achieved",
+          title: achievedGoal.rewards?.title ?? "цель",
+          icon: "🎯",
+        });
+      }
+    }
   }
 
   return (
@@ -117,6 +137,8 @@ export default async function MopDashboard() {
       </div>
 
       <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
+
+      {!profile?.is_guest && <TeamFeed events={teamEvents ?? []} />}
 
       <BirthdayProfile birthday={profile?.birthday} />
 
