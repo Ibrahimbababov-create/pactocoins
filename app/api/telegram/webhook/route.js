@@ -20,33 +20,62 @@ import { renderRatingImage } from "@/lib/ratingImage";
 
 const RATING_CMDS = new Set(["/rating", "/rating_week", "/rating_month"]);
 
+function parseCommand(text) {
+  if (!text) return null;
+  const first = text.trim().split(/\s+/)[0].toLowerCase();
+  const cmd = first.replace(/@[a-z0-9_]+$/i, "");
+  return cmd.startsWith("/") ? cmd : null;
+}
+
 async function handleRatingCommand(msg, cmd) {
   const admin = createAdminClient();
+  const fromId = msg.from?.id;
 
-  const { data: caller } = await admin
+  const { data: caller, error: callerErr } = await admin
     .from("users")
     .select("role")
-    .eq("telegram_id", msg.from?.id)
-    .eq("role", "admin")
+    .eq("telegram_id", fromId)
     .maybeSingle();
 
-  if (!caller) {
-    await sendTelegramMessage(msg.chat.id, "Команда доступна только админам.");
+  console.log("[rating cmd]", {
+    cmd,
+    fromId,
+    chatId: msg.chat?.id,
+    chatType: msg.chat?.type,
+    threadId: msg.message_thread_id,
+    callerRole: caller?.role ?? null,
+    callerErr: callerErr?.message ?? null,
+  });
+
+  if (caller?.role !== "admin") {
+    await sendTelegramMessage(
+      msg.chat.id,
+      "Команда доступна только админам.",
+      undefined,
+      msg.message_thread_id
+    );
     return;
   }
 
   const period = cmd === "/rating_month" ? "month" : "week";
   try {
     const png = await renderRatingImage(admin, period);
-    await sendTelegramPhoto(
+    const res = await sendTelegramPhoto(
       msg.chat.id,
       png,
       `🏆 Рейтинг · ${period === "month" ? "месяц" : "неделя"}`,
-      "image/png"
+      "image/png",
+      msg.message_thread_id
     );
+    console.log("[rating cmd] photo sent:", JSON.stringify(res));
   } catch (err) {
     console.error("[rating cmd] failed:", err);
-    await sendTelegramMessage(msg.chat.id, "Не получилось собрать картинку рейтинга.");
+    await sendTelegramMessage(
+      msg.chat.id,
+      "Не получилось собрать картинку рейтинга.",
+      undefined,
+      msg.message_thread_id
+    );
   }
 }
 
@@ -89,15 +118,12 @@ export async function POST(request) {
   const update = await request.json();
 
   // Команды бота на картинку рейтинга (только для админов).
-  const text = update.message?.text;
-  if (text) {
-    const cmd = text
-      .trim()
-      .split(/\s+/)[0]
-      .toLowerCase()
-      .replace(/@[a-z0-9_]+$/i, "");
+  const msg = update.message || update.edited_message;
+  const cmd = parseCommand(msg?.text);
+  if (cmd) {
+    console.log("[webhook] command:", cmd, "chat", msg.chat?.type, msg.chat?.id);
     if (RATING_CMDS.has(cmd)) {
-      await handleRatingCommand(update.message, cmd);
+      await handleRatingCommand(msg, cmd);
       return NextResponse.json({ ok: true });
     }
   }
