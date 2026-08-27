@@ -89,42 +89,56 @@ export default async function AdminOverview({ searchParams }) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Всего МОПов</p>
-          <p className="text-2xl font-bold">{users?.length ?? 0}</p>
-        </div>
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Коинов в обороте</p>
-          <p className="text-2xl font-bold text-acid-400">{totalBalance}</p>
-        </div>
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Заявки на выручку</p>
-          <p className="text-2xl font-bold text-yellow-400">
-            {pendingRevenue ?? 0}
-          </p>
-        </div>
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Заявки на покупки</p>
-          <p className="text-2xl font-bold text-yellow-400">
-            {pendingPurchases ?? 0}
-          </p>
-        </div>
-      </div>
-
       <Link
         href="/admin/budget"
-        className="block bg-dark-800 border border-dark-600 rounded-2xl p-4"
+        className="block relative overflow-hidden rounded-3xl p-6 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800 shadow-[0_0_50px_-16px_rgba(163,255,18,0.3)]"
       >
-        <p className="text-xs text-gray-500">Остаток бюджета на закуп</p>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+        <p className="text-gray-400 text-xs uppercase tracking-widest">
+          Остаток бюджета на закуп
+        </p>
         <p
-          className={`text-2xl font-bold ${
+          className={`mt-1 text-4xl font-black tabular-nums ${
             remainingBudget < 0 ? "text-red-400" : "text-acid-400"
           }`}
         >
           {remainingBudget.toLocaleString("ru-RU")} ₸
         </p>
       </Link>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Всего МОПов", value: users?.length ?? 0, tone: "" },
+          {
+            label: "Коинов в обороте",
+            value: totalBalance,
+            tone: "text-acid-400",
+          },
+          {
+            label: "Заявки на выручку",
+            value: pendingRevenue ?? 0,
+            tone: (pendingRevenue ?? 0) > 0 ? "text-yellow-400" : "text-gray-300",
+          },
+          {
+            label: "Заявки на покупки",
+            value: pendingPurchases ?? 0,
+            tone:
+              (pendingPurchases ?? 0) > 0 ? "text-yellow-400" : "text-gray-300",
+          },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="bg-dark-800 border border-white/5 rounded-2xl p-4"
+          >
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+              {s.label}
+            </p>
+            <p className={`text-2xl font-bold tabular-nums mt-0.5 ${s.tone}`}>
+              {s.value.toLocaleString("ru-RU")}
+            </p>
+          </div>
+        ))}
+      </div>
 
       <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-2">
@@ -172,9 +186,12 @@ export default async function AdminOverview({ searchParams }) {
               </div>
             </div>
             <div className="text-right">
-              <p className="font-bold text-acid-400">{u.balance}</p>
-              <p className="text-xs text-gray-500">
-                всего {u.total_earned} · месяц {u.month_earned}
+              <p className="font-bold text-acid-400 tabular-nums">
+                {u.balance.toLocaleString("ru-RU")}
+              </p>
+              <p className="text-xs text-gray-500 tabular-nums">
+                всего {u.total_earned.toLocaleString("ru-RU")} · месяц{" "}
+                {u.month_earned.toLocaleString("ru-RU")}
               </p>
             </div>
           </div>

@@ -34,32 +34,42 @@ export default async function ObserverOverview() {
       <h1 className="text-2xl font-bold">Обзор</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Всего МОПов</p>
-          <p className="text-2xl font-bold">{users?.length ?? 0}</p>
-        </div>
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Коинов в обороте</p>
-          <p className="text-2xl font-bold text-acid-400">{totalBalance}</p>
-        </div>
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Заявки на выручку</p>
-          <p className="text-2xl font-bold text-yellow-400">
-            {pendingRevenue ?? 0}
-          </p>
-        </div>
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Заявки на бонусы</p>
-          <p className="text-2xl font-bold text-yellow-400">
-            {pendingBonus ?? 0}
-          </p>
-        </div>
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Заявки на покупки</p>
-          <p className="text-2xl font-bold text-yellow-400">
-            {pendingPurchases ?? 0}
-          </p>
-        </div>
+        {[
+          { label: "Всего МОПов", value: users?.length ?? 0, tone: "" },
+          {
+            label: "Коинов в обороте",
+            value: totalBalance,
+            tone: "text-acid-400",
+          },
+          {
+            label: "Заявки на выручку",
+            value: pendingRevenue ?? 0,
+            tone: (pendingRevenue ?? 0) > 0 ? "text-yellow-400" : "text-gray-300",
+          },
+          {
+            label: "Заявки на бонусы",
+            value: pendingBonus ?? 0,
+            tone: (pendingBonus ?? 0) > 0 ? "text-yellow-400" : "text-gray-300",
+          },
+          {
+            label: "Заявки на покупки",
+            value: pendingPurchases ?? 0,
+            tone:
+              (pendingPurchases ?? 0) > 0 ? "text-yellow-400" : "text-gray-300",
+          },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="bg-dark-800 border border-white/5 rounded-2xl p-4"
+          >
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+              {s.label}
+            </p>
+            <p className={`text-2xl font-bold tabular-nums mt-0.5 ${s.tone}`}>
+              {s.value.toLocaleString("ru-RU")}
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="space-y-2">
@@ -77,9 +87,12 @@ export default async function ObserverOverview() {
               </div>
             </div>
             <div className="text-right">
-              <p className="font-bold text-acid-400">{u.balance}</p>
-              <p className="text-xs text-gray-500">
-                всего {u.total_earned} · месяц {u.month_earned}
+              <p className="font-bold text-acid-400 tabular-nums">
+                {u.balance.toLocaleString("ru-RU")}
+              </p>
+              <p className="text-xs text-gray-500 tabular-nums">
+                всего {u.total_earned.toLocaleString("ru-RU")} · месяц{" "}
+                {u.month_earned.toLocaleString("ru-RU")}
               </p>
             </div>
           </div>

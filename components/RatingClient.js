@@ -123,6 +123,11 @@ export default function RatingClient({ currentUserId, users, transactions }) {
     setPickedDate(new Date().toISOString().slice(0, 10));
   }
 
+  const fmt = (n) => Number(n).toLocaleString("ru-RU");
+  const myIndex = ranking.findIndex((u) => u.id === currentUserId);
+  const podium = ranking.length >= 3;
+  const listStart = podium ? 3 : 0;
+
   return (
     <div className="space-y-4">
       <div className="flex gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
@@ -131,7 +136,9 @@ export default function RatingClient({ currentUserId, users, transactions }) {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
-              tab === t.key ? "bg-acid-400 text-black" : "text-gray-400"
+              tab === t.key
+                ? "bg-acid-400/15 text-acid-400"
+                : "text-gray-400 hover:text-white"
             }`}
           >
             {t.label}
@@ -149,7 +156,9 @@ export default function RatingClient({ currentUserId, users, transactions }) {
             key={p.key}
             onClick={() => setPeriodMode(p.key)}
             className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
-              periodMode === p.key ? "bg-acid-400 text-black" : "text-gray-400"
+              periodMode === p.key
+                ? "bg-acid-400/15 text-acid-400"
+                : "text-gray-400 hover:text-white"
             }`}
           >
             {p.label}
@@ -190,29 +199,81 @@ export default function RatingClient({ currentUserId, users, transactions }) {
         </div>
       )}
 
+      {podium && (
+        <div className="flex items-end gap-2 pt-2">
+          {[1, 0, 2].map((idx) => {
+            const u = ranking[idx];
+            if (!u) return <div key={idx} className="flex-1" />;
+            const isMe = u.id === currentUserId;
+            const barH = idx === 0 ? "h-24" : idx === 1 ? "h-16" : "h-12";
+            const barTone =
+              idx === 0
+                ? "bg-acid-400/20 border-acid-400/50"
+                : "bg-dark-700 border-dark-600";
+            const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
+            return (
+              <div key={u.id} className="flex-1 flex flex-col items-center min-w-0">
+                <span className="text-2xl leading-none">{medal}</span>
+                <span
+                  className={`mt-1 text-xs font-semibold truncate max-w-full ${
+                    isMe ? "text-acid-400" : "text-gray-300"
+                  }`}
+                >
+                  {u.name}
+                  {isMe && " (вы)"}
+                </span>
+                <span className="text-sm font-black tabular-nums">
+                  {fmt(u.value)}
+                </span>
+                <div
+                  className={`mt-2 w-full rounded-t-xl border ${barTone} ${barH} flex items-start justify-center pt-1.5`}
+                >
+                  <span className="text-lg font-black text-gray-500">
+                    {idx + 1}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {myIndex >= listStart && (
+        <div className="flex items-center justify-between rounded-xl p-3 bg-acid-400/10 border border-acid-400/40 text-sm">
+          <span className="font-bold text-acid-400">Ты #{myIndex + 1}</span>
+          <span className="text-gray-300 tabular-nums">
+            {myIndex > 0 &&
+              `до #${myIndex}: +${fmt(
+                ranking[myIndex - 1].value - ranking[myIndex].value
+              )} · `}
+            {fmt(ranking[myIndex].value)}
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2">
-        {ranking.map((u, i) => {
+        {ranking.slice(listStart).map((u, i) => {
+          const rank = listStart + i + 1;
           const isMe = u.id === currentUserId;
-          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
 
           return (
             <div
               key={u.id}
               className={`flex items-center justify-between rounded-xl p-4 border ${
                 isMe
-                  ? "bg-acid-400/10 border-acid-400"
+                  ? "bg-acid-400/10 border-acid-400/60"
                   : "bg-dark-800 border-dark-600"
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className="text-lg font-bold text-gray-500 w-6 text-center">
-                  {medal ?? i + 1}
+                <span className="text-lg font-bold text-gray-500 w-6 text-center tabular-nums">
+                  {rank}
                 </span>
                 <span className={isMe ? "font-bold text-acid-400" : ""}>
                   {u.name} {isMe && "(вы)"}
                 </span>
               </div>
-              <span className="font-bold">{u.value}</span>
+              <span className="font-bold tabular-nums">{fmt(u.value)}</span>
             </div>
           );
         })}
