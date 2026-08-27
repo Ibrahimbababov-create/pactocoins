@@ -116,7 +116,52 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Приход по magic-link: в hash лежат access_token/refresh_token —
+  // ставим сессию и уходим на главную. Стандартное завершение OTP-входа
+  // Supabase, срабатывает раньше телеграм-проверки.
+  const magicLinkHandledRef = useRef(false);
   useEffect(() => {
+    if (typeof window === "undefined" || magicLinkHandledRef.current) return;
+    const hash = window.location.hash || "";
+    if (!hash.includes("access_token")) return;
+
+    magicLinkHandledRef.current = true;
+    cancelledRef.current = true; // не даём телеграм-проверке дёргать редиректы
+    setCheckingTelegram(true);
+    setDebug("Вход по ссылке...");
+
+    const p = new URLSearchParams(hash.slice(1));
+    const access_token = p.get("access_token");
+    const refresh_token = p.get("refresh_token");
+
+    if (!access_token || !refresh_token) {
+      setCheckingTelegram(false);
+      return;
+    }
+
+    supabase.auth
+      .setSession({ access_token, refresh_token })
+      .then(({ error }) => {
+        if (error) {
+          setDebug(`Ссылка не сработала: ${error.message}`);
+          setCheckingTelegram(false);
+          return;
+        }
+        window.history.replaceState(null, "", "/login");
+        router.refresh();
+        router.push("/mop"); // middleware разведёт по роли
+      });
+  }, []);
+
+  useEffect(() => {
+    // Пришли по magic-link — телеграм-проверку не запускаем вообще.
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hash || "").includes("access_token")
+    ) {
+      return;
+    }
+
     cancelledRef.current = false;
 
     function attempt(retriesLeft) {

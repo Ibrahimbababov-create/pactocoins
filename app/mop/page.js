@@ -127,7 +127,6 @@ export default async function MopDashboard() {
         <p className="text-gray-500 text-sm mb-1">Текущий баланс</p>
         <AnimatedNumber
           value={profile?.balance ?? 0}
-          storageKey="pc-anim-balance"
           format={false}
           className="block text-6xl font-black text-acid-400 tracking-tight"
         />

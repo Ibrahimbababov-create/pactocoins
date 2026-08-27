@@ -118,7 +118,7 @@ export default function GoalWidget({ goal, balance }) {
           <p className="font-bold truncate mt-0.5">{rewardTitle}</p>
           <p className="text-sm mt-1">
             <span className={achieved ? "text-amber-400" : "text-acid-400"}>
-              <AnimatedNumber value={balance} storageKey="pc-anim-balance" />
+              <AnimatedNumber value={balance} />
             </span>
             <span className="text-gray-500">
               {" "}
