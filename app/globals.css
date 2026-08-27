@@ -116,6 +116,24 @@ button:not(:disabled):active {
   animation: grow-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Всплывающая "+449" у баланса при онлайн-начислении */
+@keyframes balance-float {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px);
+  }
+}
+.balance-floater {
+  animation: balance-float 1.8s ease-out forwards;
+}
+
 /* Пульс для скелетонов загрузки */
 @keyframes skeleton-pulse {
   0%,
@@ -136,7 +154,8 @@ button:not(:disabled):active {
   .page-enter,
   .stagger-item,
   .grow-bar,
-  .skeleton {
+  .skeleton,
+  .balance-floater {
     animation: none;
   }
   button:not(:disabled):active {

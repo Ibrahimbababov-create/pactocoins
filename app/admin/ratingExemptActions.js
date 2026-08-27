@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
+import { notifyUser } from "@/lib/notifyUser";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -176,6 +177,12 @@ export async function approveBonusRequestExempt(requestId, ratingExempt) {
     created_by: admin_user.id,
     rating_exempt: !!ratingExempt,
   });
+
+  await notifyUser(
+    admin,
+    request.user_id,
+    `✅ Заявка на бонус одобрена — +${coins} coins`
+  );
 
   revalidatePath("/admin/bonus-requests");
   revalidatePath("/admin");

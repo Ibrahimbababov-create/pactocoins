@@ -7,7 +7,7 @@ import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import LevelUpCelebration from "@/components/LevelUpCelebration";
 import TeamFeed from "@/components/TeamFeed";
-import AnimatedNumber from "@/components/AnimatedNumber";
+import LiveBalance from "@/components/LiveBalance";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
@@ -123,27 +123,13 @@ export default async function MopDashboard() {
         />
       ))}
 
-      {/* Баланс — крупная цифра */}
-      <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-3xl p-6">
-        <p className="text-gray-500 text-sm mb-1">Текущий баланс</p>
-        <AnimatedNumber
-          value={profile?.balance ?? 0}
-          format={false}
-          className="block text-6xl font-black text-acid-400 tracking-tight"
-        />
-        <p className="text-gray-500 text-sm mt-1">coins</p>
-
-        <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-dark-600">
-          <div>
-            <p className="text-gray-500 text-xs">Всего заработано</p>
-            <p className="text-xl font-bold">{profile?.total_earned ?? 0}</p>
-          </div>
-          <div>
-            <p className="text-gray-500 text-xs">За этот месяц</p>
-            <p className="text-xl font-bold">{profile?.month_earned ?? 0}</p>
-          </div>
-        </div>
-      </div>
+      {/* Баланс — крупная цифра, обновляется онлайн */}
+      <LiveBalance
+        userId={user.id}
+        initialBalance={profile?.balance ?? 0}
+        initialTotalEarned={profile?.total_earned ?? 0}
+        initialMonthEarned={profile?.month_earned ?? 0}
+      />
 
       <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
 

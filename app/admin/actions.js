@@ -7,6 +7,7 @@ import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso } from "@/lib/timezone";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { uploadPhoto } from "@/lib/uploadPhoto";
+import { notifyUser } from "@/lib/notifyUser";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -220,6 +221,12 @@ export async function approveRevenueRequest(requestId, earnedAtDate) {
 
   await admin.from("transactions").insert(transactionPayload);
 
+  await notifyUser(
+    admin,
+    request.user_id,
+    `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} coins`
+  );
+
   revalidatePath("/admin/revenue-requests");
   revalidatePath("/admin");
   revalidatePath("/mop/rating");
@@ -292,6 +299,19 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
     .eq("id", purchaseId);
 
   if (error) return { error: error.message };
+
+  if (newStatus === "approved" && purchase.status === "pending") {
+    const { data: reward } = await admin
+      .from("rewards")
+      .select("title")
+      .eq("id", purchase.reward_id)
+      .single();
+    await notifyUser(
+      admin,
+      purchase.user_id,
+      `✅ Покупка «${reward?.title ?? "награда"}» одобрена`
+    );
+  }
 
   revalidatePath("/admin/purchase-requests");
   revalidatePath("/admin/budget");
@@ -471,6 +491,12 @@ export async function approveBonusRequest(requestId) {
     description: `Бонус: ${request.category}`,
     created_by: admin_user.id,
   });
+
+  await notifyUser(
+    admin,
+    request.user_id,
+    `✅ Заявка на бонус одобрена — +${coins} coins`
+  );
 
   revalidatePath("/admin/bonus-requests");
   revalidatePath("/admin");
