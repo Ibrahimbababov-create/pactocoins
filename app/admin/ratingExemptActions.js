@@ -26,9 +26,10 @@ async function requireAdmin() {
   return user;
 }
 
-// Еженедельный бонус топ-3 за прошлую неделю. items = [{ userId, amount }].
+// Бонус топ-3 за период (неделя/месяц). items = [{ userId, name, amount }].
+// periodPhrase — "за прошлую неделю" / "за прошлый месяц" (для текстов).
 // Всегда rating_exempt = true (не должно влиять на рейтинг).
-export async function awardWeeklyTop3(items, reason) {
+export async function awardTop3Bonus(items, reason, periodPhrase = "за период") {
   await requireAdmin();
   const admin = createAdminClient();
 
@@ -66,14 +67,14 @@ export async function awardWeeklyTop3(items, reason) {
       user_id: userId,
       type: "manual_add",
       amount_coins: amt,
-      description: reason || "ТОП-3 за неделю",
+      description: reason || `Топ-3 ${periodPhrase}`,
       rating_exempt: true,
     });
 
     await notifyUser(
       admin,
       userId,
-      `🏆 ${reason || "Бонус за топ прошлой недели"} — +${amt} coins`,
+      `🏆 ${reason || `Бонус за топ ${periodPhrase}`} — +${amt} coins`,
       "notify_requests"
     );
 
@@ -97,12 +98,12 @@ export async function awardWeeklyTop3(items, reason) {
     try {
       await sendTelegramMessage(
         groupChatId,
-        `🏆 <b>Бонусы за топ прошлой недели</b>\n\n${lines}\n\nОстальные — на этой неделе есть за что бороться 💪`,
+        `🏆 <b>Бонусы за топ ${periodPhrase}</b>\n\n${lines}`,
         undefined,
         threadId
       );
     } catch (err) {
-      console.error("[awardWeeklyTop3] group announce failed:", err);
+      console.error("[awardTop3Bonus] group announce failed:", err);
     }
   }
 

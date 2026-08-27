@@ -1,37 +1,38 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { awardWeeklyTop3 } from "@/app/admin/ratingExemptActions";
+import { awardTop3Bonus } from "@/app/admin/ratingExemptActions";
 
-const MIN = 2500;
 const PLACE = ["🥇 1 место", "🥈 2 место", "🥉 3 место"];
-const DEFAULT_AMOUNTS = ["2000", "1000", "300"];
 
-export default function WeeklyTop3Bonus({ ranking = [], weekLabel = "" }) {
+export default function TopBonus({
+  ranking = [],
+  periodLabel = "",
+  periodPhrase = "за прошлую неделю", // идёт в текст уведомлений
+  title = "🏆 Бонус топ-3 за прошлую неделю",
+  min = 2500,
+  defaults = ["2000", "1000", "300"],
+}) {
   const [isPending, startTransition] = useTransition();
-  const [amounts, setAmounts] = useState(DEFAULT_AMOUNTS);
-  const [reason, setReason] = useState(`ТОП-3 за неделю ${weekLabel}`);
+  const [amounts, setAmounts] = useState(defaults);
+  const [reason, setReason] = useState(`Топ-3 ${periodPhrase} (${periodLabel})`);
   const [msg, setMsg] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  const qualified = ranking.filter((r) => r.total >= MIN);
+  const qualified = ranking.filter((r) => r.total >= min);
   const belowCount = ranking.length - qualified.length;
   const winners = qualified.slice(0, 3);
 
   function submit() {
     const items = winners
-      .map((w, i) => ({
-        userId: w.id,
-        name: w.name,
-        amount: Number(amounts[i]),
-      }))
+      .map((w, i) => ({ userId: w.id, name: w.name, amount: Number(amounts[i]) }))
       .filter((x) => x.amount > 0);
     if (!items.length) {
       setMsg({ type: "error", text: "Впиши суммы победителям" });
       return;
     }
     startTransition(async () => {
-      const res = await awardWeeklyTop3(items, reason.trim());
+      const res = await awardTop3Bonus(items, reason.trim(), periodPhrase);
       if (res?.error) setMsg({ type: "error", text: res.error });
       else {
         setMsg({ type: "ok", text: `Начислено: ${res.count}` });
@@ -43,12 +44,12 @@ export default function WeeklyTop3Bonus({ ranking = [], weekLabel = "" }) {
   return (
     <div className="rounded-2xl border border-acid-400/25 bg-gradient-to-br from-[#18220b] to-dark-800 p-5">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-bold">🏆 Бонус топ-3 за прошлую неделю</p>
-        <span className="text-xs text-gray-500 shrink-0">{weekLabel}</span>
+        <p className="font-bold">{title}</p>
+        <span className="text-xs text-gray-500 shrink-0">{periodLabel}</span>
       </div>
       <p className="text-xs text-gray-500 mt-1">
         Не учитывается в рейтинге. Порог участия —{" "}
-        {MIN.toLocaleString("ru-RU")} coins за неделю. При начислении победители
+        {min.toLocaleString("ru-RU")} coins за период. При начислении победители
         получат уведомление в ЛС, и объявление уйдёт в общий чат.
       </p>
 
@@ -64,11 +65,11 @@ export default function WeeklyTop3Bonus({ ranking = [], weekLabel = "" }) {
 
       {ranking.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          За прошлую неделю начислений не было.
+          За этот период начислений не было.
         </p>
       ) : winners.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          Порог {MIN.toLocaleString("ru-RU")} coins никто не прошёл — бонусов нет.
+          Порог {min.toLocaleString("ru-RU")} coins никто не прошёл — бонусов нет.
         </p>
       ) : collapsed ? (
         <button

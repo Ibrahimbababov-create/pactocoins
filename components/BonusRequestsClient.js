@@ -13,7 +13,7 @@ import {
   approveBonusRequestExempt,
 } from "@/app/admin/ratingExemptActions";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
-import WeeklyTop3Bonus from "@/components/WeeklyTop3Bonus";
+import TopBonus from "@/components/TopBonus";
 
 const statusLabels = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -26,6 +26,8 @@ export default function BonusRequestsClient({
   employees,
   weekRanking = [],
   weekLabel = "",
+  monthRanking = [],
+  monthLabel = "",
 }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
@@ -199,7 +201,24 @@ export default function BonusRequestsClient({
         </div>
       )}
 
-      <WeeklyTop3Bonus ranking={weekRanking} weekLabel={weekLabel} />
+      <div className="grid lg:grid-cols-2 gap-4">
+        <TopBonus
+          title="🏆 Топ-3 за прошлую неделю"
+          periodPhrase="за прошлую неделю"
+          periodLabel={weekLabel}
+          ranking={weekRanking}
+          min={2500}
+          defaults={["2000", "1000", "300"]}
+        />
+        <TopBonus
+          title="🏆 Топ-3 за прошлый месяц"
+          periodPhrase="за прошлый месяц"
+          periodLabel={monthLabel}
+          ranking={monthRanking}
+          min={8000}
+          defaults={["10000", "5000", "2000"]}
+        />
+      </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         {/* Одному участнику */}
