@@ -8,6 +8,8 @@ import FlashSaleCard from "@/components/FlashSaleCard";
 import LevelUpCelebration from "@/components/LevelUpCelebration";
 import TeamFeed from "@/components/TeamFeed";
 import LiveBalance from "@/components/LiveBalance";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
+import { CURRENT_ANNOUNCEMENT } from "@/lib/announcement";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
@@ -95,6 +97,15 @@ export default async function MopDashboard() {
   return (
     <div className="space-y-6">
       {showLevelUp && <LevelUpCelebration level={currentLevel} />}
+
+      {CURRENT_ANNOUNCEMENT && (
+        <AnnouncementBanner
+          storageKey={CURRENT_ANNOUNCEMENT.storageKey}
+          title={CURRENT_ANNOUNCEMENT.title}
+          text={CURRENT_ANNOUNCEMENT.text}
+          href="/mop/shop"
+        />
+      )}
 
       <div>
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>

@@ -296,10 +296,10 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center px-4 bg-dark-900">
         <div className="w-full max-w-sm text-center">
           <p className="text-5xl mb-4">🚫</p>
-          <h1 className="text-2xl font-bold mb-2">Доступ закрыт</h1>
+          <h1 className="text-2xl font-bold mb-2">Невозможно войти</h1>
           <p className="text-gray-500 text-sm">
-            Этот аккаунт больше не активен. Если это ошибка — обратитесь
-            к админу.
+            Вас уволили из системы. Если это ошибка — обратитесь
+            к администратору.
           </p>
         </div>
       </div>
@@ -309,7 +309,7 @@ export default function LoginPage() {
   if (checkingTelegram) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-900 px-4">
-        <p className="text-gray-500 text-sm text-center">{debug}</p>
+        <p className="text-gray-500 text-sm text-center">Загрузка…</p>
       </div>
     );
   }
@@ -439,10 +439,6 @@ export default function LoginPage() {
             Внутренняя система коинов отдела продаж
           </p>
         </div>
-
-        <p className="text-center text-xs text-gray-600 mb-4 break-words">
-          [диагностика] {debug}
-        </p>
 
         <button
           onClick={handleManualTelegramLogin}
