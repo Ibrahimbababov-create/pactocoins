@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase-server";
 import BonusRequestsClient from "@/components/BonusRequestsClient";
-import { lastWeekRangeAlmaty, lastMonthRangeAlmaty } from "@/lib/timezone";
+import {
+  lastWeekRangeAlmaty,
+  lastMonthRangeAlmaty,
+  thisWeekRangeAlmaty,
+  monthRangeAlmaty,
+  currentMonthKeyAlmaty,
+} from "@/lib/timezone";
 
 async function rankingFor(supabase, empIds, nameById, start, end) {
   if (!empIds.length) return [];
@@ -24,8 +30,10 @@ async function rankingFor(supabase, empIds, nameById, start, end) {
 
 export default async function BonusRequestsPage() {
   const supabase = createClient();
-  const week = lastWeekRangeAlmaty();
-  const month = lastMonthRangeAlmaty();
+  const lastWeek = lastWeekRangeAlmaty();
+  const thisWeek = thisWeekRangeAlmaty();
+  const lastMonth = lastMonthRangeAlmaty();
+  const thisMonth = monthRangeAlmaty(currentMonthKeyAlmaty());
 
   const { data: requests } = await supabase
     .from("bonus_requests")
@@ -46,10 +54,13 @@ export default async function BonusRequestsPage() {
     (employees ?? []).map((e) => [e.id, e.name])
   );
 
-  const [weekRanking, monthRanking] = await Promise.all([
-    rankingFor(supabase, empIds, nameById, week.start, week.end),
-    rankingFor(supabase, empIds, nameById, month.start, month.end),
-  ]);
+  const [lastWeekRanking, thisWeekRanking, lastMonthRanking, thisMonthRanking] =
+    await Promise.all([
+      rankingFor(supabase, empIds, nameById, lastWeek.start, lastWeek.end),
+      rankingFor(supabase, empIds, nameById, thisWeek.start, thisWeek.end),
+      rankingFor(supabase, empIds, nameById, lastMonth.start, lastMonth.end),
+      rankingFor(supabase, empIds, nameById, thisMonth.start, thisMonth.end),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -57,10 +68,38 @@ export default async function BonusRequestsPage() {
       <BonusRequestsClient
         requests={requests ?? []}
         employees={employees ?? []}
-        weekRanking={weekRanking}
-        weekLabel={week.label}
-        monthRanking={monthRanking}
-        monthLabel={month.label}
+        weekVariants={[
+          {
+            key: "last",
+            tab: "Прошлая",
+            phrase: "за прошлую неделю",
+            periodLabel: lastWeek.label,
+            ranking: lastWeekRanking,
+          },
+          {
+            key: "this",
+            tab: "Текущая",
+            phrase: "за неделю",
+            periodLabel: thisWeek.label,
+            ranking: thisWeekRanking,
+          },
+        ]}
+        monthVariants={[
+          {
+            key: "last",
+            tab: "Прошлый",
+            phrase: "за прошлый месяц",
+            periodLabel: lastMonth.label,
+            ranking: lastMonthRanking,
+          },
+          {
+            key: "this",
+            tab: "Текущий",
+            phrase: "за месяц",
+            periodLabel: thisMonth.label,
+            ranking: thisMonthRanking,
+          },
+        ]}
       />
     </div>
   );

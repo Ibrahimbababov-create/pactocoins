@@ -25,10 +25,8 @@ const statusLabels = {
 export default function BonusRequestsClient({
   requests,
   employees,
-  weekRanking = [],
-  weekLabel = "",
-  monthRanking = [],
-  monthLabel = "",
+  weekVariants = [],
+  monthVariants = [],
 }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
@@ -204,18 +202,14 @@ export default function BonusRequestsClient({
 
       <div className="grid lg:grid-cols-2 gap-4">
         <TopBonus
-          title="🏆 Топ-3 за прошлую неделю"
-          periodPhrase="за прошлую неделю"
-          periodLabel={weekLabel}
-          ranking={weekRanking}
+          title="🏆 Топ-3 · неделя"
+          variants={weekVariants}
           min={WEEKLY_TOP.min}
           defaults={WEEKLY_TOP.prizes.map(String)}
         />
         <TopBonus
-          title="🏆 Топ-3 за прошлый месяц"
-          periodPhrase="за прошлый месяц"
-          periodLabel={monthLabel}
-          ranking={monthRanking}
+          title="🏆 Топ-3 · месяц"
+          variants={monthVariants}
           min={MONTHLY_TOP.min}
           defaults={MONTHLY_TOP.prizes.map(String)}
         />

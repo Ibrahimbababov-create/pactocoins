@@ -1,23 +1,41 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { awardTop3Bonus } from "@/app/admin/ratingExemptActions";
 
 const PLACE = ["🥇 1 место", "🥈 2 место", "🥉 3 место"];
 
+// variants: [{ key, tab, phrase, periodLabel, ranking }] — например «прошлая
+// неделя» и «текущая неделя». Админ переключает вкладкой, начисляет по
+// выбранному периоду.
 export default function TopBonus({
-  ranking = [],
-  periodLabel = "",
-  periodPhrase = "за прошлую неделю", // идёт в текст уведомлений
-  title = "🏆 Бонус топ-3 за прошлую неделю",
+  variants = [],
+  title = "🏆 Топ-3",
   min = 2500,
   defaults = ["2000", "1000", "300"],
 }) {
   const [isPending, startTransition] = useTransition();
+  const [vi, setVi] = useState(0);
   const [amounts, setAmounts] = useState(defaults);
-  const [reason, setReason] = useState(`Топ-3 ${periodPhrase} (${periodLabel})`);
+  const [reason, setReason] = useState("");
   const [msg, setMsg] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+
+  const v = variants[vi] ?? {
+    ranking: [],
+    phrase: "за период",
+    periodLabel: "",
+  };
+  const ranking = v.ranking ?? [];
+  const periodPhrase = v.phrase ?? "за период";
+  const periodLabel = v.periodLabel ?? "";
+
+  // При смене периода — свежий текст причины и сброс состояния «начислено».
+  useEffect(() => {
+    setReason(`Топ-3 ${periodPhrase} (${periodLabel})`);
+    setCollapsed(false);
+    setMsg(null);
+  }, [periodPhrase, periodLabel]);
 
   const qualified = ranking.filter((r) => r.total >= min);
   const belowCount = ranking.length - qualified.length;
@@ -47,7 +65,26 @@ export default function TopBonus({
         <p className="font-bold">{title}</p>
         <span className="text-xs text-gray-500 shrink-0">{periodLabel}</span>
       </div>
-      <p className="text-xs text-gray-500 mt-1">
+
+      {variants.length > 1 && (
+        <div className="mt-2 inline-flex rounded-lg border border-dark-600 bg-dark-800 p-0.5 text-xs">
+          {variants.map((vt, i) => (
+            <button
+              key={vt.key ?? i}
+              onClick={() => setVi(i)}
+              className={`px-3 py-1 rounded-md font-semibold transition ${
+                i === vi
+                  ? "bg-acid-400/15 text-acid-400"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {vt.tab}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs text-gray-500 mt-2">
         Не учитывается в рейтинге. Порог участия —{" "}
         {min.toLocaleString("ru-RU")} coins за период. При начислении победители
         получат уведомление в ЛС, и объявление уйдёт в общий чат.
