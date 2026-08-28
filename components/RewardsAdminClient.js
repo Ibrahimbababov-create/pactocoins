@@ -24,7 +24,10 @@ const GLOW_STYLES = {
 
 // Сжимаем/уменьшаем фото на клиенте перед отправкой — награды могут
 // грузить фото прямо с телефона, а это легко 5-10 МБ на файл.
-function compressImage(file, maxSize = 1000, quality = 0.82) {
+// Карточки в магазине показывают фото маленьким (≈96px высотой), так что
+// большое разрешение и высокое качество только тормозят загрузку.
+// 700px / 0.7 — заметно легче файл, на глаз по картинкам разницы нет.
+function compressImage(file, maxSize = 700, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);

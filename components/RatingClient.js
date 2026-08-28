@@ -16,6 +16,35 @@ const PERIODS = [
   { key: "all", label: "Всё время" },
 ];
 
+// Пьедестал в «металлических» цветах: золото / серебро / бронза.
+// idx: 0 — 1 место, 1 — 2 место, 2 — 3 место.
+const MEDALS = [
+  {
+    emoji: "🥇",
+    h: "h-28",
+    bar: "from-amber-300/35 to-amber-500/5 border-amber-400/60",
+    num: "text-amber-300",
+    name: "text-amber-300",
+    glow: "shadow-[0_0_26px_-6px_rgba(251,191,36,0.6)]",
+  },
+  {
+    emoji: "🥈",
+    h: "h-20",
+    bar: "from-slate-200/30 to-slate-400/5 border-slate-300/50",
+    num: "text-slate-100",
+    name: "text-slate-200",
+    glow: "shadow-[0_0_18px_-8px_rgba(226,232,240,0.55)]",
+  },
+  {
+    emoji: "🥉",
+    h: "h-14",
+    bar: "from-orange-400/30 to-orange-700/5 border-orange-500/50",
+    num: "text-orange-300",
+    name: "text-orange-300",
+    glow: "",
+  },
+];
+
 function classify(desc) {
   if (desc?.startsWith("Выручка подтверждена")) return "revenue";
   if (desc?.startsWith("Бонус:") || desc?.startsWith("ТОП-")) return "bonus";
@@ -234,39 +263,38 @@ export default function RatingClient({
               const u = ranking[idx];
               if (!u) return <div key={idx} className="flex-1" />;
               const isMe = u.id === currentUserId;
-              const barH = idx === 0 ? "h-24" : idx === 1 ? "h-16" : "h-12";
-              const barTone =
-                idx === 0
-                  ? "bg-acid-400/20 border-acid-400/50"
-                  : "bg-dark-700 border-dark-600";
-              const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
+              const m = MEDALS[idx];
               const prize = prizeCfg?.prizes[idx];
               return (
                 <div
                   key={u.id}
                   className="flex-1 flex flex-col items-center min-w-0"
                 >
-                  <span className="text-2xl leading-none">{medal}</span>
+                  <span className="text-2xl leading-none">{m.emoji}</span>
                   <span
-                    className={`mt-1 text-xs font-semibold truncate max-w-full ${
-                      isMe ? "text-acid-400" : "text-gray-300"
+                    className={`mt-1 text-xs font-bold truncate max-w-full inline-flex items-center gap-1 ${
+                      isMe ? "text-acid-400" : m.name
                     }`}
                   >
                     {u.name}
-                    {isMe && " (вы)"}
+                    {isMe && (
+                      <span className="px-1 rounded bg-acid-400 text-black text-[9px] font-black leading-tight">
+                        ВЫ
+                      </span>
+                    )}
                   </span>
                   <span className="text-sm font-black tabular-nums">
                     {fmt(u.value)}
                   </span>
                   {prize != null && (
-                    <span className="text-[11px] font-semibold text-acid-400/80 tabular-nums">
+                    <span className="text-[11px] font-semibold text-gray-400 tabular-nums">
                       🏆 +{fmt(prize)}
                     </span>
                   )}
                   <div
-                    className={`mt-2 w-full rounded-t-xl border ${barTone} ${barH} flex items-start justify-center pt-1.5`}
+                    className={`mt-2 w-full rounded-t-xl border bg-gradient-to-b ${m.bar} ${m.h} ${m.glow} flex items-start justify-center pt-1.5`}
                   >
-                    <span className="text-lg font-black text-gray-500">
+                    <span className={`text-xl font-black ${m.num}`}>
                       {idx + 1}
                     </span>
                   </div>
@@ -285,8 +313,8 @@ export default function RatingClient({
       )}
 
       {myIndex >= listStart && (
-        <div className="flex items-center justify-between rounded-xl p-3 bg-acid-400/10 border border-acid-400/40 text-sm">
-          <span className="font-bold text-acid-400">Ты #{myIndex + 1}</span>
+        <div className="flex items-center justify-between rounded-xl p-3 bg-acid-400/10 border border-acid-400 ring-1 ring-acid-400/30 text-sm">
+          <span className="font-bold text-acid-400">Вы&nbsp;#{myIndex + 1}</span>
           <span className="text-gray-300 tabular-nums">
             {myIndex > 0 &&
               `до #${myIndex}: +${fmt(
@@ -307,7 +335,7 @@ export default function RatingClient({
               key={u.id}
               className={`flex items-center justify-between rounded-xl p-4 border ${
                 isMe
-                  ? "bg-acid-400/10 border-acid-400/60"
+                  ? "bg-acid-400/10 border-acid-400 ring-1 ring-acid-400/30"
                   : "bg-dark-800 border-dark-600"
               }`}
             >
@@ -315,8 +343,13 @@ export default function RatingClient({
                 <span className="text-lg font-bold text-gray-500 w-6 text-center tabular-nums">
                   {rank}
                 </span>
-                <span className={isMe ? "font-bold text-acid-400" : ""}>
-                  {u.name} {isMe && "(вы)"}
+                <span className={`inline-flex items-center gap-1.5 ${isMe ? "font-bold text-acid-400" : ""}`}>
+                  {u.name}
+                  {isMe && (
+                    <span className="px-1.5 rounded bg-acid-400 text-black text-[10px] font-black">
+                      ВЫ
+                    </span>
+                  )}
                 </span>
               </div>
               <span className="font-bold tabular-nums">{fmt(u.value)}</span>

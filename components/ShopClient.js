@@ -236,6 +236,8 @@ export default function ShopClient({ grouped, balance }) {
                       <img
                         src={reward.image_url}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-24 object-cover rounded-lg mb-2"
                       />
                     )}
