@@ -108,8 +108,14 @@ export default function BroadcastClient({ employees = [] }) {
       {result && (
         <div className="rounded-xl p-3 text-sm text-center bg-acid-400/10 text-acid-400">
           Отправлено: {result.sent}, не доставлено: {result.failed}
+          {result.skipped > 0 && `, не в группе (пропущены): ${result.skipped}`}
         </div>
       )}
+
+      <p className="text-xs text-gray-500">
+        Рассылка уходит только участникам рабочей Telegram-группы. Люди,
+        которые просто открыли бота у себя, ничего не получат.
+      </p>
 
       <textarea
         value={text}

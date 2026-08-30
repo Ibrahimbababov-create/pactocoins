@@ -7,6 +7,7 @@ import {
   sendTelegramPhoto,
   sendTelegramDocument,
 } from "@/lib/telegramBot";
+import { keepGroupMembers, isTeamMember } from "@/lib/teamGroup";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -110,6 +111,12 @@ export async function sendToEmployee(formData) {
     return { error: "У этого сотрудника нет telegram_id — он ни разу не заходил через бота" };
   }
 
+  if (!(await isTeamMember(profile.telegram_id))) {
+    return {
+      error: `${profile.name ?? "Этот человек"} не состоит в рабочей группе — сообщение не отправлено`,
+    };
+  }
+
   try {
     const res = hasFile
       ? await sendFile(
@@ -137,12 +144,23 @@ export async function broadcastMessage(formData) {
   const { data: users } = await admin
     .from("users")
     .select("id, telegram_id")
-    .not("telegram_id", "is", null);
+    .not("telegram_id", "is", null)
+    .eq("is_active", true)
+    .eq("is_guest", false)
+    .not("email", "like", "%.test@pactocoins.local");
+
+  // Оставляем только тех, кто реально в рабочей группе — остальные
+  // (случайно открывшие бота, наблюдатели вне группы и т.п.) не получают.
+  const inGroup = await keepGroupMembers((users ?? []).map((u) => u.telegram_id));
+  const recipients = (users ?? []).filter((u) =>
+    inGroup.has(String(u.telegram_id))
+  );
+  const skipped = (users?.length ?? 0) - recipients.length;
 
   let sent = 0;
   let failed = 0;
 
-  for (const u of users ?? []) {
+  for (const u of recipients) {
     try {
       const res = hasFile
         ? await sendFile(
@@ -164,5 +182,5 @@ export async function broadcastMessage(formData) {
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, skipped };
 }

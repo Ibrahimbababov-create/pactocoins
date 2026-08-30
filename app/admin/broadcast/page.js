@@ -11,6 +11,9 @@ export default async function BroadcastPage() {
     .from("users")
     .select("id, name")
     .not("telegram_id", "is", null)
+    .eq("is_active", true)
+    .eq("is_guest", false)
+    .not("email", "like", "%.test@pactocoins.local")
     .neq("id", user.id)
     .order("name");
 
