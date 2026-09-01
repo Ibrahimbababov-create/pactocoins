@@ -302,9 +302,12 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
 
   if (error) return { error: error.message };
 
-  // Уведомляем сотрудника о смене статуса покупки — так же, как по выручке
-  // и бонусам. Только при реальном переходе, чтобы не слать повторно.
-  if (newStatus !== purchase.status) {
+  // Уведомляем сотрудника об одобрении/отказе покупки — так же, как по
+  // выручке и бонусам. Только при реальном переходе, чтобы не слать повторно.
+  if (
+    newStatus !== purchase.status &&
+    (newStatus === "approved" || newStatus === "rejected")
+  ) {
     const { data: reward } = await admin
       .from("rewards")
       .select("title")
@@ -313,20 +316,14 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
     const title = reward?.title ?? "награда";
     const priceStr = purchase.price_coins?.toLocaleString("ru-RU") ?? "";
 
-    let text = null;
-    if (newStatus === "approved") {
-      text = `✅ Покупка «${title}» одобрена`;
-    } else if (newStatus === "rejected") {
-      text = `❌ Покупка «${title}» отклонена${
-        priceStr ? ` — ${priceStr} coins вернулись на баланс` : ""
-      }`;
-    } else if (newStatus === "done") {
-      text = `🎁 Покупка «${title}» выполнена — забирай награду`;
-    }
+    const text =
+      newStatus === "approved"
+        ? `✅ Покупка «${title}» одобрена`
+        : `❌ Покупка «${title}» отклонена${
+            priceStr ? ` — ${priceStr} coins вернулись на баланс` : ""
+          }`;
 
-    if (text) {
-      await notifyUser(admin, purchase.user_id, text, "notify_requests");
-    }
+    await notifyUser(admin, purchase.user_id, text, "notify_requests");
   }
 
   revalidatePath("/admin/purchase-requests");
