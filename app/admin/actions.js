@@ -302,18 +302,31 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
 
   if (error) return { error: error.message };
 
-  if (newStatus === "approved" && purchase.status === "pending") {
+  // Уведомляем сотрудника о смене статуса покупки — так же, как по выручке
+  // и бонусам. Только при реальном переходе, чтобы не слать повторно.
+  if (newStatus !== purchase.status) {
     const { data: reward } = await admin
       .from("rewards")
       .select("title")
       .eq("id", purchase.reward_id)
       .single();
-    await notifyUser(
-      admin,
-      purchase.user_id,
-      `✅ Покупка «${reward?.title ?? "награда"}» одобрена`,
-      "notify_requests"
-    );
+    const title = reward?.title ?? "награда";
+    const priceStr = purchase.price_coins?.toLocaleString("ru-RU") ?? "";
+
+    let text = null;
+    if (newStatus === "approved") {
+      text = `✅ Покупка «${title}» одобрена`;
+    } else if (newStatus === "rejected") {
+      text = `❌ Покупка «${title}» отклонена${
+        priceStr ? ` — ${priceStr} coins вернулись на баланс` : ""
+      }`;
+    } else if (newStatus === "done") {
+      text = `🎁 Покупка «${title}» выполнена — забирай награду`;
+    }
+
+    if (text) {
+      await notifyUser(admin, purchase.user_id, text, "notify_requests");
+    }
   }
 
   revalidatePath("/admin/purchase-requests");
