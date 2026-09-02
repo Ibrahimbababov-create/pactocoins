@@ -276,6 +276,29 @@ export async function POST(request) {
       await handleRatingCommand(msg, cmd);
       return NextResponse.json({ ok: true });
     }
+    if (cmd === "/app" || cmd === "/open") {
+      if (msg.chat?.type === "private") {
+        await sendTelegramMessage(msg.chat.id, "PactoCoins — жми кнопку:", {
+          inline_keyboard: [
+            [
+              {
+                text: "🚀 Открыть PactoCoins",
+                web_app: { url: "https://pactocoins.vercel.app" },
+              },
+            ],
+          ],
+        });
+      } else {
+        await sendTelegramMessage(
+          msg.chat.id,
+          "Открой бота в личке — там слева от поля ввода кнопка «Открыть PactoCoins». Или добавь иконку на телефон: меню → «Вывести иконку на телефон».",
+          undefined,
+          msg.message_thread_id,
+          msg.message_id
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
   }
 
   const callback = update.callback_query;

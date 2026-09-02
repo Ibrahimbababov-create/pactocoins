@@ -17,9 +17,12 @@ export default function TopBonus({
   const [isPending, startTransition] = useTransition();
   const [vi, setVi] = useState(0);
   const [amounts, setAmounts] = useState(defaults);
+  const [minInput, setMinInput] = useState(String(min));
   const [reason, setReason] = useState("");
   const [msg, setMsg] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+
+  const effectiveMin = Math.max(0, Number(minInput) || 0);
 
   const v = variants[vi] ?? {
     ranking: [],
@@ -37,7 +40,7 @@ export default function TopBonus({
     setMsg(null);
   }, [periodPhrase, periodLabel]);
 
-  const qualified = ranking.filter((r) => r.total >= min);
+  const qualified = ranking.filter((r) => r.total >= effectiveMin);
   const belowCount = ranking.length - qualified.length;
   const winners = qualified.slice(0, 3);
 
@@ -84,10 +87,23 @@ export default function TopBonus({
         </div>
       )}
 
+      <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+        <span>Порог участия:</span>
+        <input
+          type="number"
+          min="0"
+          inputMode="numeric"
+          value={minInput}
+          onChange={(e) => setMinInput(e.target.value)}
+          className="w-24 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1 text-sm text-white"
+        />
+        <span>coins за период</span>
+      </div>
+
       <p className="text-xs text-gray-500 mt-2">
-        Не учитывается в рейтинге. Порог участия —{" "}
-        {min.toLocaleString("ru-RU")} coins за период. При начислении победители
-        получат уведомление в ЛС, и объявление уйдёт в общий чат.
+        Не учитывается в рейтинге. Кто набрал меньше порога — в список не
+        попадает. При начислении победители получат уведомление в ЛС, и
+        объявление уйдёт в общий чат.
       </p>
 
       {msg && (
@@ -106,7 +122,8 @@ export default function TopBonus({
         </p>
       ) : winners.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          Порог {min.toLocaleString("ru-RU")} coins никто не прошёл — бонусов нет.
+          Порог {effectiveMin.toLocaleString("ru-RU")} coins никто не прошёл —
+          бонусов нет. Можно снизить порог выше.
         </p>
       ) : collapsed ? (
         <button

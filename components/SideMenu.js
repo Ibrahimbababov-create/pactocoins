@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
+import AddToHomeScreen from "@/components/AddToHomeScreen";
 import Icon from "@/components/Icon";
 
 const ITEMS = [
@@ -73,6 +74,10 @@ export default function SideMenu({ unreadCount = 0 }) {
                 )}
               </Link>
             ))}
+
+            <div className="pt-2 mt-2 border-t border-dark-600">
+              <AddToHomeScreen />
+            </div>
 
             <div className="pt-2 mt-2 border-t border-dark-600 px-3">
               <LogoutButton />
