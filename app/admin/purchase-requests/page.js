@@ -7,7 +7,9 @@ export default async function PurchaseRequestsPage() {
   const [{ data: purchases }, { data: topups }] = await Promise.all([
     supabase
       .from("purchase_requests")
-      .select("*, users(name, email, role, is_guest), rewards(title, category)")
+      .select(
+        "*, users!purchase_requests_user_id_fkey(name, email, role, is_guest), reviewer:users!purchase_requests_reviewed_by_fkey(name), rewards(title, category)"
+      )
       .order("created_at", { ascending: false }),
     supabase.from("budget_topups").select("amount_kzt"),
   ]);

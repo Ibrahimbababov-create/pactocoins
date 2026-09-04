@@ -258,7 +258,7 @@ export async function rejectRevenueRequest(requestId) {
 // ---------- Заявки на покупки ----------
 
 export async function updatePurchaseStatus(purchaseId, newStatus) {
-  await requireAdmin();
+  const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
   const { data: purchase } = await admin
@@ -294,6 +294,11 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
   const update = { status: newStatus, updated_at: new Date().toISOString() };
   // Отклонённая покупка не состоялась — реальных денег на неё не ушло.
   if (newStatus === "rejected") update.actual_kzt_amount = null;
+  // Кто и когда обработал заявку.
+  if (["approved", "rejected", "done"].includes(newStatus)) {
+    update.reviewed_by = admin_user.id;
+    update.reviewed_at = new Date().toISOString();
+  }
 
   const { error } = await admin
     .from("purchase_requests")

@@ -305,7 +305,12 @@ export async function POST(request) {
   const data = callback?.data || "";
   const [action, requestId] = data.split(":");
 
-  if (!callback || !COIN_ACTIONS.has(action)) {
+  const FLOW_ACTIONS = new Set([
+    "reject_purchase_go",
+    "keep_purchase",
+  ]);
+
+  if (!callback || (!COIN_ACTIONS.has(action) && !FLOW_ACTIONS.has(action))) {
     await forwardToSalesBot(update);
     return NextResponse.json({ ok: true });
   }
@@ -313,13 +318,49 @@ export async function POST(request) {
   const chatId = callback.message.chat.id;
   const messageId = callback.message.message_id;
 
+  // Отклонение покупки — в два шага, чтобы не отклонить случайным тапом.
+  if (action === "reject_purchase") {
+    await editTelegramMessage(chatId, messageId, callback.message.text, {
+      inline_keyboard: [
+        [
+          { text: "✅ Оставить", callback_data: `keep_purchase:${requestId}` },
+          {
+            text: "❌ Точно отклонить",
+            callback_data: `reject_purchase_go:${requestId}`,
+          },
+        ],
+      ],
+    });
+    await answerCallbackQuery(callback.id, "Подтверди отклонение");
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "keep_purchase") {
+    await editTelegramMessage(chatId, messageId, callback.message.text, {
+      inline_keyboard: [
+        [
+          {
+            text: "✅ Подтвердить",
+            callback_data: `approve_purchase:${requestId}`,
+          },
+          {
+            text: "❌ Отклонить",
+            callback_data: `reject_purchase:${requestId}`,
+          },
+        ],
+      ],
+    });
+    await answerCallbackQuery(callback.id, "Отменено");
+    return NextResponse.json({ ok: true });
+  }
+
   const actionMap = {
     approve_rev: approveRevenueRequestInternal,
     reject_rev: rejectRevenueRequestInternal,
     approve_bonus: approveBonusRequestInternal,
     reject_bonus: rejectBonusRequestInternal,
     approve_purchase: approvePurchaseRequestInternal,
-    reject_purchase: rejectPurchaseRequestInternal,
+    reject_purchase_go: rejectPurchaseRequestInternal,
     approve_join: approveJoinRequestInternal,
     reject_join: rejectJoinRequestInternal,
   };
@@ -327,7 +368,11 @@ export async function POST(request) {
   const handler = actionMap[action];
 
   if (handler) {
-    const result = await handler(requestId);
+    const passActor =
+      action === "approve_purchase" || action === "reject_purchase_go";
+    const result = passActor
+      ? await handler(requestId, callback.from.id)
+      : await handler(requestId);
 
     if (result.error) {
       await answerCallbackQuery(callback.id, result.error);

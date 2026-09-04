@@ -83,6 +83,13 @@ export default function PurchaseRequestsClient({ purchases }) {
               </p>
               <p className="text-xs text-gray-600">
                 {new Date(p.created_at).toLocaleString("ru-RU")}
+                {p.reviewer?.name && currentStatus !== "pending" && (
+                  <>
+                    {" · "}
+                    {currentStatus === "rejected" ? "отклонил" : "обработал"}:{" "}
+                    {p.reviewer.name}
+                  </>
+                )}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
