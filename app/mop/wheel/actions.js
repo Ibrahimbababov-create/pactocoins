@@ -16,10 +16,12 @@ async function currentUser() {
   return user;
 }
 
-// Купить одну крутку за coins.
-export async function buySpin() {
+// Купить N круток за coins (одним чеком).
+export async function buySpin(count = 1) {
   const user = await currentUser();
   const admin = createAdminClient();
+
+  const n = Math.max(1, Math.min(100, Math.round(Number(count) || 1)));
 
   const [{ data: cfg }, { data: profile }] = await Promise.all([
     admin.from("wheel_config").select("*").eq("id", true).maybeSingle(),
@@ -32,26 +34,27 @@ export async function buySpin() {
 
   if (!cfg?.buy_enabled) return { error: "Покупка круток выключена" };
   const price = cfg.spin_price_coins;
-  if ((profile?.balance ?? 0) < price) return { error: "Недостаточно coins" };
+  const cost = price * n;
+  if ((profile?.balance ?? 0) < cost)
+    return { error: `Нужно ${cost.toLocaleString("ru-RU")} coins` };
+
+  const newSpins = (profile.wheel_spins ?? 0) + n;
 
   await admin
     .from("users")
-    .update({
-      balance: profile.balance - price,
-      wheel_spins: (profile.wheel_spins ?? 0) + 1,
-    })
+    .update({ balance: profile.balance - cost, wheel_spins: newSpins })
     .eq("id", user.id);
 
   await admin.from("transactions").insert({
     user_id: user.id,
     type: "spend",
-    amount_coins: -price,
-    description: "🎡 Покупка крутки",
+    amount_coins: -cost,
+    description: `🎡 Покупка круток ×${n}`,
     rating_exempt: true,
   });
 
   revalidatePath("/mop/wheel");
-  return { success: true, spins: (profile.wheel_spins ?? 0) + 1 };
+  return { success: true, spins: newSpins, cost };
 }
 
 // Прокрутить колесо. Результат решается ЗДЕСЬ, до анимации на клиенте.

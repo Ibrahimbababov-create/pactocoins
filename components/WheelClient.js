@@ -34,7 +34,11 @@ export default function WheelClient({
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [buyQty, setBuyQty] = useState(1);
   const rotationRef = useRef(0);
+
+  const price = config?.spin_price_coins ?? 0;
+  const buyCost = price * buyQty;
 
   const n = segments.length;
   const slice = n > 0 ? 360 / n : 360;
@@ -77,13 +81,13 @@ export default function WheelClient({
     if (isPending || spinning) return;
     setError(null);
     startTransition(async () => {
-      const res = await buySpin();
+      const res = await buySpin(buyQty);
       if (res?.error) {
         setError(res.error);
         return;
       }
       setSpins(res.spins);
-      setBalance((b) => b - config.spin_price_coins);
+      setBalance((b) => b - (res.cost ?? price * buyQty));
     });
   }
 
@@ -216,18 +220,32 @@ export default function WheelClient({
       </button>
 
       {config?.buy_enabled && (
-        <button
-          onClick={handleBuy}
-          disabled={
-            isPending ||
-            spinning ||
-            balance < (config.spin_price_coins ?? 0)
-          }
-          className="w-full bg-dark-800 border border-dark-600 text-gray-300 rounded-xl py-3 text-sm disabled:opacity-40"
-        >
-          Купить крутку за {config.spin_price_coins.toLocaleString("ru-RU")}{" "}
-          coins
-        </button>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">Купить крутки:</span>
+            {[1, 5, 10].map((q) => (
+              <button
+                key={q}
+                onClick={() => setBuyQty(q)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                  buyQty === q
+                    ? "bg-acid-400/15 text-acid-400 border border-acid-400/40"
+                    : "bg-dark-800 border border-dark-600 text-gray-400"
+                }`}
+              >
+                ×{q}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleBuy}
+            disabled={isPending || spinning || balance < buyCost}
+            className="w-full bg-dark-800 border border-dark-600 text-gray-200 rounded-xl py-3 text-sm disabled:opacity-40"
+          >
+            Купить {buyQty} {buyQty === 1 ? "крутку" : "круток"} за{" "}
+            {buyCost.toLocaleString("ru-RU")} coins
+          </button>
+        </div>
       )}
     </div>
   );
