@@ -65,6 +65,17 @@ export default async function AdminOverview({ searchParams }) {
 
   const totalBalance = users?.reduce((sum, u) => sum + u.balance, 0) ?? 0;
 
+  // Коины, лежащие в активных копилках, тоже в обороте — это те же деньги,
+  // просто отложенные. Закрытые копилки уже потрачены/возвращены.
+  const activeFundIds = new Set(
+    (funds ?? []).filter((f) => f.status === "active").map((f) => f.id)
+  );
+  const coinsInFunds =
+    fundContributions
+      ?.filter((c) => activeFundIds.has(c.fund_id))
+      .reduce((sum, c) => sum + c.amount_coins, 0) ?? 0;
+  const coinsInCirculation = totalBalance + coinsInFunds;
+
   const totalSpent =
     spentPurchases?.reduce((sum, p) => sum + p.price_coins, 0) ?? 0;
 
@@ -111,8 +122,12 @@ export default async function AdminOverview({ searchParams }) {
           { label: "Всего МОПов", value: users?.length ?? 0, tone: "" },
           {
             label: "Коинов в обороте",
-            value: totalBalance,
+            value: coinsInCirculation,
             tone: "text-acid-400",
+            hint:
+              coinsInFunds > 0
+                ? `в копилках: ${coinsInFunds.toLocaleString("ru-RU")}`
+                : null,
           },
           {
             label: "Заявки на выручку",
@@ -136,6 +151,9 @@ export default async function AdminOverview({ searchParams }) {
             <p className={`text-2xl font-bold tabular-nums mt-0.5 ${s.tone}`}>
               {s.value.toLocaleString("ru-RU")}
             </p>
+            {s.hint && (
+              <p className="text-[11px] text-gray-500 mt-0.5">{s.hint}</p>
+            )}
           </div>
         ))}
       </div>

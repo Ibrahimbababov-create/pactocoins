@@ -3,31 +3,48 @@ import { createClient } from "@/lib/supabase-server";
 export default async function ObserverOverview() {
   const supabase = createClient();
 
-  const [{ data: users }, { count: pendingRevenue }, { count: pendingBonus }, { count: pendingPurchases }] =
-    await Promise.all([
-      supabase
-        .from("users")
-        .select("*")
-        .eq("role", "mop")
-        .eq("is_active", true)
-        .eq("is_guest", false)
-        .not("email", "like", "%.test@pactocoins.local")
-        .order("balance", { ascending: false }),
-      supabase
-        .from("revenue_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
-      supabase
-        .from("bonus_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
-      supabase
-        .from("purchase_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
-    ]);
+  const [
+    { data: users },
+    { count: pendingRevenue },
+    { count: pendingBonus },
+    { count: pendingPurchases },
+    { data: funds },
+    { data: fundContributions },
+  ] = await Promise.all([
+    supabase
+      .from("users")
+      .select("*")
+      .eq("role", "mop")
+      .eq("is_active", true)
+      .eq("is_guest", false)
+      .not("email", "like", "%.test@pactocoins.local")
+      .order("balance", { ascending: false }),
+    supabase
+      .from("revenue_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("bonus_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("purchase_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase.from("funds").select("id, status"),
+    supabase.from("fund_contributions").select("fund_id, amount_coins"),
+  ]);
 
-  const totalBalance = users?.reduce((sum, u) => sum + u.balance, 0) ?? 0;
+  const activeFundIds = new Set(
+    (funds ?? []).filter((f) => f.status === "active").map((f) => f.id)
+  );
+  const coinsInFunds =
+    fundContributions
+      ?.filter((c) => activeFundIds.has(c.fund_id))
+      .reduce((sum, c) => sum + c.amount_coins, 0) ?? 0;
+
+  const totalBalance =
+    (users?.reduce((sum, u) => sum + u.balance, 0) ?? 0) + coinsInFunds;
 
   return (
     <div className="space-y-6">
