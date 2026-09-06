@@ -30,6 +30,8 @@ const PATHS = {
   phone:
     "M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM11 18h2M12 6v6M9.5 9.5 12 12l2.5-2.5",
   check: "M5 13l4 4L19 7",
+  wheel:
+    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4M12 12a1 1 0 1 0 0 .01",
 };
 
 export default function Icon({ name, className = "w-5 h-5", strokeWidth = 1.75 }) {

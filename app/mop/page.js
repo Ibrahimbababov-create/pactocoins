@@ -126,6 +126,21 @@ export default async function MopDashboard() {
         </div>
       )}
 
+      {(profile?.wheel_spins ?? 0) > 0 && (
+        <Link
+          href="/mop/wheel"
+          className="block rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4"
+        >
+          <p className="font-bold text-acid-400">
+            🎡 У тебя {profile.wheel_spins}{" "}
+            {profile.wheel_spins === 1 ? "крутка" : "крутки"} на колесе фортуны
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            Нажми, чтобы крутить →
+          </p>
+        </Link>
+      )}
+
       {flashSaleRewards?.map((reward) => (
         <FlashSaleCard
           key={reward.id}

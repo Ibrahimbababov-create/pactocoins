@@ -12,6 +12,7 @@ const items = [
   { href: "/admin/bonus-requests", label: "Бонусы" },
   { href: "/admin/purchase-requests", label: "Заявки на покупки" },
   { href: "/admin/budget", label: "Бюджет" },
+  { href: "/admin/wheel", label: "Колесо" },
 ];
 
 export default function AdminNav() {
