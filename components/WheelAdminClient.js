@@ -10,6 +10,25 @@ import {
 } from "@/app/admin/wheelActions";
 import { expectedPayoutCoins, PRIZE_TYPES, segmentColor } from "@/lib/wheel";
 
+function isoToAlmatyLocal(iso) {
+  if (!iso) return "";
+  try {
+    const parts = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Asia/Almaty",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(new Date(iso));
+    const g = (t) => parts.find((p) => p.type === t)?.value;
+    return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:${g("minute")}`;
+  } catch {
+    return "";
+  }
+}
+
 function SegmentRow({ seg, index, onDone }) {
   const [s, setS] = useState({
     label: seg.label ?? "",
@@ -153,8 +172,10 @@ export default function WheelAdminClient({
   const bump = () => setReloadKey((k) => k + 1);
 
   const [cfg, setCfg] = useState({
-    spin_price_coins: config?.spin_price_coins ?? 500,
+    spin_price_coins: config?.spin_price_coins ?? 150,
     buy_enabled: config?.buy_enabled ?? true,
+    is_open: config?.is_open ?? true,
+    opens_at: isoToAlmatyLocal(config?.opens_at),
   });
   const [cfgPending, startCfg] = useTransition();
   const [cfgMsg, setCfgMsg] = useState(null);
@@ -210,6 +231,30 @@ export default function WheelAdminClient({
             />
             Разрешить покупку круток за coins
           </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-end gap-3 pt-3 border-t border-dark-600/60">
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              checked={cfg.is_open}
+              onChange={(e) =>
+                setCfg((c) => ({ ...c, is_open: e.target.checked }))
+              }
+            />
+            Колесо открыто для сотрудников
+          </label>
+          <label className="text-xs text-gray-500">
+            Автооткрытие (по Алматы)
+            <input
+              type="datetime-local"
+              value={cfg.opens_at}
+              onChange={(e) =>
+                setCfg((c) => ({ ...c, opens_at: e.target.value }))
+              }
+              className="mt-0.5 block bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white"
+            />
+          </label>
           <button
             onClick={saveCfg}
             disabled={cfgPending}
@@ -219,6 +264,10 @@ export default function WheelAdminClient({
           </button>
           {cfgMsg && <span className="text-xs text-acid-400">{cfgMsg}</span>}
         </div>
+        <p className="text-xs text-gray-600 mt-1">
+          Пока время автооткрытия в будущем — сотрудники видят «закрыто».
+          Наступит — откроется само. Галку можно снять в любой момент.
+        </p>
       </div>
 
       {/* Сегменты */}

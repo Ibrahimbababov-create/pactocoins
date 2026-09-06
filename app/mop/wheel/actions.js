@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
-import { pickSegmentIndex, prizeText } from "@/lib/wheel";
+import { pickSegmentIndex, prizeText, isWheelOpen } from "@/lib/wheel";
 import { notifyUser } from "@/lib/notifyUser";
 import { recordTeamEvent } from "@/lib/teamEvents";
 
@@ -32,6 +32,7 @@ export async function buySpin(count = 1) {
       .single(),
   ]);
 
+  if (!isWheelOpen(cfg)) return { error: "Колесо сейчас закрыто" };
   if (!cfg?.buy_enabled) return { error: "Покупка круток выключена" };
   const price = cfg.spin_price_coins;
   const cost = price * n;
@@ -62,13 +63,17 @@ export async function spinWheel() {
   const user = await currentUser();
   const admin = createAdminClient();
 
-  const { data: segments } = await admin
-    .from("wheel_segments")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order")
-    .order("created_at");
+  const [{ data: cfg }, { data: segments }] = await Promise.all([
+    admin.from("wheel_config").select("*").eq("id", true).maybeSingle(),
+    admin
+      .from("wheel_segments")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("created_at"),
+  ]);
 
+  if (!isWheelOpen(cfg)) return { error: "Колесо сейчас закрыто" };
   if (!segments?.length) return { error: "Колесо ещё не настроено" };
 
   // Атомарно забираем одну крутку

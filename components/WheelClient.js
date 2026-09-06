@@ -26,6 +26,7 @@ export default function WheelClient({
   spins: initialSpins,
   balance: initialBalance,
   config,
+  bigWins = [],
 }) {
   const [isPending, startTransition] = useTransition();
   const [spins, setSpins] = useState(initialSpins ?? 0);
@@ -73,7 +74,7 @@ export default function WheelClient({
         setResult(res);
         if (res.prizeType === "nothing") haptic.light?.();
         else haptic.success?.();
-      }, 4300);
+      }, 6700);
     });
   }
 
@@ -136,7 +137,7 @@ export default function WheelClient({
             style={{
               transform: `rotate(${rotation}deg)`,
               transition: spinning
-                ? "transform 4.2s cubic-bezier(0.16, 0.84, 0.16, 1)"
+                ? "transform 6.5s cubic-bezier(0.12, 0.7, 0.1, 1)"
                 : "none",
             }}
           >
@@ -245,6 +246,27 @@ export default function WheelClient({
             Купить {buyQty} {buyQty === 1 ? "крутку" : "круток"} за{" "}
             {buyCost.toLocaleString("ru-RU")} coins
           </button>
+        </div>
+      )}
+
+      {bigWins.length > 0 && (
+        <div className="pt-3 border-t border-dark-600 space-y-2">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">
+            Крупные выигрыши
+          </p>
+          {bigWins.map((w) => (
+            <div
+              key={w.id}
+              className="flex items-center justify-between text-sm bg-dark-800 border border-dark-600 rounded-xl px-3 py-2"
+            >
+              <span className="truncate">
+                <span className="font-semibold">{w.name}</span>
+              </span>
+              <span className="text-acid-400 font-bold tabular-nums shrink-0">
+                +{w.amount.toLocaleString("ru-RU")}
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>

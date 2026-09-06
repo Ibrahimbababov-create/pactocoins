@@ -62,15 +62,30 @@ export async function deleteWheelSegment(id) {
   return { success: true };
 }
 
-export async function saveWheelConfig({ spin_price_coins, buy_enabled }) {
+export async function saveWheelConfig({
+  spin_price_coins,
+  buy_enabled,
+  is_open,
+  opens_at,
+}) {
   await requireAdmin();
   const admin = createAdminClient();
+
+  const patch = {
+    spin_price_coins: Math.max(1, Math.round(Number(spin_price_coins) || 150)),
+    buy_enabled: !!buy_enabled,
+    is_open: !!is_open,
+  };
+  // opens_at: строка из <input type="datetime-local"> по Алматы, либо пусто
+  if (opens_at === "" || opens_at === null) {
+    patch.opens_at = null;
+  } else if (typeof opens_at === "string") {
+    patch.opens_at = new Date(`${opens_at}:00+05:00`).toISOString();
+  }
+
   const { error } = await admin
     .from("wheel_config")
-    .update({
-      spin_price_coins: Math.max(1, Math.round(Number(spin_price_coins) || 500)),
-      buy_enabled: !!buy_enabled,
-    })
+    .update(patch)
     .eq("id", true);
   if (error) return { error: error.message };
   revalidatePath("/admin/wheel");

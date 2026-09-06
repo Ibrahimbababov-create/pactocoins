@@ -103,7 +103,7 @@ export default async function MopDashboard() {
           storageKey={CURRENT_ANNOUNCEMENT.storageKey}
           title={CURRENT_ANNOUNCEMENT.title}
           text={CURRENT_ANNOUNCEMENT.text}
-          href="/mop/shop"
+          href="/mop/wheel"
         />
       )}
 
