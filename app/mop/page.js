@@ -67,6 +67,17 @@ export default async function MopDashboard() {
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
 
+  const isTrainee = profile?.role === "trainee";
+  let ropName = null;
+  if (isTrainee && profile?.rop_id) {
+    const { data: rop } = await supabase
+      .from("users")
+      .select("name")
+      .eq("id", profile.rop_id)
+      .single();
+    ropName = rop?.name ?? null;
+  }
+
   // Достиг нового ранга и ещё не видел полноэкранную анимацию про него.
   const currentLevel = getLevelForAmount(profile?.total_earned ?? 0);
   const showLevelUp =
@@ -111,6 +122,26 @@ export default async function MopDashboard() {
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
         <h1 className="text-2xl font-bold">PactoCoins</h1>
       </div>
+
+      {isTrainee && (
+        <div className="bg-gradient-to-br from-sky-500/10 to-dark-800 border border-sky-500/30 rounded-2xl p-5 space-y-2">
+          <p className="text-lg font-bold text-sky-300">🎓 Ты сейчас стажёр</p>
+          <p className="text-sm text-gray-400">
+            Впереди 3 дня обучения (глоссарий, регламенты, продажи, CRM) с
+            тестами, потом практика на реальных лидах. Скоро всё это появится
+            прямо здесь.
+          </p>
+          <p className="text-sm text-gray-400">
+            После <b className="text-white">первой одобренной оплаты</b> ты
+            станешь МОПом 1 уровня.
+          </p>
+          <p className="text-xs text-gray-500 pt-1">
+            {ropName
+              ? `Твой руководитель: ${ropName}`
+              : "Руководитель не выбран — выбери его в Настройках."}
+          </p>
+        </div>
+      )}
 
       {!profile?.is_guest && (
         <BirthdayProfile birthday={profile?.birthday} variant="prompt" />

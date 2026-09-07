@@ -9,6 +9,7 @@ import { calculateRevenueCoins } from "@/lib/coinRate";
 import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
+import { maybeGraduateTrainee } from "@/lib/onboarding";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -69,6 +70,7 @@ export async function createMop(formData) {
     name,
     email,
     role,
+    level: role === "trainee" ? 0 : 1,
     balance: 0,
     total_earned: 0,
     month_earned: 0,
@@ -95,15 +97,26 @@ export async function updateMop(userId, formData) {
     return { error: "Множитель коинов должен быть больше нуля" };
   }
 
+  const { data: before } = await admin
+    .from("users")
+    .select("role")
+    .eq("id", userId)
+    .single();
+
+  const patch = {
+    name,
+    role,
+    birthday,
+    coin_rate_multiplier: multiplier,
+    rop_id: role === "mop" || role === "trainee" ? ropId : null,
+  };
+  // Смена статуса стажёр ↔ обычная роль двигает уровень.
+  if (before?.role === "trainee" && role !== "trainee") patch.level = 1;
+  if (before?.role !== "trainee" && role === "trainee") patch.level = 0;
+
   const { error } = await admin
     .from("users")
-    .update({
-      name,
-      role,
-      birthday,
-      coin_rate_multiplier: multiplier,
-      rop_id: role === "mop" ? ropId : null,
-    })
+    .update(patch)
     .eq("id", userId);
 
   if (error) return { error: error.message };
@@ -236,9 +249,12 @@ export async function approveRevenueRequest(requestId, earnedAtDate) {
     "notify_requests"
   );
 
+  await maybeGraduateTrainee(admin, request.user_id);
+
   revalidatePath("/admin/revenue-requests");
   revalidatePath("/admin");
   revalidatePath("/mop/rating");
+  revalidatePath("/mop");
   return { success: true };
 }
 

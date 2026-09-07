@@ -41,7 +41,14 @@ export default function TeamManageClient({ mine = [], others = [] }) {
             className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between gap-3"
           >
             <div className="min-w-0">
-              <p className="font-semibold truncate">{m.name}</p>
+              <p className="font-semibold truncate">
+                {m.name}
+                {m.role === "trainee" && (
+                  <span className="ml-1.5 text-[10px] font-bold bg-sky-500/15 text-sky-300 px-1.5 py-0.5 rounded">
+                    стажёр
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-gray-500 tabular-nums">
                 за месяц: {(m.month_earned ?? 0).toLocaleString("ru-RU")} ·
                 всего: {(m.total_earned ?? 0).toLocaleString("ru-RU")}

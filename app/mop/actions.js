@@ -216,7 +216,9 @@ export async function assignMopToMe(mopId) {
     .eq("id", mopId)
     .eq("is_active", true)
     .maybeSingle();
-  if (!mop || mop.role !== "mop") return { error: "Сотрудник не найден" };
+  if (!mop || (mop.role !== "mop" && mop.role !== "trainee")) {
+    return { error: "Сотрудник не найден" };
+  }
 
   // РОП может забрать только свободного МОПа. Переназначать чужого —
   // только через админа.

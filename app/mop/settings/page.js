@@ -21,7 +21,7 @@ export default async function SettingsPage() {
     .single();
 
   let rops = [];
-  if (profile?.role === "mop") {
+  if (profile?.role === "mop" || profile?.role === "trainee") {
     const { data } = await createAdminClient()
       .from("users")
       .select("id, name")
@@ -41,7 +41,7 @@ export default async function SettingsPage() {
         <EditableName name={profile?.name ?? ""} />
       </div>
 
-      {profile?.role === "mop" && (
+      {(profile?.role === "mop" || profile?.role === "trainee") && (
         <RopPicker rops={rops} currentRopId={profile?.rop_id} />
       )}
 

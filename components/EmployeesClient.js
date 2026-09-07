@@ -13,6 +13,7 @@ import {
 } from "@/app/admin/actions";
 
 const GROUPS = [
+  { key: "trainee", label: "Стажёры" },
   { key: "mop", label: "МОПы" },
   { key: "rop", label: "РОПы" },
   { key: "observer", label: "Наблюдатели" },
@@ -27,6 +28,7 @@ function groupOf(u) {
   if (u.role === "rop") return "rop";
   if (u.role === "observer") return "observer";
   if (u.role === "admin") return "admin";
+  if (u.role === "trainee") return "trainee";
   return "mop";
 }
 
@@ -201,6 +203,7 @@ export default function EmployeesClient({ users }) {
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
           >
             <option value="mop">МОП</option>
+            <option value="trainee">Стажёр</option>
             <option value="rop">РОП</option>
             <option value="admin">Админ</option>
             <option value="observer">Наблюдатель</option>
@@ -262,6 +265,7 @@ export default function EmployeesClient({ users }) {
                   defaultValue={u.role}
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 >
+                  <option value="trainee">Стажёр</option>
                   <option value="mop">МОП</option>
                   <option value="rop">РОП</option>
                   <option value="admin">Админ</option>
@@ -330,7 +334,7 @@ export default function EmployeesClient({ users }) {
                   <p className="font-semibold">
                     {u.name}{" "}
                     <span className="text-xs text-gray-500">
-                      ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : u.role === "rop" ? "РОП" : "МОП"})
+                      ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : u.role === "rop" ? "РОП" : u.role === "trainee" ? "стажёр" : "МОП"})
                       {Number(u.coin_rate_multiplier) !== 1 && (
                         <span className="text-acid-400"> · x{u.coin_rate_multiplier}</span>
                       )}
@@ -341,7 +345,7 @@ export default function EmployeesClient({ users }) {
                       </span>
                     )}
                   </p>
-                  {u.role === "mop" && (
+                  {(u.role === "mop" || u.role === "trainee") && (
                     <p className="text-xs text-gray-500">
                       РОП: {u.rop_id ? nameById[u.rop_id] ?? "—" : "не назначен"}
                     </p>

@@ -24,8 +24,8 @@ export default async function TeamPage() {
   const admin = createAdminClient();
   const { data: mops } = await admin
     .from("users")
-    .select("id, name, rop_id, total_earned, month_earned")
-    .eq("role", "mop")
+    .select("id, name, role, rop_id, total_earned, month_earned")
+    .in("role", ["mop", "trainee"])
     .eq("is_active", true)
     .eq("is_guest", false)
     .not("email", "like", "%.test@pactocoins.local")
