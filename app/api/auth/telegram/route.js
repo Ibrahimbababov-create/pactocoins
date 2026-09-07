@@ -11,7 +11,7 @@ const JOIN_REQUEST_CHAT_ID = -1004323139236;
 const JOIN_REQUEST_THREAD_ID = 99;
 
 export async function POST(request) {
-  const { initData, displayName, birthday } = await request.json();
+  const { initData, displayName, birthday, ropId } = await request.json();
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
   // ДР необязателен; принимаем только строгий YYYY-MM-DD, иначе игнорируем
@@ -71,6 +71,21 @@ export async function POST(request) {
 
     const name = displayName.trim().slice(0, 60) || "МОП";
 
+    // Проверяем, что выбранный руководитель — реальный активный РОП.
+    let cleanRopId = null;
+    let ropName = null;
+    if (ropId) {
+      const { data: rop } = await admin
+        .from("users")
+        .select("id, name")
+        .eq("id", ropId)
+        .eq("role", "rop")
+        .eq("is_active", true)
+        .maybeSingle();
+      cleanRopId = rop?.id ?? null;
+      ropName = rop?.name ?? null;
+    }
+
     const { data: joinRequest, error: insertErr } = await admin
       .from("join_requests")
       .insert({
@@ -78,6 +93,7 @@ export async function POST(request) {
         telegram_username: tgUser.username || null,
         name,
         birthday: cleanBirthday,
+        rop_id: cleanRopId,
       })
       .select("id")
       .single();
@@ -90,7 +106,9 @@ export async function POST(request) {
       JOIN_REQUEST_CHAT_ID,
       `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${name}</b>\nTelegram: ${
         tgUser.username ? `@${tgUser.username}` : `id ${tgUser.id}`
-      }${cleanBirthday ? `\nДР: ${cleanBirthday}` : ""}`,
+      }${ropName ? `\nРуководитель: ${ropName}` : ""}${
+        cleanBirthday ? `\nДР: ${cleanBirthday}` : ""
+      }`,
       {
         inline_keyboard: [
           [

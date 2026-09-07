@@ -33,6 +33,7 @@ export default async function MopLayout({ children }) {
       <MopTopBar
         balance={profile?.balance ?? 0}
         unreadCount={unreadCount ?? 0}
+        role={profile?.role}
       />
 
       {profile?.role === "admin" && (

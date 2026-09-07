@@ -6,7 +6,7 @@ import SideMenu from "@/components/SideMenu";
 // Постоянная верхняя панель: слева логотип, справа кнопка «Меню»
 // (всегда доступна, даже при прокрутке вниз). Баланс проявляется,
 // когда основную карточку баланса увели за экран.
-export default function MopTopBar({ balance, unreadCount = 0 }) {
+export default function MopTopBar({ balance, unreadCount = 0, role }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function MopTopBar({ balance, unreadCount = 0 }) {
                 </span>
               </span>
             )}
-            <SideMenu unreadCount={unreadCount} />
+            <SideMenu unreadCount={unreadCount} role={role} />
           </div>
         </div>
       </div>

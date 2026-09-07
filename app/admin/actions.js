@@ -87,6 +87,7 @@ export async function updateMop(userId, formData) {
   const name = formData.get("name");
   const role = formData.get("role");
   const birthday = formData.get("birthday") || null;
+  const ropId = formData.get("rop_id") || null;
   const multiplierRaw = formData.get("coin_rate_multiplier");
   const multiplier = multiplierRaw ? Number(multiplierRaw) : 1;
 
@@ -96,7 +97,13 @@ export async function updateMop(userId, formData) {
 
   const { error } = await admin
     .from("users")
-    .update({ name, role, birthday, coin_rate_multiplier: multiplier })
+    .update({
+      name,
+      role,
+      birthday,
+      coin_rate_multiplier: multiplier,
+      rop_id: role === "mop" ? ropId : null,
+    })
     .eq("id", userId);
 
   if (error) return { error: error.message };

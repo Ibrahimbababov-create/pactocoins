@@ -46,6 +46,15 @@ export default function EmployeesClient({ users }) {
     return g;
   }, [users]);
 
+  const rops = useMemo(
+    () => users.filter((u) => u.role === "rop" && u.is_active),
+    [users]
+  );
+  const nameById = useMemo(
+    () => Object.fromEntries(users.map((u) => [u.id, u.name])),
+    [users]
+  );
+
   function toggleGroup(key) {
     setOpenGroups((prev) => {
       const next = new Set(prev);
@@ -260,6 +269,23 @@ export default function EmployeesClient({ users }) {
                 </select>
                 <label className="block space-y-1">
                   <span className="text-xs text-gray-500">
+                    Руководитель (РОП) — для МОПа
+                  </span>
+                  <select
+                    name="rop_id"
+                    defaultValue={u.rop_id ?? ""}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  >
+                    <option value="">Не назначен</option>
+                    {rops.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">
                     Множитель коинов (для тимлидов, 1 — обычный МОП)
                   </span>
                   <input
@@ -315,6 +341,11 @@ export default function EmployeesClient({ users }) {
                       </span>
                     )}
                   </p>
+                  {u.role === "mop" && (
+                    <p className="text-xs text-gray-500">
+                      РОП: {u.rop_id ? nameById[u.rop_id] ?? "—" : "не назначен"}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500">{u.email}</p>
                   <p className="text-xs text-gray-500 mt-1 tabular-nums">
                     Баланс:{" "}

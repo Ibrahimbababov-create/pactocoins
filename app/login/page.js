@@ -27,6 +27,8 @@ export default function LoginPage() {
   const [onboardingMode, setOnboardingMode] = useState("choice"); // choice | register
   const [registerName, setRegisterName] = useState("");
   const [registerBirthday, setRegisterBirthday] = useState("");
+  const [registerRopId, setRegisterRopId] = useState("");
+  const [rops, setRops] = useState([]);
   const [onboardingError, setOnboardingError] = useState("");
   const [onboardingLoading, setOnboardingLoading] = useState(false);
 
@@ -38,7 +40,16 @@ export default function LoginPage() {
   // /api/auth/telegram, если он всё ещё пытается зайти.
   const [deactivated, setDeactivated] = useState(false);
 
-  function doTelegramLogin(initData, displayName, birthday) {
+  // Подтягиваем список РОПов для выбора руководителя при регистрации.
+  useEffect(() => {
+    if (onboardingMode !== "register" || rops.length) return;
+    fetch("/api/rops")
+      .then((r) => r.json())
+      .then((d) => setRops(d.rops ?? []))
+      .catch(() => {});
+  }, [onboardingMode, rops.length]);
+
+  function doTelegramLogin(initData, displayName, birthday, ropId) {
     setDebug("initData найден, отправляем на сервер (XHR)...");
 
     const xhr = new XMLHttpRequest();
@@ -103,7 +114,7 @@ export default function LoginPage() {
       setOnboardingLoading(false);
     };
 
-    xhr.send(JSON.stringify({ initData, displayName, birthday }));
+    xhr.send(JSON.stringify({ initData, displayName, birthday, ropId }));
   }
 
   useEffect(() => {
@@ -253,9 +264,18 @@ export default function LoginPage() {
       setOnboardingError("Введи имя");
       return;
     }
+    if (rops.length && !registerRopId) {
+      setOnboardingError("Выбери своего руководителя");
+      return;
+    }
     setOnboardingError("");
     setOnboardingLoading(true);
-    doTelegramLogin(pendingInitData, registerName.trim(), registerBirthday || null);
+    doTelegramLogin(
+      pendingInitData,
+      registerName.trim(),
+      registerBirthday || null,
+      registerRopId || null
+    );
   }
 
   function handleGuestLogin() {
@@ -392,6 +412,25 @@ export default function LoginPage() {
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
                 />
               </div>
+              {rops.length > 0 && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Твой руководитель
+                  </label>
+                  <select
+                    value={registerRopId}
+                    onChange={(e) => setRegisterRopId(e.target.value)}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
+                  >
+                    <option value="">Выбери из списка…</option>
+                    {rops.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm text-gray-400 mb-1">
                   День рождения

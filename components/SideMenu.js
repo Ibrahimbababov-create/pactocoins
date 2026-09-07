@@ -18,8 +18,13 @@ const ITEMS = [
   { href: "/mop/help", label: "Инструкция", icon: "help" },
 ];
 
-export default function SideMenu({ unreadCount = 0 }) {
+export default function SideMenu({ unreadCount = 0, role }) {
   const [open, setOpen] = useState(false);
+
+  const items =
+    role === "rop"
+      ? [{ href: "/mop/team", label: "Моя команда", icon: "users" }, ...ITEMS]
+      : ITEMS;
 
   return (
     <>
@@ -57,7 +62,7 @@ export default function SideMenu({ unreadCount = 0 }) {
               </button>
             </div>
 
-            {ITEMS.map((item) => (
+            {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

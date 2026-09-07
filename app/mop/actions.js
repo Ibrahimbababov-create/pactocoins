@@ -158,3 +158,88 @@ export async function setMyBirthday(formData) {
   revalidatePath("/mop");
   return { success: true };
 }
+
+// ---------- Иерархия МОП ↔ РОП ----------
+
+async function me() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Не авторизован");
+  const { data: profile } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("id", user.id)
+    .single();
+  return profile;
+}
+
+// МОП выбирает / меняет своего руководителя.
+export async function setMyRop(ropId) {
+  const p = await me();
+  const admin = createAdminClient();
+
+  let clean = null;
+  if (ropId) {
+    const { data: rop } = await admin
+      .from("users")
+      .select("id")
+      .eq("id", ropId)
+      .eq("role", "rop")
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!rop) return { error: "РОП не найден" };
+    clean = rop.id;
+  }
+
+  const { error } = await admin
+    .from("users")
+    .update({ rop_id: clean })
+    .eq("id", p.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/settings");
+  revalidatePath("/mop/team");
+  return { success: true };
+}
+
+// РОП забирает МОПа себе в команду.
+export async function assignMopToMe(mopId) {
+  const p = await me();
+  if (p.role !== "rop" && p.role !== "admin") return { error: "Нет прав" };
+  const admin = createAdminClient();
+
+  const { data: mop } = await admin
+    .from("users")
+    .select("id, role")
+    .eq("id", mopId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!mop || mop.role !== "mop") return { error: "Сотрудник не найден" };
+
+  const { error } = await admin
+    .from("users")
+    .update({ rop_id: p.id })
+    .eq("id", mopId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/team");
+  return { success: true };
+}
+
+// РОП убирает МОПа из своей команды (только своего).
+export async function unassignMop(mopId) {
+  const p = await me();
+  if (p.role !== "rop" && p.role !== "admin") return { error: "Нет прав" };
+  const admin = createAdminClient();
+
+  let q = admin.from("users").update({ rop_id: null }).eq("id", mopId);
+  if (p.role === "rop") q = q.eq("rop_id", p.id);
+
+  const { error } = await q;
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/team");
+  return { success: true };
+}

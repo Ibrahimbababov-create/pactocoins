@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import EditableName from "@/components/EditableName";
 import RulesAccordion from "@/components/RulesAccordion";
 import ReminderSettings from "@/components/ReminderSettings";
 import NotificationSettings from "@/components/NotificationSettings";
+import RopPicker from "@/components/RopPicker";
 
 export default async function SettingsPage() {
   const supabase = createClient();
@@ -13,10 +15,22 @@ export default async function SettingsPage() {
   const { data: profile } = await supabase
     .from("users")
     .select(
-      "name, reminder_enabled, reminder_time, notify_requests, notify_shop, notify_goal, notify_rating"
+      "name, role, rop_id, reminder_enabled, reminder_time, notify_requests, notify_shop, notify_goal, notify_rating"
     )
     .eq("id", user.id)
     .single();
+
+  let rops = [];
+  if (profile?.role === "mop") {
+    const { data } = await createAdminClient()
+      .from("users")
+      .select("id, name")
+      .eq("role", "rop")
+      .eq("is_active", true)
+      .not("email", "like", "%.test@pactocoins.local")
+      .order("name");
+    rops = data ?? [];
+  }
 
   return (
     <div className="space-y-6">
@@ -26,6 +40,10 @@ export default async function SettingsPage() {
         <p className="text-sm text-gray-500">Профиль</p>
         <EditableName name={profile?.name ?? ""} />
       </div>
+
+      {profile?.role === "mop" && (
+        <RopPicker rops={rops} currentRopId={profile?.rop_id} />
+      )}
 
       <NotificationSettings prefs={profile ?? {}} />
 
