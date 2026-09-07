@@ -23,7 +23,15 @@ export default function SideMenu({ unreadCount = 0, role }) {
 
   const items =
     role === "rop"
-      ? [{ href: "/mop/team", label: "Моя команда", icon: "users" }, ...ITEMS]
+      ? [
+          { href: "/mop/team", label: "Моя команда", icon: "users" },
+          {
+            href: "/mop/onboarding-materials",
+            label: "Материалы стажёрам",
+            icon: "sparkle",
+          },
+          ...ITEMS,
+        ]
       : ITEMS;
 
   return (

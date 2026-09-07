@@ -24,7 +24,9 @@ export default async function TeamPage() {
   const admin = createAdminClient();
   const { data: mops } = await admin
     .from("users")
-    .select("id, name, role, rop_id, total_earned, month_earned")
+    .select(
+      "id, name, role, rop_id, total_earned, month_earned, onboarding_day1_done, onboarding_day2_done, onboarding_day3_done"
+    )
     .in("role", ["mop", "trainee"])
     .eq("is_active", true)
     .eq("is_guest", false)

@@ -14,6 +14,9 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getLevelForAmount } from "@/lib/levels";
+import { getOnboardingItemsForTrainee } from "@/lib/onboarding";
+import { groupOnboardingItems } from "@/lib/onboardingDays";
+import OnboardingTrainee from "@/components/OnboardingTrainee";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -69,13 +72,21 @@ export default async function MopDashboard() {
 
   const isTrainee = profile?.role === "trainee";
   let ropName = null;
-  if (isTrainee && profile?.rop_id) {
-    const { data: rop } = await supabase
-      .from("users")
-      .select("name")
-      .eq("id", profile.rop_id)
-      .single();
-    ropName = rop?.name ?? null;
+  let onboardingDays = null;
+  if (isTrainee) {
+    if (profile?.rop_id) {
+      const { data: rop } = await supabase
+        .from("users")
+        .select("name")
+        .eq("id", profile.rop_id)
+        .single();
+      ropName = rop?.name ?? null;
+    }
+    const items = await getOnboardingItemsForTrainee(
+      createAdminClient(),
+      profile?.rop_id ?? null
+    );
+    onboardingDays = groupOnboardingItems(items);
   }
 
   // Достиг нового ранга и ещё не видел полноэкранную анимацию про него.
@@ -124,23 +135,11 @@ export default async function MopDashboard() {
       </div>
 
       {isTrainee && (
-        <div className="bg-gradient-to-br from-sky-500/10 to-dark-800 border border-sky-500/30 rounded-2xl p-5 space-y-2">
-          <p className="text-lg font-bold text-sky-300">🎓 Ты сейчас стажёр</p>
-          <p className="text-sm text-gray-400">
-            Впереди 3 дня обучения (глоссарий, регламенты, продажи, CRM) с
-            тестами, потом практика на реальных лидах. Скоро всё это появится
-            прямо здесь.
-          </p>
-          <p className="text-sm text-gray-400">
-            После <b className="text-white">первой одобренной оплаты</b> ты
-            станешь МОПом 1 уровня.
-          </p>
-          <p className="text-xs text-gray-500 pt-1">
-            {ropName
-              ? `Твой руководитель: ${ropName}`
-              : "Руководитель не выбран — выбери его в Настройках."}
-          </p>
-        </div>
+        <OnboardingTrainee
+          days={onboardingDays ?? []}
+          progress={profile}
+          ropName={ropName}
+        />
       )}
 
       {!profile?.is_guest && (

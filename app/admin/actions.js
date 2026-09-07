@@ -10,6 +10,7 @@ import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 import { maybeGraduateTrainee } from "@/lib/onboarding";
+import { parseOnboardingItem } from "@/lib/onboardingDays";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -968,4 +969,57 @@ export async function bulkRejectBonus(ids) {
     await rejectBonusRequest(id);
   }
   return { success: true, count: ids.length };
+}
+
+// ---------- Обучение новичков: общие материалы (этап 3) ----------
+// Админ правит материалы, одинаковые для всех стажёров
+// (is_shared=true, rop_id=null). Материалы конкретных РОПов админ не трогает.
+
+export async function createSharedOnboardingItem(formData) {
+  await requireAdmin();
+  const parsed = parseOnboardingItem(formData);
+  if (parsed.error) return { error: parsed.error };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("onboarding_items")
+    .insert({ ...parsed.fields, is_shared: true, rop_id: null });
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/onboarding");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+export async function updateSharedOnboardingItem(id, formData) {
+  await requireAdmin();
+  const parsed = parseOnboardingItem(formData);
+  if (parsed.error) return { error: parsed.error };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("onboarding_items")
+    .update(parsed.fields)
+    .eq("id", id)
+    .eq("is_shared", true);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/onboarding");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+export async function deleteSharedOnboardingItem(id) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("onboarding_items")
+    .delete()
+    .eq("id", id)
+    .eq("is_shared", true);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/onboarding");
+  revalidatePath("/mop");
+  return { success: true };
 }

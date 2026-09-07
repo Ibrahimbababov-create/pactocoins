@@ -1,12 +1,52 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { assignMopToMe, unassignMop } from "@/app/mop/actions";
+import {
+  assignMopToMe,
+  unassignMop,
+  setTraineeDayDone,
+} from "@/app/mop/actions";
+
+function TraineeProgress({ trainee, onToggle, pending }) {
+  const done = [
+    trainee.onboarding_day1_done,
+    trainee.onboarding_day2_done,
+    trainee.onboarding_day3_done,
+  ];
+  return (
+    <div className="flex gap-1.5 mt-2">
+      {[1, 2, 3].map((d) => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => onToggle(trainee.id, d, !done[d - 1])}
+          disabled={pending}
+          className={`text-[11px] px-2 py-0.5 rounded-full border transition ${
+            done[d - 1]
+              ? "bg-acid-400/15 text-acid-400 border-acid-400/30"
+              : "bg-dark-700 text-gray-500 border-dark-600"
+          }`}
+          title="Отметить/снять день обучения"
+        >
+          День {d} {done[d - 1] ? "✓" : ""}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function TeamManageClient({ mine = [], others = [] }) {
   const [isPending, start] = useTransition();
   const [msg, setMsg] = useState(null);
   const [pick, setPick] = useState("");
+
+  function toggleDay(traineeId, day, done) {
+    setMsg(null);
+    start(async () => {
+      const res = await setTraineeDayDone(traineeId, day, done);
+      if (res?.error) setMsg(res.error);
+    });
+  }
 
   function add() {
     if (!pick) return;
@@ -53,6 +93,13 @@ export default function TeamManageClient({ mine = [], others = [] }) {
                 за месяц: {(m.month_earned ?? 0).toLocaleString("ru-RU")} ·
                 всего: {(m.total_earned ?? 0).toLocaleString("ru-RU")}
               </p>
+              {m.role === "trainee" && (
+                <TraineeProgress
+                  trainee={m}
+                  onToggle={toggleDay}
+                  pending={isPending}
+                />
+              )}
             </div>
             <button
               onClick={() => remove(m.id)}

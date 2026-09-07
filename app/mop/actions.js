@@ -5,6 +5,10 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { nowInAlmaty } from "@/lib/timezone";
 import { getLevelForAmount } from "@/lib/levels";
+import {
+  ONBOARDING_DONE_COLUMNS,
+  parseOnboardingItem,
+} from "@/lib/onboardingDays";
 
 export async function updateMyName(formData) {
   const supabase = createClient();
@@ -243,6 +247,107 @@ export async function unassignMop(mopId) {
   const admin = createAdminClient();
 
   let q = admin.from("users").update({ rop_id: null }).eq("id", mopId);
+  if (p.role === "rop") q = q.eq("rop_id", p.id);
+
+  const { error } = await q;
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/team");
+  return { success: true };
+}
+
+// ---------- Обучение новичков (этап 3) ----------
+
+// Стажёр отмечает / снимает отметку «я прошёл день N».
+export async function setOnboardingDayDone(day, done) {
+  const p = await me();
+  const col = ONBOARDING_DONE_COLUMNS[day];
+  if (!col) return { error: "Неверный день" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("users")
+    .update({ [col]: !!done })
+    .eq("id", p.id)
+    .eq("role", "trainee");
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+// РОП/админ ведёт СВОИ материалы стажёрам (is_shared=false, rop_id=self).
+async function requireRopForOnboarding() {
+  const p = await me();
+  if (p.role !== "rop" && p.role !== "admin") throw new Error("Нет прав");
+  return p;
+}
+
+export async function createMyOnboardingItem(formData) {
+  const p = await requireRopForOnboarding();
+  const parsed = parseOnboardingItem(formData);
+  if (parsed.error) return { error: parsed.error };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("onboarding_items").insert({
+    ...parsed.fields,
+    is_shared: false,
+    rop_id: p.id,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/onboarding-materials");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+export async function updateMyOnboardingItem(id, formData) {
+  const p = await requireRopForOnboarding();
+  const parsed = parseOnboardingItem(formData);
+  if (parsed.error) return { error: parsed.error };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("onboarding_items")
+    .update(parsed.fields)
+    .eq("id", id)
+    .eq("rop_id", p.id)
+    .eq("is_shared", false);
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/onboarding-materials");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+export async function deleteMyOnboardingItem(id) {
+  const p = await requireRopForOnboarding();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("onboarding_items")
+    .delete()
+    .eq("id", id)
+    .eq("rop_id", p.id)
+    .eq("is_shared", false);
+  if (error) return { error: error.message };
+
+  revalidatePath("/mop/onboarding-materials");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+// РОП/админ отмечает прогресс стажёра по дням (verify/override).
+export async function setTraineeDayDone(traineeId, day, done) {
+  const p = await requireRopForOnboarding();
+  const col = ONBOARDING_DONE_COLUMNS[day];
+  if (!col) return { error: "Неверный день" };
+
+  const admin = createAdminClient();
+  let q = admin
+    .from("users")
+    .update({ [col]: !!done })
+    .eq("id", traineeId)
+    .eq("role", "trainee");
   if (p.role === "rop") q = q.eq("rop_id", p.id);
 
   const { error } = await q;

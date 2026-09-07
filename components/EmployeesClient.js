@@ -350,6 +350,18 @@ export default function EmployeesClient({ users }) {
                       РОП: {u.rop_id ? nameById[u.rop_id] ?? "—" : "не назначен"}
                     </p>
                   )}
+                  {u.role === "trainee" && (
+                    <p className="text-xs text-gray-500">
+                      Обучение:{" "}
+                      {[
+                        u.onboarding_day1_done,
+                        u.onboarding_day2_done,
+                        u.onboarding_day3_done,
+                      ]
+                        .map((d, i) => `День ${i + 1} ${d ? "✓" : "—"}`)
+                        .join(" · ")}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500">{u.email}</p>
                   <p className="text-xs text-gray-500 mt-1 tabular-nums">
                     Баланс:{" "}
