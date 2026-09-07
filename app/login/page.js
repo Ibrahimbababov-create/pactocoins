@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
+import BirthdayInput from "@/components/BirthdayInput";
 
 const API_URL = "https://pactocoins.vercel.app/api/auth/telegram";
 const GUEST_API_URL = "https://pactocoins.vercel.app/api/auth/guest";
@@ -435,11 +436,9 @@ export default function LoginPage() {
                 <label className="block text-sm text-gray-400 mb-1">
                   День рождения
                 </label>
-                <input
-                  type="date"
+                <BirthdayInput
                   value={registerBirthday}
-                  onChange={(e) => setRegisterBirthday(e.target.value)}
-                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
+                  onChange={setRegisterBirthday}
                 />
                 <p className="text-xs text-gray-600 mt-1">
                   В этот день начислим 3000 coins. Можно указать и позже в

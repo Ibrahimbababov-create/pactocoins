@@ -2,14 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { setMyBirthday } from "@/app/mop/actions";
+import BirthdayInput from "@/components/BirthdayInput";
 
 export default function BirthdayProfile({ birthday, variant = "inline" }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
   const [savedDate, setSavedDate] = useState(birthday);
+  const [bday, setBday] = useState("");
 
   function handleSubmit(formData) {
     const date = formData.get("birthday");
+    if (!date) {
+      setMessage({ type: "error", text: "Выбери дату" });
+      return;
+    }
     startTransition(async () => {
       const res = await setMyBirthday(formData);
       if (res.error) {
@@ -42,12 +48,8 @@ export default function BirthdayProfile({ birthday, variant = "inline" }) {
           </div>
         )}
 
-        <input
-          type="date"
-          name="birthday"
-          required
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
-        />
+        <BirthdayInput value={bday} onChange={setBday} />
+        <input type="hidden" name="birthday" value={bday} />
 
         <label className="flex items-center gap-2 text-xs text-gray-500">
           <input type="checkbox" name="already_gifted" className="shrink-0" />
@@ -96,12 +98,8 @@ export default function BirthdayProfile({ birthday, variant = "inline" }) {
         </div>
       )}
 
-      <input
-        type="date"
-        name="birthday"
-        required
-        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
-      />
+      <BirthdayInput value={bday} onChange={setBday} />
+      <input type="hidden" name="birthday" value={bday} />
 
       <label className="flex items-center gap-2 text-xs text-gray-500">
         <input type="checkbox" name="already_gifted" className="shrink-0" />
