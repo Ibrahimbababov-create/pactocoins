@@ -212,11 +212,17 @@ export async function assignMopToMe(mopId) {
 
   const { data: mop } = await admin
     .from("users")
-    .select("id, role")
+    .select("id, role, rop_id")
     .eq("id", mopId)
     .eq("is_active", true)
     .maybeSingle();
   if (!mop || mop.role !== "mop") return { error: "Сотрудник не найден" };
+
+  // РОП может забрать только свободного МОПа. Переназначать чужого —
+  // только через админа.
+  if (p.role === "rop" && mop.rop_id && mop.rop_id !== p.id) {
+    return { error: "Этот МОП уже в команде другого РОПа" };
+  }
 
   const { error } = await admin
     .from("users")

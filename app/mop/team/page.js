@@ -32,7 +32,10 @@ export default async function TeamPage() {
     .order("name");
 
   const mine = (mops ?? []).filter((m) => m.rop_id === profile.id);
-  const others = (mops ?? []).filter((m) => m.rop_id !== profile.id);
+  // РОП может добавить только свободного МОПа. Админ — любого.
+  const others = (mops ?? []).filter((m) =>
+    profile.role === "admin" ? m.rop_id !== profile.id : !m.rop_id
+  );
 
   return (
     <div className="space-y-6">
