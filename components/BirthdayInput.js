@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 // Три выпадашки день / месяц / год вместо нативного <input type="date">
-// — в вебвью Telegram год выбирать неудобно. Отдаёт "YYYY-MM-DD" или "".
+// — в вебвью Telegram год выбирать неудобно. Локальное состояние держим
+// внутри: пока дата не заполнена целиком, наружу отдаём "".
 
 const MONTHS = [
   "января", "февраля", "марта", "апреля", "мая", "июня",
@@ -10,7 +13,7 @@ const MONTHS = [
 
 const THIS_YEAR = new Date().getFullYear();
 const YEARS = [];
-for (let y = THIS_YEAR - 14; y >= THIS_YEAR - 75; y--) YEARS.push(y);
+for (let yy = THIS_YEAR - 14; yy >= THIS_YEAR - 75; yy--) YEARS.push(yy);
 
 function daysInMonth(year, month) {
   if (!month) return 31;
@@ -18,19 +21,23 @@ function daysInMonth(year, month) {
 }
 
 export default function BirthdayInput({ value = "", onChange }) {
-  const [y = "", m = "", d = ""] = (value || "").split("-");
-  // при value типа "2000-03-05" -> y=2000, m=03, d=05
-  const day = d ? String(Number(d)) : "";
-  const month = m ? String(Number(m)) : "";
-  const year = y || "";
+  const [iy, im, id] = (value || "").split("-");
+  const [d, setD] = useState(id ? String(Number(id)) : "");
+  const [m, setM] = useState(im ? String(Number(im)) : "");
+  const [y, setY] = useState(iy || "");
 
-  function emit(nd, nm, ny) {
-    if (!nd || !nm || !ny) return onChange?.("");
-    const maxD = daysInMonth(ny, nm);
-    const dd = Math.min(Number(nd), maxD);
-    onChange?.(
-      `${ny}-${String(nm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`
-    );
+  function push(nd, nm, ny) {
+    setD(nd);
+    setM(nm);
+    setY(ny);
+    if (nd && nm && ny) {
+      const dd = Math.min(Number(nd), daysInMonth(ny, nm));
+      onChange?.(
+        `${ny}-${String(nm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`
+      );
+    } else {
+      onChange?.("");
+    }
   }
 
   const cls =
@@ -38,25 +45,15 @@ export default function BirthdayInput({ value = "", onChange }) {
 
   return (
     <div className="grid grid-cols-3 gap-2">
-      <select
-        value={day}
-        onChange={(e) => emit(e.target.value, month, year)}
-        className={cls}
-      >
+      <select value={d} onChange={(e) => push(e.target.value, m, y)} className={cls}>
         <option value="">День</option>
-        {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map(
-          (n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          )
-        )}
+        {Array.from({ length: daysInMonth(y, m) }, (_, i) => i + 1).map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
       </select>
-      <select
-        value={month}
-        onChange={(e) => emit(day, e.target.value, year)}
-        className={cls}
-      >
+      <select value={m} onChange={(e) => push(d, e.target.value, y)} className={cls}>
         <option value="">Месяц</option>
         {MONTHS.map((name, i) => (
           <option key={i} value={i + 1}>
@@ -64,11 +61,7 @@ export default function BirthdayInput({ value = "", onChange }) {
           </option>
         ))}
       </select>
-      <select
-        value={year}
-        onChange={(e) => emit(day, month, e.target.value)}
-        className={cls}
-      >
+      <select value={y} onChange={(e) => push(d, m, e.target.value)} className={cls}>
         <option value="">Год</option>
         {YEARS.map((n) => (
           <option key={n} value={n}>
