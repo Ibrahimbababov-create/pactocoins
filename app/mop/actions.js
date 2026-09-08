@@ -268,6 +268,51 @@ export async function markOnboardingBlockDone(blockId) {
   return { success: true };
 }
 
+// Стажёр сдаёт тест дня. answers — массив индексов ответов по порядку sort.
+export async function submitOnboardingTest(blockId, day, answers) {
+  const p = await me();
+  if (p.role !== "trainee") return { error: "Только для стажёров" };
+  const admin = createAdminClient();
+
+  const { data: test } = await admin
+    .from("onboarding_tests")
+    .select("id, pass_pct")
+    .eq("day", day)
+    .maybeSingle();
+  if (!test) return { error: "Тест не найден" };
+
+  const { data: qs } = await admin
+    .from("onboarding_questions")
+    .select("correct")
+    .eq("test_id", test.id)
+    .order("sort");
+  if (!qs?.length) return { error: "В тесте пока нет вопросов" };
+
+  const wrong = [];
+  let correct = 0;
+  qs.forEach((q, i) => {
+    if (Number(answers?.[i]) === q.correct) correct++;
+    else wrong.push(i);
+  });
+  const score = Math.round((correct / qs.length) * 100);
+  const passed = score >= test.pass_pct;
+
+  await admin.from("onboarding_attempts").insert({
+    user_id: p.id,
+    test_id: test.id,
+    score_pct: score,
+    passed,
+  });
+  if (passed) {
+    await admin
+      .from("onboarding_progress")
+      .upsert({ user_id: p.id, block_id: blockId }, { onConflict: "user_id,block_id" });
+  }
+
+  revalidatePath("/mop");
+  return { success: true, score, passed, total: qs.length, correct, wrong };
+}
+
 async function requireRopOrAdmin() {
   const p = await me();
   if (p.role !== "rop" && p.role !== "admin") throw new Error("Нет прав");

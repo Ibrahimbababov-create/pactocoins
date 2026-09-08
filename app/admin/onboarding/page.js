@@ -5,10 +5,16 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminOnboardingPage() {
   const admin = createAdminClient();
-  const [{ data: blocks }, { data: links }] = await Promise.all([
-    admin.from("onboarding_blocks").select("*").order("day").order("sort"),
-    admin.from("onboarding_links").select("*").is("rop_id", null).order("sort"),
-  ]);
+  const [{ data: blocks }, { data: links }, { data: tests }, { data: questions }] =
+    await Promise.all([
+      admin.from("onboarding_blocks").select("*").order("day").order("sort"),
+      admin.from("onboarding_links").select("*").is("rop_id", null).order("sort"),
+      admin.from("onboarding_tests").select("id, day"),
+      admin
+        .from("onboarding_questions")
+        .select("id, test_id, question, options, correct, sort")
+        .order("sort"),
+    ]);
 
   const linksByBlock = {};
   for (const l of links ?? []) {
@@ -17,6 +23,19 @@ export default async function AdminOnboardingPage() {
       title: l.title,
       url: l.url,
       note: l.note,
+    });
+  }
+
+  const dayByTest = Object.fromEntries((tests ?? []).map((t) => [t.id, t.day]));
+  const qByDay = {};
+  for (const q of questions ?? []) {
+    const day = dayByTest[q.test_id];
+    if (!day) continue;
+    (qByDay[day] ||= []).push({
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correct: q.correct,
     });
   }
 
@@ -30,6 +49,7 @@ export default async function AdminOnboardingPage() {
     telegraph_url: b.telegraph_url,
     body_md: b.body_md,
     links: linksByBlock[b.id] ?? [],
+    questions: b.kind === "test" ? qByDay[b.day] ?? [] : [],
   }));
 
   return (

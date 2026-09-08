@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { markOnboardingBlockDone } from "@/app/mop/actions";
+import { markOnboardingBlockDone, submitOnboardingTest } from "@/app/mop/actions";
 import { openExternal } from "@/lib/openExternal";
 import { BLOCK_KIND } from "@/lib/onboardingDays";
 
@@ -110,6 +110,151 @@ function Reader({ block, onClose, onDone }) {
   );
 }
 
+function TestOverlay({ block, onClose, onPassed }) {
+  const qs = block.test?.questions ?? [];
+  const [answers, setAnswers] = useState(() => qs.map(() => -1));
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  const allAnswered = answers.every((a) => a >= 0);
+
+  async function submit() {
+    if (!allAnswered || busy) return;
+    setBusy(true);
+    try {
+      const res = await submitOnboardingTest(block.id, block.test.day, answers);
+      if (res?.error) {
+        setResult({ error: res.error });
+      } else {
+        setResult(res);
+        if (res.passed) onPassed(block.id);
+      }
+    } catch {
+      setResult({ error: "Не отправилось — попробуй ещё раз" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function retry() {
+    setAnswers(qs.map(() => -1));
+    setResult(null);
+  }
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] bg-dark-900 flex flex-col"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 h-12 border-b border-dark-600 shrink-0">
+        <span className="text-sm text-gray-400 truncate">{block.title}</span>
+        <button
+          onClick={onClose}
+          className="shrink-0 text-sm font-semibold text-acid-400 px-3 py-1.5 -mr-2"
+        >
+          Закрыть ✕
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-5">
+        <div className="max-w-lg mx-auto space-y-5">
+          {result && !result.error ? (
+            <div className="text-center py-6">
+              <p className="text-5xl mb-3">{result.passed ? "🎉" : "😔"}</p>
+              <p className="text-2xl font-black">
+                {result.correct} из {result.total} · {result.score}%
+              </p>
+              <p
+                className={`mt-2 text-sm ${
+                  result.passed ? "text-acid-400" : "text-gray-400"
+                }`}
+              >
+                {result.passed
+                  ? "Тест пройден!"
+                  : `Нужно ${block.test.passPct}%. Разбери ошибки и попробуй снова.`}
+              </p>
+            </div>
+          ) : (
+            <>
+              {result?.error && (
+                <p className="text-sm text-red-400 text-center">{result.error}</p>
+              )}
+              {qs.map((q, i) => (
+                <div key={q.id}>
+                  <p className="text-sm font-semibold mb-2">
+                    {i + 1}. {q.question}
+                  </p>
+                  <div className="space-y-1.5">
+                    {q.options.map((opt, oi) => (
+                      <button
+                        key={oi}
+                        onClick={() =>
+                          setAnswers((a) =>
+                            a.map((x, xi) => (xi === i ? oi : x))
+                          )
+                        }
+                        className={`w-full text-left rounded-xl border px-3 py-2.5 text-sm ${
+                          answers[i] === oi
+                            ? "border-acid-400 bg-acid-400/10 text-white"
+                            : "border-dark-600 bg-dark-800 text-gray-300"
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div
+        className="shrink-0 border-t border-dark-600 p-3"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      >
+        {result && !result.error ? (
+          result.passed ? (
+            <button
+              onClick={onClose}
+              className="w-full rounded-xl bg-acid-400 text-black py-3 text-sm font-bold"
+            >
+              Готово
+            </button>
+          ) : (
+            <button
+              onClick={retry}
+              className="w-full rounded-xl bg-acid-400 text-black py-3 text-sm font-bold"
+            >
+              Пройти заново
+            </button>
+          )
+        ) : (
+          <button
+            onClick={submit}
+            disabled={!allAnswered || busy}
+            className="w-full rounded-xl bg-acid-400 text-black py-3 text-sm font-bold disabled:opacity-40"
+          >
+            {busy ? "Проверяю…" : allAnswered ? "Проверить" : "Ответь на все вопросы"}
+          </button>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function LinksBlock({ block, onDone }) {
   return (
     <div className="mt-2 space-y-2">
@@ -151,6 +296,7 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
       )
   );
   const [readerId, setReaderId] = useState(null);
+  const [testId, setTestId] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [err, setErr] = useState(null);
   const inFlight = useRef(new Set());
@@ -161,9 +307,9 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
     () => days.find((d) => !d.locked && !d.complete)?.day ?? 1
   );
 
-  const readerBlock = readerId
-    ? days.flatMap((d) => d.blocks).find((b) => b.id === readerId)
-    : null;
+  const flat = days.flatMap((d) => d.blocks);
+  const readerBlock = readerId ? flat.find((b) => b.id === readerId) : null;
+  const testBlock = testId ? flat.find((b) => b.id === testId) : null;
 
   function markDone(id) {
     if (doneSet.has(id)) {
@@ -192,6 +338,12 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
         setTimeout(() => setErr(null), 3000);
       })
       .finally(() => inFlight.current.delete(id));
+  }
+
+  // тест уже сохранён на сервере в submitOnboardingTest — тут только
+  // мгновенно разблокируем следующий блок / день
+  function addLocalDone(id) {
+    setDoneSet((s) => (s.has(id) ? s : new Set(s).add(id)));
   }
 
   const totalDays = days.filter((d) => d.complete).length;
@@ -274,15 +426,30 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
                         <p className="text-xs text-gray-500 mt-0.5">{b.subtitle}</p>
                       )}
 
-                      {b.kind === "test" && (
+                      {b.kind === "test" && !b.hasContent && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Тест скоро появится.
+                          Тест ещё готовится.
+                        </p>
+                      )}
+                      {b.kind === "test" && b.hasContent && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {b.test.questions.length} вопросов · проходной{" "}
+                          {b.test.passPct}% · попыток без ограничений
                         </p>
                       )}
                       {b.owner === "rop" && !b.hasContent && b.kind !== "test" && (
                         <p className="text-xs text-gray-500 mt-1">
                           Твой РОП ещё не добавил материал.
                         </p>
+                      )}
+
+                      {!b.locked && b.kind === "test" && b.hasContent && (
+                        <button
+                          onClick={() => setTestId(b.id)}
+                          className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
+                        >
+                          {b.done ? "Пройти ещё раз" : "Пройти тест →"}
+                        </button>
                       )}
 
                       {!b.locked && b.kind === "article" && b.html && (
@@ -320,6 +487,14 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
           block={readerBlock}
           onClose={() => setReaderId(null)}
           onDone={() => markDone(readerBlock.id)}
+        />
+      )}
+
+      {testBlock && testBlock.test && (
+        <TestOverlay
+          block={testBlock}
+          onClose={() => setTestId(null)}
+          onPassed={addLocalDone}
         />
       )}
     </div>

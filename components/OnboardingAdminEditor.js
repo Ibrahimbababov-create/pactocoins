@@ -5,6 +5,8 @@ import {
   setAdminOnboardingBlock,
   addAdminOnboardingLink,
   removeAdminOnboardingLink,
+  upsertOnboardingQuestion,
+  deleteOnboardingQuestion,
 } from "@/app/admin/actions";
 import { uploadOnboardingFile } from "@/lib/uploadOnboardingFile";
 import { ONBOARDING_DAYS, BLOCK_KIND, BLOCK_OWNER } from "@/lib/onboardingDays";
@@ -194,6 +196,127 @@ function LinksForm({ block }) {
   );
 }
 
+function QuestionForm({ day, initial, onDone }) {
+  const [pending, start] = useTransition();
+  const [q, setQ] = useState(initial?.question ?? "");
+  const [opts, setOpts] = useState(
+    initial?.options?.length ? [...initial.options] : ["", "", "", ""]
+  );
+  const [correct, setCorrect] = useState(initial?.correct ?? 0);
+  const [msg, setMsg] = useState(null);
+
+  function save() {
+    setMsg(null);
+    start(async () => {
+      const res = await upsertOnboardingQuestion(day, {
+        id: initial?.id,
+        question: q,
+        options: opts,
+        correct,
+      });
+      if (res?.error) setMsg(res.error);
+      else {
+        if (!initial) {
+          setQ("");
+          setOpts(["", "", "", ""]);
+          setCorrect(0);
+        }
+        onDone?.();
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-2 bg-dark-900/50 border border-dark-600 rounded-lg p-3">
+      <textarea
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        rows={2}
+        placeholder="Вопрос"
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+      />
+      {opts.map((o, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            type="radio"
+            name={`c-${initial?.id ?? "new"}-${day}`}
+            checked={correct === i}
+            onChange={() => setCorrect(i)}
+            title="Правильный ответ"
+          />
+          <input
+            value={o}
+            onChange={(e) =>
+              setOpts((p) => p.map((x, j) => (j === i ? e.target.value : x)))
+            }
+            placeholder={`Вариант ${i + 1}`}
+            className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-white text-sm"
+          />
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={save}
+          disabled={pending}
+          className="bg-acid-400 text-black font-bold rounded-lg px-4 py-1.5 text-sm"
+        >
+          {initial ? "Сохранить" : "Добавить вопрос"}
+        </button>
+        {initial && (
+          <button
+            onClick={() => start(() => deleteOnboardingQuestion(initial.id).then(onDone))}
+            disabled={pending}
+            className="text-xs text-red-400"
+          >
+            Удалить
+          </button>
+        )}
+        {msg && <span className="text-xs text-red-400">{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
+function QuestionEditor({ block }) {
+  const [editing, setEditing] = useState(null);
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-gray-500">
+        Проходной 80%, попыток без ограничений. Вопросов: {block.questions.length}
+      </p>
+      {block.questions.map((qq, i) =>
+        editing === qq.id ? (
+          <QuestionForm
+            key={qq.id}
+            day={block.day}
+            initial={qq}
+            onDone={() => setEditing(null)}
+          />
+        ) : (
+          <div
+            key={qq.id}
+            className="bg-dark-700 rounded-lg px-3 py-2 flex items-start justify-between gap-2"
+          >
+            <span className="text-xs">
+              <b>{i + 1}.</b> {qq.question}
+              <span className="block text-gray-500 mt-0.5">
+                ✓ {qq.options[qq.correct]}
+              </span>
+            </span>
+            <button
+              onClick={() => setEditing(qq.id)}
+              className="text-xs text-gray-400 shrink-0"
+            >
+              Изменить
+            </button>
+          </div>
+        )
+      )}
+      <QuestionForm day={block.day} onDone={() => {}} />
+    </div>
+  );
+}
+
 export default function OnboardingAdminEditor({ blocks }) {
   const [open, setOpen] = useState(null);
 
@@ -208,7 +331,9 @@ export default function OnboardingAdminEditor({ blocks }) {
             .filter((b) => b.day === d.day)
             .map((b) => {
               const editable =
-                (b.kind === "article") || (b.kind === "links" && b.owner === "admin");
+                b.kind === "article" ||
+                (b.kind === "links" && b.owner === "admin") ||
+                b.kind === "test";
               return (
                 <div key={b.id} className="bg-dark-800 border border-dark-600 rounded-xl">
                   <button
@@ -224,6 +349,7 @@ export default function OnboardingAdminEditor({ blocks }) {
                         {b.kind === "article" &&
                           ` · ${b.source === "telegraph" ? "telegra.ph" : b.body_md ? "текст" : "пусто"}`}
                         {b.kind === "links" && ` · ссылок: ${b.links.length}`}
+                        {b.kind === "test" && ` · вопросов: ${b.questions.length}`}
                       </span>
                     </span>
                     {editable && (
@@ -239,17 +365,12 @@ export default function OnboardingAdminEditor({ blocks }) {
                           Это общий дефолт. Каждый РОП может переопределить его у себя.
                         </p>
                       )}
-                      {b.kind === "article" ? (
+                      {b.kind === "article" && (
                         <ArticleForm block={b} onSaved={() => {}} />
-                      ) : (
-                        <LinksForm block={b} />
                       )}
+                      {b.kind === "links" && <LinksForm block={b} />}
+                      {b.kind === "test" && <QuestionEditor block={b} />}
                     </div>
-                  )}
-                  {b.kind === "test" && (
-                    <p className="px-4 pb-3 text-xs text-gray-500">
-                      Вопросы теста — следующим обновлением.
-                    </p>
                   )}
                   {b.kind === "links" && b.owner === "rop" && (
                     <p className="px-4 pb-3 text-xs text-gray-500">

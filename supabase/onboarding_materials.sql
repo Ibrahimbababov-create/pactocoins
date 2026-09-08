@@ -116,3 +116,12 @@ create policy "ob_attempts_read" on public.onboarding_attempts   for select to a
 -- Vercel), ссылка кладётся в onboarding_links. RLS storage.objects:
 -- select — public; insert/delete — authenticated с ролью admin|rop.
 -- При удалении ссылки-файла server action чистит и объект в bucket.
+
+-- --- Тесты (2026-09-08) ---
+-- onboarding_tests: 1 строка на день (проходной 80%). Вопросы —
+-- onboarding_questions (options jsonb-массив, correct — индекс). Стажёру
+-- questions отдаются БЕЗ correct; проверка и запись onboarding_attempts —
+-- на сервере (submitOnboardingTest). При passed=true ставится
+-- onboarding_progress по блоку теста, поэтому тест гейтит день как обычный
+-- блок. Все три test-блока переведены в required=true. Засеяно по 10
+-- вопросов на день из глоссария/регламента/уроков — правятся в /admin/onboarding.

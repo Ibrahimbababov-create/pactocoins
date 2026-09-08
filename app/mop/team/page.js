@@ -34,7 +34,7 @@ export default async function TeamPage() {
     admin
       .from("onboarding_blocks")
       .select("id, day, required, kind")
-      .neq("kind", "test"),
+      .in("kind", ["article", "test"]),
     admin.from("onboarding_progress").select("user_id, block_id"),
   ]);
 

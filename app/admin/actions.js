@@ -1047,6 +1047,51 @@ export async function addAdminOnboardingLink(blockId, { title, url, note }) {
   return { success: true };
 }
 
+// ---- Вопросы тестов ----
+
+export async function upsertOnboardingQuestion(day, { id, question, options, correct, sort }) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: test } = await admin
+    .from("onboarding_tests")
+    .select("id")
+    .eq("day", day)
+    .maybeSingle();
+  if (!test) return { error: "Тест дня не найден" };
+
+  const opts = (options || [])
+    .map((o) => (o || "").trim())
+    .filter(Boolean);
+  const q = (question || "").trim();
+  const c = Number(correct);
+  if (!q) return { error: "Впиши вопрос" };
+  if (opts.length < 2) return { error: "Нужно минимум 2 варианта ответа" };
+  if (!(c >= 0 && c < opts.length)) return { error: "Отметь правильный вариант" };
+
+  const row = { test_id: test.id, question: q, options: opts, correct: c };
+  if (Number.isFinite(Number(sort))) row.sort = Number(sort);
+
+  const { error } = id
+    ? await admin.from("onboarding_questions").update(row).eq("id", id)
+    : await admin.from("onboarding_questions").insert(row);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/onboarding");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+export async function deleteOnboardingQuestion(id) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("onboarding_questions").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/onboarding");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
 export async function removeAdminOnboardingLink(linkId) {
   await requireAdmin();
   const admin = createAdminClient();

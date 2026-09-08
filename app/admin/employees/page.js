@@ -14,7 +14,7 @@ export default async function EmployeesPage() {
         .order("role", { ascending: false })
         .order("name"),
       supabase.from("user_goals").select("*, rewards(title)").eq("status", "active"),
-      supabase.from("onboarding_blocks").select("id, day, required, kind").neq("kind", "test"),
+      supabase.from("onboarding_blocks").select("id, day, required, kind").in("kind", ["article", "test"]),
       supabase.from("onboarding_progress").select("user_id, block_id"),
     ]);
 
