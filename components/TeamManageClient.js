@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { assignMopToMe, unassignMop } from "@/app/mop/actions";
+import { assignMopToMe, unassignMop, graduateTrainee } from "@/app/mop/actions";
 
 function TraineeProgress({ ob }) {
   if (!ob) return null;
@@ -44,6 +44,20 @@ export default function TeamManageClient({ mine = [], others = [] }) {
     });
   }
 
+  function graduate(id, name) {
+    if (
+      !window.confirm(
+        `Допустить ${name}? Стажёр станет МОПом 1 уровня. Отменить нельзя.`
+      )
+    )
+      return;
+    setMsg(null);
+    start(async () => {
+      const res = await graduateTrainee(id);
+      setMsg(res?.error || `${name} допущен — теперь МОП`);
+    });
+  }
+
   function remove(id) {
     setMsg(null);
     start(async () => {
@@ -81,13 +95,24 @@ export default function TeamManageClient({ mine = [], others = [] }) {
               </p>
               {m.role === "trainee" && <TraineeProgress ob={m.onboarding} />}
             </div>
-            <button
-              onClick={() => remove(m.id)}
-              disabled={isPending}
-              className="text-red-400 text-sm shrink-0 px-2 py-1"
-            >
-              Убрать
-            </button>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {m.role === "trainee" && (
+                <button
+                  onClick={() => graduate(m.id, m.name)}
+                  disabled={isPending}
+                  className="text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
+                >
+                  🎓 Допустить
+                </button>
+              )}
+              <button
+                onClick={() => remove(m.id)}
+                disabled={isPending}
+                className="text-red-400 text-sm px-2 py-1"
+              >
+                Убрать
+              </button>
+            </div>
           </div>
         ))}
       </div>

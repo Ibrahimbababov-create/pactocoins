@@ -11,6 +11,7 @@ import {
   offboardEmployee,
   reinstateEmployee,
 } from "@/app/admin/actions";
+import { graduateTrainee } from "@/app/mop/actions";
 
 const GROUPS = [
   { key: "trainee", label: "Стажёры" },
@@ -118,6 +119,15 @@ export default function EmployeesClient({ users }) {
       const res = await resetUserStats(userId);
       if (res.error) showMessage(res.error, "error");
       else showMessage("Данные сброшены");
+    });
+  }
+
+  function handleGraduate(userId, name) {
+    if (!window.confirm(`Допустить ${name}? Стажёр станет МОПом 1 уровня.`)) return;
+    startTransition(async () => {
+      const res = await graduateTrainee(userId);
+      if (res.error) showMessage(res.error, "error");
+      else showMessage(`${name} допущен`);
     });
   }
 
@@ -408,6 +418,15 @@ export default function EmployeesClient({ users }) {
                   >
                     Баланс
                   </button>
+                  {u.role === "trainee" && u.is_active && (
+                    <button
+                      onClick={() => handleGraduate(u.id, u.name)}
+                      disabled={isPending}
+                      className="text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
+                    >
+                      🎓 Допустить
+                    </button>
+                  )}
                   <button
                     onClick={() => handleReset(u.id, u.name)}
                     disabled={isPending}

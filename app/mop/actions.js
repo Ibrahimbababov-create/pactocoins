@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { nowInAlmaty } from "@/lib/timezone";
 import { getLevelForAmount } from "@/lib/levels";
 import { fetchTelegraphContent } from "@/lib/telegraph";
+import { maybeGraduateTrainee } from "@/lib/onboarding";
 
 export async function updateMyName(formData) {
   const supabase = createClient();
@@ -317,6 +318,29 @@ async function requireRopOrAdmin() {
   const p = await me();
   if (p.role !== "rop" && p.role !== "admin") throw new Error("Нет прав");
   return p;
+}
+
+// РОП/админ вручную допускает стажёра после аттестации → МОП 1 уровня.
+export async function graduateTrainee(traineeId) {
+  const p = await requireRopOrAdmin();
+  const admin = createAdminClient();
+
+  const { data: t } = await admin
+    .from("users")
+    .select("id, role, rop_id")
+    .eq("id", traineeId)
+    .maybeSingle();
+  if (!t || t.role !== "trainee") return { error: "Это не стажёр" };
+  if (p.role === "rop" && t.rop_id !== p.id) {
+    return { error: "Этот стажёр не в твоей команде" };
+  }
+
+  const res = await maybeGraduateTrainee(admin, traineeId, "manual");
+  if (!res.graduated) return { error: "Не удалось допустить" };
+
+  revalidatePath("/mop/team");
+  revalidatePath("/admin/employees");
+  return { success: true };
 }
 
 // Готовим payload для onboarding_rop_blocks / onboarding_blocks из формы.
