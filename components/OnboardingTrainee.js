@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { markOnboardingBlockDone } from "@/app/mop/actions";
 import { openExternal } from "@/lib/openExternal";
 import { BLOCK_KIND } from "@/lib/onboardingDays";
@@ -26,12 +27,33 @@ function StatusDot({ block }) {
 }
 
 function Reader({ block, onClose, onDone, pending }) {
-  return (
-    <div className="fixed inset-0 z-[70] bg-dark-900 flex flex-col">
-      <div className="flex items-center justify-between px-4 h-12 border-b border-dark-600 shrink-0">
+  // Блокируем прокрутку фона и закрываем по Esc, пока читалка открыта.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] bg-dark-900 flex flex-col"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 h-12 border-b border-dark-600 shrink-0">
         <span className="text-sm text-gray-400 truncate">{block.title}</span>
-        <button onClick={onClose} className="text-gray-500 text-sm px-2">
-          Закрыть
+        <button
+          onClick={onClose}
+          className="shrink-0 text-sm font-semibold text-acid-400 px-3 py-1.5 -mr-2 rounded-lg"
+        >
+          Закрыть ✕
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-5">
@@ -43,20 +65,28 @@ function Reader({ block, onClose, onDone, pending }) {
           />
         </div>
       </div>
-      <div className="shrink-0 border-t border-dark-600 p-3">
+      <div
+        className="shrink-0 border-t border-dark-600 p-3 flex gap-2"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      >
+        <button
+          onClick={onClose}
+          className="shrink-0 rounded-xl px-4 py-3 text-sm font-bold bg-dark-700 text-gray-300"
+        >
+          Назад
+        </button>
         <button
           onClick={onDone}
           disabled={pending || block.done}
-          className={`w-full rounded-xl py-3 text-sm font-bold ${
-            block.done
-              ? "bg-acid-400/10 text-acid-400"
-              : "bg-acid-400 text-black"
+          className={`flex-1 rounded-xl py-3 text-sm font-bold ${
+            block.done ? "bg-acid-400/10 text-acid-400" : "bg-acid-400 text-black"
           }`}
         >
           {block.done ? "✓ Изучено" : "✓ Я изучил"}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
