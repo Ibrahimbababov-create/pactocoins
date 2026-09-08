@@ -7,7 +7,31 @@ import {
   addMyOnboardingLink,
   removeMyOnboardingLink,
 } from "@/app/mop/actions";
+import { uploadOnboardingFile } from "@/lib/uploadOnboardingFile";
 import { ONBOARDING_DAYS, BLOCK_KIND } from "@/lib/onboardingDays";
+
+function FileUploadButton({ uploading, onPick }) {
+  return (
+    <label
+      className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold cursor-pointer ${
+        uploading ? "bg-dark-700 text-gray-500" : "bg-dark-700 text-gray-200"
+      }`}
+    >
+      {uploading ? "Загрузка…" : "📎 Загрузить файл"}
+      <input
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        disabled={uploading}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) onPick(f);
+        }}
+      />
+    </label>
+  );
+}
 
 function ArticleForm({ block }) {
   const [pending, start] = useTransition();
@@ -102,6 +126,7 @@ function LinksForm({ block }) {
   const [url, setUrl] = useState("");
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   function add() {
     setMsg(null);
@@ -114,6 +139,24 @@ function LinksForm({ block }) {
         setNote("");
       }
     });
+  }
+
+  async function handleFile(file) {
+    setMsg(null);
+    setUploading(true);
+    const up = await uploadOnboardingFile(file);
+    if (up.error) {
+      setMsg(up.error);
+      setUploading(false);
+      return;
+    }
+    const res = await addMyOnboardingLink(block.id, {
+      title: up.name,
+      url: up.url,
+      note: "",
+    });
+    if (res?.error) setMsg(res.error);
+    setUploading(false);
   }
 
   return (
@@ -156,13 +199,17 @@ function LinksForm({ block }) {
         placeholder="Примечание (необязательно)"
         className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
       />
-      <button
-        onClick={add}
-        disabled={pending}
-        className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
-      >
-        + Добавить ссылку
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={add}
+          disabled={pending || uploading}
+          className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
+        >
+          + Добавить ссылку
+        </button>
+        <FileUploadButton uploading={uploading} onPick={handleFile} />
+        <span className="text-xs text-gray-600">фото или PDF, до 20 МБ</span>
+      </div>
       {msg && <p className="text-xs text-red-400">{msg}</p>}
     </div>
   );

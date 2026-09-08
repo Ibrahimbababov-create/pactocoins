@@ -109,3 +109,10 @@ create policy "ob_attempts_read" on public.onboarding_attempts   for select to a
 -- Скелет блоков и стартовый контент засеяны миграцией + отдельным апдейтом
 -- (глоссарий, взаимодействие, регламент, график, мотивация, уроки продаж,
 -- регламент CRM). Правится в /admin/onboarding и /mop/onboarding-materials.
+
+-- --- Файлы (миграция onboarding_files_bucket 2026-09-08) ---
+-- Storage bucket 'onboarding-files' (public, 20 МБ, image/*, pdf).
+-- Клиент грузит напрямую (lib/uploadOnboardingFile.js, минуя лимит тела
+-- Vercel), ссылка кладётся в onboarding_links. RLS storage.objects:
+-- select — public; insert/delete — authenticated с ролью admin|rop.
+-- При удалении ссылки-файла server action чистит и объект в bucket.

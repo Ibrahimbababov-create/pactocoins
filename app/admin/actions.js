@@ -1050,12 +1050,24 @@ export async function addAdminOnboardingLink(blockId, { title, url, note }) {
 export async function removeAdminOnboardingLink(linkId) {
   await requireAdmin();
   const admin = createAdminClient();
+  const { data: row } = await admin
+    .from("onboarding_links")
+    .select("url")
+    .eq("id", linkId)
+    .is("rop_id", null)
+    .maybeSingle();
   const { error } = await admin
     .from("onboarding_links")
     .delete()
     .eq("id", linkId)
     .is("rop_id", null);
   if (error) return { error: error.message };
+  const marker = "/onboarding-files/";
+  const i = (row?.url || "").indexOf(marker);
+  if (i !== -1) {
+    const path = row.url.slice(i + marker.length).split("?")[0];
+    if (path) await admin.storage.from("onboarding-files").remove([path]);
+  }
   revalidatePath("/admin/onboarding");
   revalidatePath("/mop");
   return { success: true };

@@ -375,15 +375,31 @@ export async function addMyOnboardingLink(blockId, { title, url, note }) {
   return { success: true };
 }
 
+// Если ссылка вела на загруженный в наш bucket файл — удаляем и сам файл.
+async function deleteOnboardingStorageFile(admin, url) {
+  const marker = "/onboarding-files/";
+  const i = (url || "").indexOf(marker);
+  if (i === -1) return;
+  const path = url.slice(i + marker.length).split("?")[0];
+  if (path) await admin.storage.from("onboarding-files").remove([path]);
+}
+
 export async function removeMyOnboardingLink(linkId) {
   const p = await requireRopOrAdmin();
   const admin = createAdminClient();
+  const { data: row } = await admin
+    .from("onboarding_links")
+    .select("url")
+    .eq("id", linkId)
+    .eq("rop_id", p.id)
+    .maybeSingle();
   const { error } = await admin
     .from("onboarding_links")
     .delete()
     .eq("id", linkId)
     .eq("rop_id", p.id);
   if (error) return { error: error.message };
+  if (row?.url) await deleteOnboardingStorageFile(admin, row.url);
   revalidatePath("/mop/onboarding-materials");
   revalidatePath("/mop");
   return { success: true };
