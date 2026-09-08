@@ -1,10 +1,32 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { markOnboardingBlockDone } from "@/app/mop/actions";
 import { openExternal } from "@/lib/openExternal";
 import { BLOCK_KIND } from "@/lib/onboardingDays";
+
+// Пересчитываем гейтинг на клиенте, чтобы отметка «изучил» срабатывала
+// мгновенно, не дожидаясь ответа сервера. Логика 1-в-1 с getTraineeOnboarding.
+function recompute(days, doneSet) {
+  const out = days.map((d) => {
+    let blocked = false;
+    const blocks = d.blocks.map((b) => {
+      const done = b.done || doneSet.has(b.id);
+      const locked = blocked;
+      if (b.gates && !done) blocked = true;
+      return { ...b, done, locked };
+    });
+    const gating = blocks.filter((b) => b.gates);
+    const doneCount = gating.filter((b) => b.done).length;
+    const complete = gating.length > 0 && doneCount === gating.length;
+    return { ...d, blocks, doneCount, totalCount: gating.length, complete };
+  });
+  for (let i = 0; i < out.length; i++) {
+    out[i].locked = i > 0 && !out[i - 1].complete;
+  }
+  return out;
+}
 
 function StatusDot({ block }) {
   if (block.done)
@@ -26,8 +48,7 @@ function StatusDot({ block }) {
   );
 }
 
-function Reader({ block, onClose, onDone, pending }) {
-  // Блокируем прокрутку фона и закрываем по Esc, пока читалка открыта.
+function Reader({ block, onClose, onDone }) {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -77,12 +98,11 @@ function Reader({ block, onClose, onDone, pending }) {
         </button>
         <button
           onClick={onDone}
-          disabled={pending || block.done}
-          className={`flex-1 rounded-xl py-3 text-sm font-bold ${
+          className={`flex-1 rounded-xl py-3 text-sm font-bold active:scale-[0.98] transition-transform ${
             block.done ? "bg-acid-400/10 text-acid-400" : "bg-acid-400 text-black"
           }`}
         >
-          {block.done ? "✓ Изучено" : "✓ Я изучил"}
+          {block.done ? "✓ Изучено — закрыть" : "✓ Я изучил"}
         </button>
       </div>
     </div>,
@@ -90,7 +110,7 @@ function Reader({ block, onClose, onDone, pending }) {
   );
 }
 
-function LinksBlock({ block, onDone, pending }) {
+function LinksBlock({ block, onDone }) {
   return (
     <div className="mt-2 space-y-2">
       {block.links.length === 0 && (
@@ -111,29 +131,67 @@ function LinksBlock({ block, onDone, pending }) {
       {block.links.length > 0 && !block.done && (
         <button
           onClick={onDone}
-          disabled={pending}
-          className="w-full rounded-xl bg-acid-400 text-black py-2.5 text-sm font-bold"
+          className="w-full rounded-xl bg-acid-400 text-black py-2.5 text-sm font-bold active:scale-[0.98] transition-transform"
         >
           ✓ Готово, всё открыл
         </button>
+      )}
+      {block.done && (
+        <p className="text-xs text-acid-400">✓ Пройдено</p>
       )}
     </div>
   );
 }
 
-export default function OnboardingTrainee({ days, ropName }) {
-  const [isPending, start] = useTransition();
-  const [openDay, setOpenDay] = useState(
-    days.find((d) => !d.locked && !d.complete)?.day ?? 1
+export default function OnboardingTrainee({ days: serverDays, ropName }) {
+  const [doneSet, setDoneSet] = useState(
+    () =>
+      new Set(
+        serverDays.flatMap((d) => d.blocks).filter((b) => b.done).map((b) => b.id)
+      )
   );
-  const [reader, setReader] = useState(null);
+  const [readerId, setReaderId] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [err, setErr] = useState(null);
+  const inFlight = useRef(new Set());
 
-  function done(blockId) {
-    start(async () => {
-      await markOnboardingBlockDone(blockId);
-      setReader(null);
-    });
+  const days = useMemo(() => recompute(serverDays, doneSet), [serverDays, doneSet]);
+
+  const [openDay, setOpenDay] = useState(
+    () => days.find((d) => !d.locked && !d.complete)?.day ?? 1
+  );
+
+  const readerBlock = readerId
+    ? days.flatMap((d) => d.blocks).find((b) => b.id === readerId)
+    : null;
+
+  function markDone(id) {
+    if (doneSet.has(id)) {
+      setReaderId(null);
+      setExpanded(null);
+      return;
+    }
+    // мгновенно: локально отмечаем, разблокируем следующий блок, закрываем
+    setDoneSet((s) => new Set(s).add(id));
+    setReaderId(null);
+    setExpanded(null);
+
+    if (inFlight.current.has(id)) return;
+    inFlight.current.add(id);
+    Promise.resolve(markOnboardingBlockDone(id))
+      .then((res) => {
+        if (res?.error) throw new Error(res.error);
+      })
+      .catch(() => {
+        setDoneSet((s) => {
+          const n = new Set(s);
+          n.delete(id);
+          return n;
+        });
+        setErr("Не сохранилось — нажми ещё раз");
+        setTimeout(() => setErr(null), 3000);
+      })
+      .finally(() => inFlight.current.delete(id));
   }
 
   const totalDays = days.filter((d) => d.complete).length;
@@ -158,6 +216,12 @@ export default function OnboardingTrainee({ days, ropName }) {
           · Пройдено дней: {totalDays}/3
         </p>
       </div>
+
+      {err && (
+        <div className="rounded-xl bg-red-500/10 text-red-400 text-sm px-3 py-2 text-center">
+          {err}
+        </div>
+      )}
 
       {days.map((d) => (
         <div key={d.day} className="rounded-2xl border border-dark-600 overflow-hidden">
@@ -193,77 +257,69 @@ export default function OnboardingTrainee({ days, ropName }) {
 
           {openDay === d.day && !d.locked && (
             <div className="p-3 space-y-2 bg-dark-900/40">
-              {d.blocks.map((b) => {
-                const active = !b.locked && !b.done;
-                return (
-                  <div
-                    key={b.id}
-                    className={`rounded-xl border p-3 ${
-                      b.locked
-                        ? "border-dark-700 opacity-50"
-                        : "border-dark-600 bg-dark-800"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <StatusDot block={b} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">{b.title}</p>
-                        {b.subtitle && (
-                          <p className="text-xs text-gray-500 mt-0.5">{b.subtitle}</p>
-                        )}
+              {d.blocks.map((b) => (
+                <div
+                  key={b.id}
+                  className={`rounded-xl border p-3 ${
+                    b.locked
+                      ? "border-dark-700 opacity-50"
+                      : "border-dark-600 bg-dark-800"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <StatusDot block={b} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">{b.title}</p>
+                      {b.subtitle && (
+                        <p className="text-xs text-gray-500 mt-0.5">{b.subtitle}</p>
+                      )}
 
-                        {b.kind === "test" && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Тест скоро появится.
-                          </p>
-                        )}
-                        {b.owner === "rop" && !b.hasContent && b.kind !== "test" && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Твой РОП ещё не добавил материал.
-                          </p>
-                        )}
+                      {b.kind === "test" && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Тест скоро появится.
+                        </p>
+                      )}
+                      {b.owner === "rop" && !b.hasContent && b.kind !== "test" && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Твой РОП ещё не добавил материал.
+                        </p>
+                      )}
 
-                        {!b.locked && b.kind === "article" && b.html && (
-                          <button
-                            onClick={() => setReader(b)}
-                            className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
-                          >
-                            {b.done ? "Открыть ещё раз" : "Открыть →"}
-                          </button>
-                        )}
-                        {!b.locked && b.kind === "links" && (
-                          <button
-                            onClick={() =>
-                              setExpanded(expanded === b.id ? null : b.id)
-                            }
-                            className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
-                          >
-                            {expanded === b.id ? "Свернуть" : "Открыть →"}
-                          </button>
-                        )}
-                        {!b.locked && b.kind === "links" && expanded === b.id && (
-                          <LinksBlock
-                            block={b}
-                            onDone={() => done(b.id)}
-                            pending={isPending}
-                          />
-                        )}
-                      </div>
+                      {!b.locked && b.kind === "article" && b.html && (
+                        <button
+                          onClick={() => setReaderId(b.id)}
+                          className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
+                        >
+                          {b.done ? "Открыть ещё раз" : "Открыть →"}
+                        </button>
+                      )}
+                      {!b.locked && b.kind === "links" && (
+                        <button
+                          onClick={() =>
+                            setExpanded(expanded === b.id ? null : b.id)
+                          }
+                          className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
+                        >
+                          {expanded === b.id ? "Свернуть" : "Открыть →"}
+                        </button>
+                      )}
+                      {!b.locked && b.kind === "links" && expanded === b.id && (
+                        <LinksBlock block={b} onDone={() => markDone(b.id)} />
+                      )}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>
       ))}
 
-      {reader && (
+      {readerBlock && (
         <Reader
-          block={reader}
-          onClose={() => setReader(null)}
-          onDone={() => done(reader.id)}
-          pending={isPending}
+          block={readerBlock}
+          onClose={() => setReaderId(null)}
+          onDone={() => markDone(readerBlock.id)}
         />
       )}
     </div>
