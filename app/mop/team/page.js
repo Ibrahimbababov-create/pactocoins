@@ -22,18 +22,42 @@ export default async function TeamPage() {
   }
 
   const admin = createAdminClient();
-  const { data: mops } = await admin
-    .from("users")
-    .select(
-      "id, name, role, rop_id, total_earned, month_earned, onboarding_day1_done, onboarding_day2_done, onboarding_day3_done"
-    )
-    .in("role", ["mop", "trainee"])
-    .eq("is_active", true)
-    .eq("is_guest", false)
-    .not("email", "like", "%.test@pactocoins.local")
-    .order("name");
+  const [{ data: mops }, { data: obBlocks }, { data: obProgress }] = await Promise.all([
+    admin
+      .from("users")
+      .select("id, name, role, rop_id, total_earned, month_earned")
+      .in("role", ["mop", "trainee"])
+      .eq("is_active", true)
+      .eq("is_guest", false)
+      .not("email", "like", "%.test@pactocoins.local")
+      .order("name"),
+    admin
+      .from("onboarding_blocks")
+      .select("id, day, required, kind")
+      .neq("kind", "test"),
+    admin.from("onboarding_progress").select("user_id, block_id"),
+  ]);
 
-  const mine = (mops ?? []).filter((m) => m.rop_id === profile.id);
+  const dayOfBlock = Object.fromEntries((obBlocks ?? []).map((b) => [b.id, b.day]));
+  const totalByDay = { 1: 0, 2: 0, 3: 0 };
+  for (const b of obBlocks ?? []) if (b.required) totalByDay[b.day]++;
+
+  const progressByUser = {};
+  for (const p of obProgress ?? []) {
+    const day = dayOfBlock[p.block_id];
+    if (!day) continue;
+    ((progressByUser[p.user_id] ||= { 1: 0, 2: 0, 3: 0 })[day])++;
+  }
+
+  const withProgress = (m) => ({
+    ...m,
+    onboarding:
+      m.role === "trainee"
+        ? { done: progressByUser[m.id] ?? { 1: 0, 2: 0, 3: 0 }, total: totalByDay }
+        : null,
+  });
+
+  const mine = (mops ?? []).filter((m) => m.rop_id === profile.id).map(withProgress);
   // РОП может добавить только свободного МОПа. Админ — любого.
   const others = (mops ?? []).filter((m) =>
     profile.role === "admin" ? m.rop_id !== profile.id : !m.rop_id

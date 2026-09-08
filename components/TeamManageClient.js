@@ -1,36 +1,30 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  assignMopToMe,
-  unassignMop,
-  setTraineeDayDone,
-} from "@/app/mop/actions";
+import { assignMopToMe, unassignMop } from "@/app/mop/actions";
 
-function TraineeProgress({ trainee, onToggle, pending }) {
-  const done = [
-    trainee.onboarding_day1_done,
-    trainee.onboarding_day2_done,
-    trainee.onboarding_day3_done,
-  ];
+function TraineeProgress({ ob }) {
+  if (!ob) return null;
   return (
-    <div className="flex gap-1.5 mt-2">
-      {[1, 2, 3].map((d) => (
-        <button
-          key={d}
-          type="button"
-          onClick={() => onToggle(trainee.id, d, !done[d - 1])}
-          disabled={pending}
-          className={`text-[11px] px-2 py-0.5 rounded-full border transition ${
-            done[d - 1]
-              ? "bg-acid-400/15 text-acid-400 border-acid-400/30"
-              : "bg-dark-700 text-gray-500 border-dark-600"
-          }`}
-          title="Отметить/снять день обучения"
-        >
-          День {d} {done[d - 1] ? "✓" : ""}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {[1, 2, 3].map((d) => {
+        const done = ob.done?.[d] ?? 0;
+        const total = ob.total?.[d] ?? 0;
+        const full = total > 0 && done >= total;
+        return (
+          <span
+            key={d}
+            className={`text-[11px] px-2 py-0.5 rounded-full border ${
+              full
+                ? "bg-acid-400/15 text-acid-400 border-acid-400/30"
+                : "bg-dark-700 text-gray-500 border-dark-600"
+            }`}
+          >
+            День {d}: {done}/{total}
+            {full ? " ✓" : ""}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -39,14 +33,6 @@ export default function TeamManageClient({ mine = [], others = [] }) {
   const [isPending, start] = useTransition();
   const [msg, setMsg] = useState(null);
   const [pick, setPick] = useState("");
-
-  function toggleDay(traineeId, day, done) {
-    setMsg(null);
-    start(async () => {
-      const res = await setTraineeDayDone(traineeId, day, done);
-      if (res?.error) setMsg(res.error);
-    });
-  }
 
   function add() {
     if (!pick) return;
@@ -93,13 +79,7 @@ export default function TeamManageClient({ mine = [], others = [] }) {
                 за месяц: {(m.month_earned ?? 0).toLocaleString("ru-RU")} ·
                 всего: {(m.total_earned ?? 0).toLocaleString("ru-RU")}
               </p>
-              {m.role === "trainee" && (
-                <TraineeProgress
-                  trainee={m}
-                  onToggle={toggleDay}
-                  pending={isPending}
-                />
-              )}
+              {m.role === "trainee" && <TraineeProgress ob={m.onboarding} />}
             </div>
             <button
               onClick={() => remove(m.id)}

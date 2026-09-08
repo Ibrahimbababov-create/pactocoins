@@ -5,10 +5,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { nowInAlmaty } from "@/lib/timezone";
 import { getLevelForAmount } from "@/lib/levels";
-import {
-  ONBOARDING_DONE_COLUMNS,
-  parseOnboardingItem,
-} from "@/lib/onboardingDays";
+import { fetchTelegraphContent } from "@/lib/telegraph";
 
 export async function updateMyName(formData) {
   const supabase = createClient();
@@ -256,103 +253,138 @@ export async function unassignMop(mopId) {
   return { success: true };
 }
 
-// ---------- Обучение новичков (этап 3) ----------
+// ---------- Обучение новичков (v2, блоки) ----------
 
-// Стажёр отмечает / снимает отметку «я прошёл день N».
-export async function setOnboardingDayDone(day, done) {
+// Стажёр отмечает блок как изученный.
+export async function markOnboardingBlockDone(blockId) {
   const p = await me();
-  const col = ONBOARDING_DONE_COLUMNS[day];
-  if (!col) return { error: "Неверный день" };
-
+  if (p.role !== "trainee") return { error: "Только для стажёров" };
   const admin = createAdminClient();
   const { error } = await admin
-    .from("users")
-    .update({ [col]: !!done })
-    .eq("id", p.id)
-    .eq("role", "trainee");
+    .from("onboarding_progress")
+    .upsert({ user_id: p.id, block_id: blockId }, { onConflict: "user_id,block_id" });
   if (error) return { error: error.message };
-
   revalidatePath("/mop");
   return { success: true };
 }
 
-// РОП/админ ведёт СВОИ материалы стажёрам (is_shared=false, rop_id=self).
-async function requireRopForOnboarding() {
+async function requireRopOrAdmin() {
   const p = await me();
   if (p.role !== "rop" && p.role !== "admin") throw new Error("Нет прав");
   return p;
 }
 
-export async function createMyOnboardingItem(formData) {
-  const p = await requireRopForOnboarding();
-  const parsed = parseOnboardingItem(formData);
-  if (parsed.error) return { error: parsed.error };
+// Готовим payload для onboarding_rop_blocks / onboarding_blocks из формы.
+async function buildBlockContent(source, telegraphUrl, bodyMd) {
+  if (source === "telegraph") {
+    const url = (telegraphUrl || "").trim();
+    const fetched = await fetchTelegraphContent(url);
+    if (!fetched.ok) return { error: fetched.error };
+    return {
+      fields: {
+        source: "telegraph",
+        telegraph_url: url,
+        body_md: null,
+        cached_content: fetched.content,
+        cached_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+  const md = (bodyMd || "").trim();
+  if (!md) return { error: "Добавь текст статьи или ссылку на telegra.ph" };
+  return {
+    fields: {
+      source: "text",
+      telegraph_url: null,
+      body_md: md,
+      cached_content: null,
+      cached_at: null,
+      updated_at: new Date().toISOString(),
+    },
+  };
+}
 
+// РОП заполняет свой блок (owner='rop'): текст или telegra.ph.
+export async function setMyOnboardingBlock(blockId, { source, telegraph_url, body_md }) {
+  const p = await requireRopOrAdmin();
   const admin = createAdminClient();
-  const { error } = await admin.from("onboarding_items").insert({
-    ...parsed.fields,
-    is_shared: false,
+
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("id, owner, kind")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.owner !== "rop" || block.kind !== "article") {
+    return { error: "Этот блок нельзя редактировать здесь" };
+  }
+
+  const built = await buildBlockContent(source, telegraph_url, body_md);
+  if (built.error) return { error: built.error };
+
+  const { error } = await admin
+    .from("onboarding_rop_blocks")
+    .upsert(
+      { block_id: blockId, rop_id: p.id, ...built.fields },
+      { onConflict: "block_id,rop_id" }
+    );
+  if (error) return { error: error.message };
+  revalidatePath("/mop/onboarding-materials");
+  revalidatePath("/mop");
+  return { success: true };
+}
+
+// РОП сбрасывает свой блок к общему дефолту.
+export async function resetMyOnboardingBlock(blockId) {
+  const p = await requireRopOrAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("onboarding_rop_blocks")
+    .delete()
+    .eq("block_id", blockId)
+    .eq("rop_id", p.id);
+  if (error) return { error: error.message };
+  revalidatePath("/mop/onboarding-materials");
+  return { success: true };
+}
+
+export async function addMyOnboardingLink(blockId, { title, url, note }) {
+  const p = await requireRopOrAdmin();
+  const admin = createAdminClient();
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("owner, kind")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.owner !== "rop" || block.kind !== "links") {
+    return { error: "Сюда нельзя добавлять ссылки" };
+  }
+  const clean = (url || "").trim();
+  if (!title?.trim() || !clean) return { error: "Название и ссылка обязательны" };
+  const href = /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+  const { error } = await admin.from("onboarding_links").insert({
+    block_id: blockId,
     rop_id: p.id,
+    title: title.trim(),
+    url: href,
+    note: note?.trim() || null,
   });
   if (error) return { error: error.message };
-
   revalidatePath("/mop/onboarding-materials");
   revalidatePath("/mop");
   return { success: true };
 }
 
-export async function updateMyOnboardingItem(id, formData) {
-  const p = await requireRopForOnboarding();
-  const parsed = parseOnboardingItem(formData);
-  if (parsed.error) return { error: parsed.error };
-
+export async function removeMyOnboardingLink(linkId) {
+  const p = await requireRopOrAdmin();
   const admin = createAdminClient();
   const { error } = await admin
-    .from("onboarding_items")
-    .update(parsed.fields)
-    .eq("id", id)
-    .eq("rop_id", p.id)
-    .eq("is_shared", false);
-  if (error) return { error: error.message };
-
-  revalidatePath("/mop/onboarding-materials");
-  revalidatePath("/mop");
-  return { success: true };
-}
-
-export async function deleteMyOnboardingItem(id) {
-  const p = await requireRopForOnboarding();
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("onboarding_items")
+    .from("onboarding_links")
     .delete()
-    .eq("id", id)
-    .eq("rop_id", p.id)
-    .eq("is_shared", false);
+    .eq("id", linkId)
+    .eq("rop_id", p.id);
   if (error) return { error: error.message };
-
   revalidatePath("/mop/onboarding-materials");
   revalidatePath("/mop");
-  return { success: true };
-}
-
-// РОП/админ отмечает прогресс стажёра по дням (verify/override).
-export async function setTraineeDayDone(traineeId, day, done) {
-  const p = await requireRopForOnboarding();
-  const col = ONBOARDING_DONE_COLUMNS[day];
-  if (!col) return { error: "Неверный день" };
-
-  const admin = createAdminClient();
-  let q = admin
-    .from("users")
-    .update({ [col]: !!done })
-    .eq("id", traineeId)
-    .eq("role", "trainee");
-  if (p.role === "rop") q = q.eq("rop_id", p.id);
-
-  const { error } = await q;
-  if (error) return { error: error.message };
-
-  revalidatePath("/mop/team");
   return { success: true };
 }

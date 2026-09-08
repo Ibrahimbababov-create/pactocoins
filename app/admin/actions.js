@@ -10,7 +10,7 @@ import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 import { maybeGraduateTrainee } from "@/lib/onboarding";
-import { parseOnboardingItem } from "@/lib/onboardingDays";
+import { fetchTelegraphContent } from "@/lib/telegraph";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -971,54 +971,91 @@ export async function bulkRejectBonus(ids) {
   return { success: true, count: ids.length };
 }
 
-// ---------- Обучение новичков: общие материалы (этап 3) ----------
-// Админ правит материалы, одинаковые для всех стажёров
-// (is_shared=true, rop_id=null). Материалы конкретных РОПов админ не трогает.
+// ---------- Обучение новичков v2: общие блоки ----------
+// Админ правит блоки owner='admin' (и дефолты для блоков РОПа).
 
-export async function createSharedOnboardingItem(formData) {
+export async function setAdminOnboardingBlock(blockId, { source, telegraph_url, body_md }) {
   await requireAdmin();
-  const parsed = parseOnboardingItem(formData);
-  if (parsed.error) return { error: parsed.error };
-
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("onboarding_items")
-    .insert({ ...parsed.fields, is_shared: true, rop_id: null });
-  if (error) return { error: error.message };
 
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("id, kind")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.kind !== "article") {
+    return { error: "Этот блок не редактируется как статья" };
+  }
+
+  let fields;
+  if (source === "telegraph") {
+    const url = (telegraph_url || "").trim();
+    const fetched = await fetchTelegraphContent(url);
+    if (!fetched.ok) return { error: fetched.error };
+    fields = {
+      source: "telegraph",
+      telegraph_url: url,
+      body_md: null,
+      cached_content: fetched.content,
+      cached_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  } else {
+    const md = (body_md || "").trim();
+    if (!md) return { error: "Добавь текст или ссылку на telegra.ph" };
+    fields = {
+      source: "text",
+      telegraph_url: null,
+      body_md: md,
+      cached_content: null,
+      cached_at: null,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  const { error } = await admin.from("onboarding_blocks").update(fields).eq("id", blockId);
+  if (error) return { error: error.message };
   revalidatePath("/admin/onboarding");
   revalidatePath("/mop");
   return { success: true };
 }
 
-export async function updateSharedOnboardingItem(id, formData) {
+export async function addAdminOnboardingLink(blockId, { title, url, note }) {
   await requireAdmin();
-  const parsed = parseOnboardingItem(formData);
-  if (parsed.error) return { error: parsed.error };
-
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("onboarding_items")
-    .update(parsed.fields)
-    .eq("id", id)
-    .eq("is_shared", true);
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("owner, kind")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.owner !== "admin" || block.kind !== "links") {
+    return { error: "Сюда нельзя добавлять ссылки" };
+  }
+  const clean = (url || "").trim();
+  if (!title?.trim() || !clean) return { error: "Название и ссылка обязательны" };
+  const href = /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+  const { error } = await admin.from("onboarding_links").insert({
+    block_id: blockId,
+    rop_id: null,
+    title: title.trim(),
+    url: href,
+    note: note?.trim() || null,
+  });
   if (error) return { error: error.message };
-
   revalidatePath("/admin/onboarding");
   revalidatePath("/mop");
   return { success: true };
 }
 
-export async function deleteSharedOnboardingItem(id) {
+export async function removeAdminOnboardingLink(linkId) {
   await requireAdmin();
   const admin = createAdminClient();
   const { error } = await admin
-    .from("onboarding_items")
+    .from("onboarding_links")
     .delete()
-    .eq("id", id)
-    .eq("is_shared", true);
+    .eq("id", linkId)
+    .is("rop_id", null);
   if (error) return { error: error.message };
-
   revalidatePath("/admin/onboarding");
   revalidatePath("/mop");
   return { success: true };

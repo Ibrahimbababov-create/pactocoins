@@ -14,8 +14,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getLevelForAmount } from "@/lib/levels";
-import { getOnboardingItemsForTrainee } from "@/lib/onboarding";
-import { groupOnboardingItems } from "@/lib/onboardingDays";
+import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 
 export default async function MopDashboard() {
@@ -82,11 +81,11 @@ export default async function MopDashboard() {
         .single();
       ropName = rop?.name ?? null;
     }
-    const items = await getOnboardingItemsForTrainee(
+    onboardingDays = await getTraineeOnboarding(
       createAdminClient(),
+      user.id,
       profile?.rop_id ?? null
     );
-    onboardingDays = groupOnboardingItems(items);
   }
 
   // Достиг нового ранга и ещё не видел полноэкранную анимацию про него.
@@ -135,11 +134,7 @@ export default async function MopDashboard() {
       </div>
 
       {isTrainee && (
-        <OnboardingTrainee
-          days={onboardingDays ?? []}
-          progress={profile}
-          ropName={ropName}
-        />
+        <OnboardingTrainee days={onboardingDays ?? []} ropName={ropName} />
       )}
 
       {!profile?.is_guest && (

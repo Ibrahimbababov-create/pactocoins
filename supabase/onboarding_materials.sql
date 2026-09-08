@@ -1,46 +1,111 @@
--- Этап 3 модуля обучения новичков: материалы по дням (дерево ссылок).
--- Применено миграцией onboarding_phase3_materials 2026-09-07.
+-- Онбординг v2 — блочная программа обучения стажёра.
+-- Применено миграцией onboarding_v2_blocks 2026-09-08 (заменила v1 onboarding_items).
 --
--- onboarding_items — один item = ссылка (Google Doc / видео / Telegram-группа /
--- презентация) или короткий текстовый блок, сгруппированный по дню и разделу.
--- Два scope:
---   общие  (is_shared=true,  rop_id=null)      — правит админ, /admin/onboarding
---   от РОПа (is_shared=false, rop_id=<rop_id>) — каждый РОП, /mop/onboarding-materials
--- Стажёр (app/mop/page.js) видит общие + материалы своего РОПа.
+-- День → упорядоченные блоки. У блока владелец (admin | rop) и тип
+-- (article | links | test). Общий контент админа лежит в onboarding_blocks;
+-- версия РОПа под свой проект — в onboarding_rop_blocks; ссылки — onboarding_links
+-- (rop_id null = общая, иначе ссылка конкретного РОПа). Прогресс стажёра —
+-- onboarding_progress (отметка «изучил» по блоку). Гейтинг: следующий блок и
+-- следующий день закрыты, пока не пройдены required-блоки текущего.
+-- Тесты (onboarding_tests/questions/attempts) — схема есть, вопросы и прохождение
+-- добавляются следующим обновлением.
+--
+-- Статьи хранятся как mini-markdown (source='text', body_md) или ссылка на
+-- telegra.ph (source='telegraph', cached_content — снимок содержимого через
+-- api.telegra.ph, чтобы обучение не зависело от доступности telegra.ph).
+-- Рендер: lib/mdlite.js и lib/telegraph.js.
 
-create table if not exists public.onboarding_items (
+create table public.onboarding_blocks (
   id uuid primary key default uuid_generate_v4(),
   day smallint not null check (day between 1 and 3),
-  section text not null default '',
+  sort int not null default 0,
+  key text not null unique,
   title text not null,
-  url text,
-  body text,
-  type text not null default 'link'
-    check (type in ('link','video','doc','telegram','presentation','text')),
-  is_shared boolean not null default true,
-  rop_id uuid references public.users(id) on delete cascade,
-  sort integer not null default 0,
-  created_at timestamptz not null default now(),
-  constraint onboarding_items_scope_ck check (
-    (is_shared and rop_id is null) or (not is_shared and rop_id is not null)
-  )
+  subtitle text,
+  owner text not null default 'admin' check (owner in ('admin', 'rop')),
+  kind text not null default 'article' check (kind in ('article', 'links', 'test')),
+  required boolean not null default true,
+  source text check (source in ('telegraph', 'text')),
+  telegraph_url text,
+  body_md text,
+  cached_content jsonb,
+  cached_at timestamptz,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
 );
 
-create index if not exists onboarding_items_day_sort_idx
-  on public.onboarding_items (day, sort);
-create index if not exists onboarding_items_rop_idx
-  on public.onboarding_items (rop_id);
+create table public.onboarding_rop_blocks (
+  id uuid primary key default uuid_generate_v4(),
+  block_id uuid not null references public.onboarding_blocks(id) on delete cascade,
+  rop_id uuid not null references public.users(id) on delete cascade,
+  source text not null check (source in ('telegraph', 'text')),
+  telegraph_url text,
+  body_md text,
+  cached_content jsonb,
+  cached_at timestamptz,
+  updated_at timestamptz not null default now(),
+  unique (block_id, rop_id)
+);
 
-alter table public.onboarding_items enable row level security;
+create table public.onboarding_links (
+  id uuid primary key default uuid_generate_v4(),
+  block_id uuid not null references public.onboarding_blocks(id) on delete cascade,
+  rop_id uuid references public.users(id) on delete cascade,
+  title text not null,
+  url text not null,
+  note text,
+  sort int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index onboarding_links_block_idx on public.onboarding_links (block_id);
 
--- читать может любой залогиненный; запись — только service_role (server actions)
-drop policy if exists "onboarding_items_select" on public.onboarding_items;
-create policy "onboarding_items_select" on public.onboarding_items
-  for select to authenticated using (true);
+create table public.onboarding_progress (
+  user_id uuid not null references public.users(id) on delete cascade,
+  block_id uuid not null references public.onboarding_blocks(id) on delete cascade,
+  done_at timestamptz not null default now(),
+  primary key (user_id, block_id)
+);
 
--- Self-check стажёра «я прошёл день N» (РОП/админ видят и могут поправить
--- на /mop/team и /admin/employees).
-alter table public.users
-  add column if not exists onboarding_day1_done boolean not null default false,
-  add column if not exists onboarding_day2_done boolean not null default false,
-  add column if not exists onboarding_day3_done boolean not null default false;
+create table public.onboarding_tests (
+  id uuid primary key default uuid_generate_v4(),
+  day smallint not null unique check (day between 1 and 3),
+  title text not null,
+  pass_pct int not null default 80
+);
+create table public.onboarding_questions (
+  id uuid primary key default uuid_generate_v4(),
+  test_id uuid not null references public.onboarding_tests(id) on delete cascade,
+  sort int not null default 0,
+  question text not null,
+  options jsonb not null,
+  correct int not null
+);
+create table public.onboarding_attempts (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  test_id uuid not null references public.onboarding_tests(id) on delete cascade,
+  score_pct int not null,
+  passed boolean not null,
+  created_at timestamptz not null default now()
+);
+
+-- RLS: чтение для authenticated, запись — только service_role (server actions).
+alter table public.onboarding_blocks     enable row level security;
+alter table public.onboarding_rop_blocks enable row level security;
+alter table public.onboarding_links      enable row level security;
+alter table public.onboarding_progress   enable row level security;
+alter table public.onboarding_tests      enable row level security;
+alter table public.onboarding_questions  enable row level security;
+alter table public.onboarding_attempts   enable row level security;
+
+create policy "ob_blocks_read"   on public.onboarding_blocks     for select to authenticated using (true);
+create policy "ob_rop_read"      on public.onboarding_rop_blocks for select to authenticated using (true);
+create policy "ob_links_read"    on public.onboarding_links      for select to authenticated using (true);
+create policy "ob_progress_read" on public.onboarding_progress   for select to authenticated using (true);
+create policy "ob_tests_read"    on public.onboarding_tests      for select to authenticated using (true);
+create policy "ob_questions_read" on public.onboarding_questions for select to authenticated using (true);
+create policy "ob_attempts_read" on public.onboarding_attempts   for select to authenticated using (true);
+
+-- Скелет блоков и стартовый контент засеяны миграцией + отдельным апдейтом
+-- (глоссарий, взаимодействие, регламент, график, мотивация, уроки продаж,
+-- регламент CRM). Правится в /admin/onboarding и /mop/onboarding-materials.

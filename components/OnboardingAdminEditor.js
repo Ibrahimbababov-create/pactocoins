@@ -1,0 +1,218 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import {
+  setAdminOnboardingBlock,
+  addAdminOnboardingLink,
+  removeAdminOnboardingLink,
+} from "@/app/admin/actions";
+import { ONBOARDING_DAYS, BLOCK_KIND, BLOCK_OWNER } from "@/lib/onboardingDays";
+
+function ArticleForm({ block, onSaved }) {
+  const [pending, start] = useTransition();
+  const [source, setSource] = useState(block.source === "telegraph" ? "telegraph" : "text");
+  const [tg, setTg] = useState(block.telegraph_url ?? "");
+  const [md, setMd] = useState(block.body_md ?? "");
+  const [msg, setMsg] = useState(null);
+
+  function save() {
+    setMsg(null);
+    start(async () => {
+      const res = await setAdminOnboardingBlock(block.id, {
+        source,
+        telegraph_url: tg,
+        body_md: md,
+      });
+      setMsg(res?.error ? res.error : "Сохранено");
+      if (!res?.error) onSaved?.();
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-3 text-xs">
+        <label className="flex items-center gap-1.5">
+          <input type="radio" checked={source === "text"} onChange={() => setSource("text")} />
+          Текст
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="radio"
+            checked={source === "telegraph"}
+            onChange={() => setSource("telegraph")}
+          />
+          telegra.ph
+        </label>
+      </div>
+      {source === "telegraph" ? (
+        <input
+          value={tg}
+          onChange={(e) => setTg(e.target.value)}
+          placeholder="https://telegra.ph/..."
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+        />
+      ) : (
+        <textarea
+          value={md}
+          onChange={(e) => setMd(e.target.value)}
+          rows={10}
+          placeholder="# Заголовок&#10;Текст. **жирный**, _курсив_, __подчёркнуто__&#10;- список"
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-xs font-mono"
+        />
+      )}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={save}
+          disabled={pending}
+          className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
+        >
+          Сохранить
+        </button>
+        {msg && <span className="text-xs text-acid-400">{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
+function LinksForm({ block }) {
+  const [pending, start] = useTransition();
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
+  const [msg, setMsg] = useState(null);
+
+  function add() {
+    setMsg(null);
+    start(async () => {
+      const res = await addAdminOnboardingLink(block.id, { title, url, note });
+      if (res?.error) setMsg(res.error);
+      else {
+        setTitle("");
+        setUrl("");
+        setNote("");
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      {block.links.map((l) => (
+        <div
+          key={l.id}
+          className="flex items-center justify-between gap-2 bg-dark-700 rounded-lg px-3 py-2"
+        >
+          <span className="text-xs truncate">
+            🔗 {l.title}
+            {l.note ? ` · ${l.note}` : ""}
+          </span>
+          <button
+            onClick={() => start(() => removeAdminOnboardingLink(l.id))}
+            disabled={pending}
+            className="text-xs text-red-400 shrink-0"
+          >
+            Удалить
+          </button>
+        </div>
+      ))}
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Название"
+          className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+        />
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="Ссылка"
+          className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+        />
+      </div>
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Примечание (необязательно)"
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+      />
+      <button
+        onClick={add}
+        disabled={pending}
+        className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
+      >
+        + Добавить ссылку
+      </button>
+      {msg && <p className="text-xs text-red-400">{msg}</p>}
+    </div>
+  );
+}
+
+export default function OnboardingAdminEditor({ blocks }) {
+  const [open, setOpen] = useState(null);
+
+  return (
+    <div className="space-y-6">
+      {ONBOARDING_DAYS.map((d) => (
+        <div key={d.day} className="space-y-2">
+          <p className="text-sm font-bold text-gray-300">
+            День {d.day} · {d.title}
+          </p>
+          {blocks
+            .filter((b) => b.day === d.day)
+            .map((b) => {
+              const editable =
+                (b.kind === "article") || (b.kind === "links" && b.owner === "admin");
+              return (
+                <div key={b.id} className="bg-dark-800 border border-dark-600 rounded-xl">
+                  <button
+                    onClick={() => setOpen(open === b.id ? null : b.id)}
+                    className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+                  >
+                    <span className="min-w-0">
+                      <span className="text-sm font-semibold">
+                        {BLOCK_KIND[b.kind]?.icon} {b.title}
+                      </span>
+                      <span className="block text-xs text-gray-500">
+                        {BLOCK_OWNER[b.owner]}
+                        {b.kind === "article" &&
+                          ` · ${b.source === "telegraph" ? "telegra.ph" : b.body_md ? "текст" : "пусто"}`}
+                        {b.kind === "links" && ` · ссылок: ${b.links.length}`}
+                      </span>
+                    </span>
+                    {editable && (
+                      <span className="text-xs text-gray-500 shrink-0">
+                        {open === b.id ? "Свернуть" : "Изменить"}
+                      </span>
+                    )}
+                  </button>
+                  {open === b.id && editable && (
+                    <div className="px-4 pb-4">
+                      {b.owner === "rop" && (
+                        <p className="text-xs text-gray-500 mb-2">
+                          Это общий дефолт. Каждый РОП может переопределить его у себя.
+                        </p>
+                      )}
+                      {b.kind === "article" ? (
+                        <ArticleForm block={b} onSaved={() => {}} />
+                      ) : (
+                        <LinksForm block={b} />
+                      )}
+                    </div>
+                  )}
+                  {b.kind === "test" && (
+                    <p className="px-4 pb-3 text-xs text-gray-500">
+                      Вопросы теста — следующим обновлением.
+                    </p>
+                  )}
+                  {b.kind === "links" && b.owner === "rop" && (
+                    <p className="px-4 pb-3 text-xs text-gray-500">
+                      Ссылки заполняет РОП на своей странице.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -168,3 +168,76 @@ button:not(:disabled):active {
     transform: none;
   }
 }
+
+/* Статьи модуля обучения (mini-markdown / telegra.ph) */
+.ob-article {
+  font-size: 15px;
+  line-height: 1.65;
+  color: #d7d7d7;
+}
+.ob-article h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  margin: 22px 0 8px;
+}
+.ob-article h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f2f2f2;
+  margin: 18px 0 6px;
+}
+.ob-article p {
+  margin: 10px 0;
+}
+.ob-article ul,
+.ob-article ol {
+  margin: 10px 0;
+  padding-left: 22px;
+}
+.ob-article li {
+  margin: 5px 0;
+}
+.ob-article strong {
+  color: #fff;
+}
+.ob-article u {
+  text-decoration-color: #a3ff12;
+}
+.ob-article a {
+  color: #a3ff12;
+  overflow-wrap: anywhere;
+}
+.ob-article blockquote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 3px solid #a3ff12;
+  background: rgba(163, 255, 18, 0.06);
+  border-radius: 0 8px 8px 0;
+  color: #cdcdcd;
+}
+.ob-article hr {
+  border: 0;
+  border-top: 1px solid #2a2a2a;
+  margin: 20px 0;
+}
+.ob-article img {
+  border-radius: 12px;
+  margin: 12px 0;
+}
+.ob-article figure {
+  margin: 14px 0;
+}
+.ob-article figcaption {
+  font-size: 12px;
+  color: #8a8a8a;
+  margin-top: 4px;
+}
+.ob-article pre {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 13px;
+}
