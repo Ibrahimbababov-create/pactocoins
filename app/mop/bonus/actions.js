@@ -62,7 +62,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
       `🎯 <b>Новая заявка на бонус</b>\n\n` +
       `От: <b>${profile?.name ?? "МОП"}</b>\n` +
       `Повод: ${meta.label}\n` +
-      `Коинов: ${amount}\n` +
+      (meta.spin ? `Награда: 🎡 крутка на колесе\n` : `Коинов: ${amount}\n`) +
       (comment ? `Комментарий: ${comment}\n` : "");
 
     const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID

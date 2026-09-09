@@ -89,7 +89,11 @@ export default function BonusRequestForm() {
               {Object.entries(BONUS_CATEGORIES).map(([key, m]) => (
                 <option key={key} value={key}>
                   {m.label}
-                  {m.amount !== null ? ` — ${m.amount} coins` : ""}
+                  {m.spin
+                    ? " — 🎡 крутка на колесе"
+                    : m.amount
+                    ? ` — ${m.amount} coins`
+                    : ""}
                 </option>
               ))}
             </select>

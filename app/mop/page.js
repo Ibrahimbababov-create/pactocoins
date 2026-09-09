@@ -222,7 +222,9 @@ export default async function MopDashboard() {
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {r.amount_coins} coins
+                  {BONUS_CATEGORIES[r.category]?.spin
+                    ? "🎡 крутка на колесе"
+                    : `${r.amount_coins} coins`}
                   {r.comment ? ` · ${r.comment}` : ""}
                 </p>
               </div>
