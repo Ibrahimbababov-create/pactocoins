@@ -844,6 +844,50 @@ export async function offboardEmployee(userId) {
   return { success: true };
 }
 
+// Полное удаление сотрудника из системы: аккаунт + все его заявки,
+// транзакции, история, прогресс обучения. Отменить нельзя. Уведомление
+// человеку НЕ отправляется.
+export async function deleteEmployee(userId) {
+  const admin_user = await requireAdmin();
+  if (userId === admin_user.id) {
+    return { error: "Нельзя удалить самого себя" };
+  }
+
+  const admin = createAdminClient();
+  const { data: target } = await admin
+    .from("users")
+    .select("id, role, telegram_id, name")
+    .eq("id", userId)
+    .single();
+  if (!target) return { error: "Сотрудник не найден" };
+  if (target.role === "admin") {
+    return { error: "Админа удалять нельзя — сначала смени роль" };
+  }
+
+  // Обнуляем ссылки, которые не удаляются каскадом (кто одобрял/создавал).
+  await admin.from("transactions").update({ created_by: null }).eq("created_by", userId);
+  await admin.from("revenue_requests").update({ reviewed_by: null }).eq("reviewed_by", userId);
+  await admin.from("bonus_requests").update({ reviewed_by: null }).eq("reviewed_by", userId);
+  await admin.from("join_requests").update({ reviewed_by: null }).eq("reviewed_by", userId);
+  await admin.from("funds").update({ created_by: null }).eq("created_by", userId);
+  await admin.from("budget_topups").update({ created_by: null }).eq("created_by", userId);
+  if (target.telegram_id) {
+    await admin.from("join_requests").delete().eq("telegram_id", target.telegram_id);
+  }
+
+  // users.id → auth.users(id) on delete cascade; дети users каскадятся сами.
+  const { error: delErr } = await admin.from("users").delete().eq("id", userId);
+  if (delErr) return { error: delErr.message };
+  await admin.auth.admin.deleteUser(userId).catch(() => {});
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/rating");
+  revalidatePath("/admin/join-requests");
+  revalidatePath("/observer");
+  return { success: true };
+}
+
 // Отмена увольнения — возвращает в активные списки/рейтинг.
 // Баланс, списанный при увольнении, сознательно не восстанавливается
 // (это было бы неожиданным начислением) — при необходимости админ

@@ -10,6 +10,7 @@ import {
   resetUserStats,
   offboardEmployee,
   reinstateEmployee,
+  deleteEmployee,
 } from "@/app/admin/actions";
 import { graduateTrainee } from "@/app/mop/actions";
 
@@ -141,6 +142,20 @@ export default function EmployeesClient({ users }) {
       const res = await offboardEmployee(userId);
       if (res.error) showMessage(res.error, "error");
       else showMessage(`${name} уволен`);
+    });
+  }
+
+  function handleDelete(userId, name) {
+    if (
+      !window.confirm(
+        `Удалить ${name} НАВСЕГДА?\n\nСотрётся аккаунт и всё, что с ним связано: заявки, транзакции, история, прогресс обучения. Отменить нельзя. Уведомление человеку не придёт.`
+      )
+    )
+      return;
+    startTransition(async () => {
+      const res = await deleteEmployee(userId);
+      if (res.error) showMessage(res.error, "error");
+      else showMessage(`${name} удалён`);
     });
   }
 
@@ -449,6 +464,15 @@ export default function EmployeesClient({ users }) {
                       className="text-xs bg-acid-400/10 text-acid-400 rounded-lg px-3 py-1.5"
                     >
                       Восстановить
+                    </button>
+                  )}
+                  {u.role !== "admin" && (
+                    <button
+                      onClick={() => handleDelete(u.id, u.name)}
+                      disabled={isPending}
+                      className="text-xs bg-red-600 text-white font-semibold rounded-lg px-3 py-1.5"
+                    >
+                      Удалить
                     </button>
                   )}
                 </div>
