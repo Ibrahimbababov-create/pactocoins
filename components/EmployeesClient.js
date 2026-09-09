@@ -51,7 +51,13 @@ export default function EmployeesClient({ users }) {
   }, [users]);
 
   const rops = useMemo(
-    () => users.filter((u) => u.role === "rop" && u.is_active),
+    () =>
+      users.filter(
+        (u) =>
+          u.role === "rop" &&
+          u.is_active &&
+          !u.email?.endsWith(".test@pactocoins.local")
+      ),
     [users]
   );
   const nameById = useMemo(
