@@ -11,7 +11,6 @@ const ITEMS = [
   { href: "/mop/wheel", label: "Колесо фортуны", icon: "wheel" },
   { href: "/mop/stats", label: "Моя динамика", icon: "chart" },
   { href: "/mop/settings", label: "Настройки", icon: "settings" },
-  { href: "/levels", label: "Звания", icon: "award" },
   { href: "/funds", label: "Копилки", icon: "piggy" },
   { href: "/mop/purchases", label: "Покупки", icon: "receipt" },
   { href: "/messages", label: "Сообщения", icon: "mail" },

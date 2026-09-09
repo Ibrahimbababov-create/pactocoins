@@ -5,7 +5,6 @@ import BonusRequestForm from "@/components/BonusRequestForm";
 import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
-import LevelUpCelebration from "@/components/LevelUpCelebration";
 import TeamFeed from "@/components/TeamFeed";
 import LiveBalance from "@/components/LiveBalance";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
@@ -13,7 +12,6 @@ import { CURRENT_ANNOUNCEMENT } from "@/lib/announcement";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
-import { getLevelForAmount } from "@/lib/levels";
 import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 
@@ -88,11 +86,6 @@ export default async function MopDashboard() {
     );
   }
 
-  // Достиг нового ранга и ещё не видел полноэкранную анимацию про него.
-  const currentLevel = getLevelForAmount(profile?.total_earned ?? 0);
-  const showLevelUp =
-    !!profile && currentLevel.id > (profile.celebrated_level_id ?? 1);
-
   let currentGoal = fetchedGoal;
   if (currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
     const { data: achievedGoal } = await supabase
@@ -117,8 +110,6 @@ export default async function MopDashboard() {
 
   return (
     <div className="space-y-6">
-      {showLevelUp && <LevelUpCelebration level={currentLevel} />}
-
       {CURRENT_ANNOUNCEMENT && (
         <AnnouncementBanner
           storageKey={CURRENT_ANNOUNCEMENT.storageKey}

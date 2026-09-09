@@ -565,6 +565,25 @@ export async function approveBonusRequest(requestId) {
     "notify_requests"
   );
 
+  // За приход вовремя — ещё и крутка на колесе фортуны (1 за заявку).
+  if (request.category === "attendance") {
+    const { data: w } = await admin
+      .from("users")
+      .select("wheel_spins")
+      .eq("id", request.user_id)
+      .single();
+    await admin
+      .from("users")
+      .update({ wheel_spins: (w?.wheel_spins ?? 0) + 1 })
+      .eq("id", request.user_id);
+    await notifyUser(
+      admin,
+      request.user_id,
+      "🎡 +1 крутка на колесе фортуны за приход вовремя!",
+      "notify_requests"
+    );
+  }
+
   revalidatePath("/admin/bonus-requests");
   revalidatePath("/admin");
   return { success: true };

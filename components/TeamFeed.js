@@ -4,7 +4,7 @@ import Icon from "@/components/Icon";
 const KIND_LABEL = {
   purchase: "покупка",
   goal_achieved: "накопил на цель",
-  level_up: "новый ранг",
+  level_up: "повышение",
 };
 
 // Лёгкая лента последних событий команды. Серверный компонент — без

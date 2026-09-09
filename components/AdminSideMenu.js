@@ -12,7 +12,6 @@ const ITEMS = [
   { href: "/admin/funds", label: "Копилки", icon: "piggy" },
   { href: "/admin/broadcast", label: "Рассылка", icon: "megaphone" },
   { href: "/admin/merge-accounts", label: "Слияние аккаунтов", icon: "link" },
-  { href: "/levels", label: "Звания", icon: "award" },
   { href: "/messages", label: "Сообщения", icon: "mail", badgeKey: "unreadMessages" },
   {
     href: "/admin/bot-messages",
