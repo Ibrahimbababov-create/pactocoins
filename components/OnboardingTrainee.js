@@ -28,22 +28,31 @@ function recompute(days, doneSet) {
   return out;
 }
 
-function StatusDot({ block }) {
+function StatusDot({ block, active }) {
   if (block.done)
     return (
-      <span className="w-6 h-6 shrink-0 rounded-full bg-acid-400 text-black text-xs font-bold flex items-center justify-center">
+      <span className="w-8 h-8 shrink-0 rounded-full bg-acid-400 text-black text-base font-black flex items-center justify-center">
         ✓
       </span>
     );
   if (block.locked)
     return (
-      <span className="w-6 h-6 shrink-0 rounded-full border border-dark-600 text-gray-600 text-xs flex items-center justify-center">
+      <span className="w-8 h-8 shrink-0 rounded-full border border-dark-600 text-gray-600 text-sm flex items-center justify-center">
         🔒
       </span>
     );
+  const isTest = block.kind === "test";
   return (
-    <span className="w-6 h-6 shrink-0 rounded-full border border-acid-400/50 text-acid-400 text-[11px] flex items-center justify-center">
-      {BLOCK_KIND[block.kind]?.icon ?? "•"}
+    <span
+      className={`w-8 h-8 shrink-0 rounded-full border-2 flex items-center justify-center text-sm ${
+        isTest
+          ? "border-amber-400 text-amber-400"
+          : active
+          ? "border-acid-400 text-acid-400"
+          : "border-gray-600 text-gray-500"
+      }`}
+    >
+      {isTest ? "🎯" : BLOCK_KIND[block.kind]?.icon ?? "•"}
     </span>
   );
 }
@@ -299,7 +308,13 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
   const [testId, setTestId] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [err, setErr] = useState(null);
+  const [justDone, setJustDone] = useState(null);
   const inFlight = useRef(new Set());
+
+  function flashDone(id) {
+    setJustDone(id);
+    setTimeout(() => setJustDone((v) => (v === id ? null : v)), 900);
+  }
 
   const days = useMemo(() => recompute(serverDays, doneSet), [serverDays, doneSet]);
 
@@ -321,6 +336,7 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
     setDoneSet((s) => new Set(s).add(id));
     setReaderId(null);
     setExpanded(null);
+    flashDone(id);
 
     if (inFlight.current.has(id)) return;
     inFlight.current.add(id);
@@ -344,6 +360,7 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
   // мгновенно разблокируем следующий блок / день
   function addLocalDone(id) {
     setDoneSet((s) => (s.has(id) ? s : new Set(s).add(id)));
+    flashDone(id);
   }
 
   const totalDays = days.filter((d) => d.complete).length;
@@ -376,18 +393,29 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
       )}
 
       {days.map((d) => (
-        <div key={d.day} className="rounded-2xl border border-dark-600 overflow-hidden">
+        <div
+          key={d.day}
+          className={`rounded-2xl border overflow-hidden ${
+            d.complete
+              ? "border-acid-400/40"
+              : d.locked
+              ? "border-dark-700 opacity-60"
+              : "border-dark-600"
+          }`}
+        >
           <button
             onClick={() => !d.locked && setOpenDay(openDay === d.day ? null : d.day)}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-dark-800 text-left"
+            className={`w-full flex items-center gap-3 px-4 py-3.5 text-left ${
+              d.complete ? "bg-acid-400/[0.06]" : "bg-dark-800"
+            }`}
           >
             <span
-              className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
+              className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-sm font-black ${
                 d.complete
                   ? "bg-acid-400 text-black"
                   : d.locked
                   ? "border border-dark-600 text-gray-600"
-                  : "border border-gray-600 text-gray-400"
+                  : "border-2 border-acid-400 text-acid-400"
               }`}
             >
               {d.complete ? "✓" : d.locked ? "🔒" : d.day}
@@ -401,82 +429,146 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
               </span>
             </span>
             {!d.locked && (
-              <span className="text-xs text-gray-500 shrink-0">
+              <span
+                className={`text-xs font-bold shrink-0 tabular-nums ${
+                  d.complete ? "text-acid-400" : "text-gray-400"
+                }`}
+              >
                 {d.doneCount}/{d.totalCount}
               </span>
             )}
           </button>
 
           {openDay === d.day && !d.locked && (
-            <div className="p-3 space-y-2 bg-dark-900/40">
-              {d.blocks.map((b) => (
-                <div
-                  key={b.id}
-                  className={`rounded-xl border p-3 ${
-                    b.locked
-                      ? "border-dark-700 opacity-50"
-                      : "border-dark-600 bg-dark-800"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <StatusDot block={b} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">{b.title}</p>
-                      {b.subtitle && (
-                        <p className="text-xs text-gray-500 mt-0.5">{b.subtitle}</p>
-                      )}
+            <div className="p-3 space-y-2.5 bg-dark-900/40">
+              {d.blocks.map((b) => {
+                const isTest = b.kind === "test";
+                const active = !b.locked && !b.done && b.gates;
+                const optional = !b.locked && !b.done && !b.gates;
+                const popped = justDone === b.id;
 
-                      {b.kind === "test" && !b.hasContent && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Тест ещё готовится.
-                        </p>
-                      )}
-                      {b.kind === "test" && b.hasContent && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {b.test.questions.length} вопросов · проходной{" "}
-                          {b.test.passPct}% · попыток без ограничений
-                        </p>
-                      )}
-                      {b.owner === "rop" && !b.hasContent && b.kind !== "test" && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Твой РОП ещё не добавил материал.
-                        </p>
-                      )}
+                let cls = "rounded-2xl border p-4 transition-all";
+                if (b.done) cls += " border-acid-400/50 bg-acid-400/[0.07]";
+                else if (b.locked)
+                  cls += " border-dark-700 bg-dark-800/40 opacity-40";
+                else if (isTest)
+                  cls +=
+                    " border-2 border-amber-400/70 bg-amber-400/[0.06]" +
+                    (active ? " shadow-[0_0_0_4px_rgba(251,191,36,0.12)]" : "");
+                else if (active)
+                  cls +=
+                    " border-2 border-acid-400 bg-dark-800 shadow-[0_0_0_4px_rgba(163,255,18,0.10)]";
+                else cls += " border-dark-600 bg-dark-800";
+                if (popped) cls += " ob-pop";
 
-                      {!b.locked && b.kind === "test" && b.hasContent && (
-                        <button
-                          onClick={() => setTestId(b.id)}
-                          className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
-                        >
-                          {b.done ? "Пройти ещё раз" : "Пройти тест →"}
-                        </button>
-                      )}
+                const cta =
+                  "w-full mt-3 rounded-xl py-2.5 text-sm font-bold active:scale-[0.98] transition-transform";
 
-                      {!b.locked && b.kind === "article" && b.html && (
-                        <button
-                          onClick={() => setReaderId(b.id)}
-                          className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
+                return (
+                  <div key={b.id} className={cls}>
+                    <div className="flex items-start gap-3">
+                      <StatusDot block={b} active={active} />
+                      <div className="min-w-0 flex-1">
+                        {active && (
+                          <p
+                            className={`text-[10px] font-black tracking-widest mb-0.5 ${
+                              isTest ? "text-amber-400" : "text-acid-400"
+                            }`}
+                          >
+                            ▶ СЕЙЧАС{isTest ? " · ТЕСТ" : ""}
+                          </p>
+                        )}
+                        {!active && isTest && !b.done && (
+                          <p className="text-[10px] font-black tracking-widest text-amber-400 mb-0.5">
+                            🎯 ТЕСТ
+                          </p>
+                        )}
+                        <p
+                          className={`text-[15px] font-bold ${
+                            b.done ? "text-gray-400" : ""
+                          }`}
                         >
-                          {b.done ? "Открыть ещё раз" : "Открыть →"}
-                        </button>
-                      )}
-                      {!b.locked && b.kind === "links" && (
-                        <button
-                          onClick={() =>
-                            setExpanded(expanded === b.id ? null : b.id)
-                          }
-                          className="mt-2 text-xs font-bold bg-dark-700 rounded-lg px-3 py-1.5"
-                        >
-                          {expanded === b.id ? "Свернуть" : "Открыть →"}
-                        </button>
-                      )}
-                      {!b.locked && b.kind === "links" && expanded === b.id && (
-                        <LinksBlock block={b} onDone={() => markDone(b.id)} />
-                      )}
+                          {b.title}
+                        </p>
+                        {b.subtitle && !b.done && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {b.subtitle}
+                          </p>
+                        )}
+
+                        {b.done && (
+                          <p className="text-xs font-bold text-acid-400 mt-0.5">
+                            ✓ Пройдено
+                          </p>
+                        )}
+                        {isTest && !b.hasContent && !b.done && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Тест ещё готовится.
+                          </p>
+                        )}
+                        {isTest && b.hasContent && !b.done && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {b.test.questions.length} вопросов · проходной{" "}
+                            {b.test.passPct}%
+                          </p>
+                        )}
+                        {optional && b.owner === "rop" && !b.hasContent && !isTest && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Твой РОП ещё не добавил материал — можно пропустить.
+                          </p>
+                        )}
+
+                        {/* одна очевидная кнопка */}
+                        {!b.locked && isTest && b.hasContent && (
+                          <button
+                            onClick={() => setTestId(b.id)}
+                            className={
+                              b.done
+                                ? "mt-2 text-xs font-bold text-gray-400 underline underline-offset-2"
+                                : cta + " bg-amber-400 text-black"
+                            }
+                          >
+                            {b.done ? "Пройти ещё раз" : "Пройти тест →"}
+                          </button>
+                        )}
+                        {!b.locked && b.kind === "article" && b.html && (
+                          <button
+                            onClick={() => setReaderId(b.id)}
+                            className={
+                              b.done
+                                ? "mt-2 text-xs font-bold text-gray-400 underline underline-offset-2"
+                                : cta + " bg-acid-400 text-black"
+                            }
+                          >
+                            {b.done ? "Открыть ещё раз" : "Открыть урок →"}
+                          </button>
+                        )}
+                        {!b.locked && b.kind === "links" && b.hasContent && (
+                          <button
+                            onClick={() =>
+                              setExpanded(expanded === b.id ? null : b.id)
+                            }
+                            className={
+                              b.done && expanded !== b.id
+                                ? "mt-2 text-xs font-bold text-gray-400 underline underline-offset-2"
+                                : cta + " bg-acid-400 text-black"
+                            }
+                          >
+                            {expanded === b.id
+                              ? "Свернуть"
+                              : b.done
+                              ? "Открыть ещё раз"
+                              : "Открыть материалы →"}
+                          </button>
+                        )}
+                        {!b.locked && b.kind === "links" && expanded === b.id && (
+                          <LinksBlock block={b} onDone={() => markDone(b.id)} />
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

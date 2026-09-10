@@ -241,3 +241,14 @@ button:not(:disabled):active {
   overflow-x: auto;
   font-size: 13px;
 }
+
+/* Блок обучения «только что пройден» — короткая реакция */
+@keyframes ob-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.03); box-shadow: 0 0 0 6px rgba(163, 255, 18, 0.18); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(163, 255, 18, 0); }
+}
+.ob-pop { animation: ob-pop 0.7s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .ob-pop { animation: none; }
+}
