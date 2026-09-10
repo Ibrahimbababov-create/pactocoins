@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 // чистим, чтобы всё падало на этот общий список.
 // Полный список команд бота для меню "/". checkplan намеренно нет.
 const ADD = [
+  { command: "today", description: "Оплаты за сегодня — по менеджерам" },
+  { command: "todayteam", description: "Оплаты за сегодня — по командам" },
   { command: "app", description: "Открыть приложение PactoCoins" },
   { command: "all", description: "Тегнуть всех в чате" },
   { command: "rating", description: "Рейтинг за неделю (картинка)" },
