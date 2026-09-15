@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   setAdminOnboardingBlock,
   addAdminOnboardingLink,
@@ -11,27 +11,35 @@ import {
 import { uploadOnboardingFile } from "@/lib/uploadOnboardingFile";
 import { ONBOARDING_DAYS, BLOCK_KIND, BLOCK_OWNER } from "@/lib/onboardingDays";
 
-// Кнопка загрузки фото/PDF (до 20 МБ) прямо в блок «Ссылки».
+// Кнопка загрузки фото/PDF/Word (до 20 МБ) прямо в блок «Ссылки».
+// Явный ref.click() вместо <label>-обёртки — в вебвью Телеги label иногда
+// не открывает пикер с первого тапа, прямой click() надёжнее.
 function FileUploadButton({ uploading, onPick }) {
+  const inputRef = useRef(null);
   return (
-    <label
-      className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold cursor-pointer ${
-        uploading ? "bg-dark-700 text-gray-500" : "bg-dark-700 text-gray-200"
-      }`}
-    >
-      {uploading ? "Загрузка…" : "📎 Загрузить файл"}
-      <input
-        type="file"
-        accept="image/*,application/pdf"
-        className="hidden"
+    <>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
         disabled={uploading}
+        className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold ${
+          uploading ? "bg-dark-700 text-gray-500" : "bg-dark-700 text-gray-200"
+        }`}
+      >
+        {uploading ? "Загрузка…" : "📎 Загрузить файл"}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf,.doc,.docx"
+        className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
           e.target.value = "";
           if (f) onPick(f);
         }}
       />
-    </label>
+    </>
   );
 }
 
@@ -189,7 +197,7 @@ function LinksForm({ block }) {
           + Добавить ссылку
         </button>
         <FileUploadButton uploading={uploading} onPick={handleFile} />
-        <span className="text-xs text-gray-600">фото или PDF, до 20 МБ</span>
+        <span className="text-xs text-gray-600">фото, PDF или Word, до 20 МБ</span>
       </div>
       {msg && <p className="text-xs text-red-400">{msg}</p>}
     </div>
