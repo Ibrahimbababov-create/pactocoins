@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getEffectivePrice } from "@/lib/rewardPricing";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { recordTeamEvent } from "@/lib/teamEvents";
+import { spendCoins } from "@/lib/spendCoins";
 
 async function notifyPurchaseGroup(purchaseId, employeeName, text) {
   const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
@@ -58,18 +59,8 @@ export async function purchaseReward(rewardId) {
 
   const { effectivePrice } = getEffectivePrice(reward);
 
-  if (profile.balance < effectivePrice) {
-    return { error: "Недостаточно коинов" };
-  }
-
-  const newBalance = profile.balance - effectivePrice;
-
-  const { error: balanceError } = await admin
-    .from("users")
-    .update({ balance: newBalance })
-    .eq("id", user.id);
-
-  if (balanceError) return { error: "Ошибка списания баланса" };
+  const spent = await spendCoins(admin, user.id, effectivePrice);
+  if (!spent.ok) return { error: spent.error };
 
   const { data: inserted, error: purchaseError } = await admin
     .from("purchase_requests")
@@ -150,18 +141,8 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     .eq("id", user.id)
     .single();
 
-  if (profile.balance < priceCoins) {
-    return { error: "Недостаточно коинов" };
-  }
-
-  const newBalance = profile.balance - priceCoins;
-
-  const { error: balanceError } = await admin
-    .from("users")
-    .update({ balance: newBalance })
-    .eq("id", user.id);
-
-  if (balanceError) return { error: "Ошибка списания баланса" };
+  const spent = await spendCoins(admin, user.id, priceCoins);
+  if (!spent.ok) return { error: spent.error };
 
   const { data: inserted, error: purchaseError } = await admin
     .from("purchase_requests")

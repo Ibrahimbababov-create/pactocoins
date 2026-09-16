@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { pickSegmentIndex, prizeText, isWheelOpen } from "@/lib/wheel";
 import { notifyUser } from "@/lib/notifyUser";
 import { recordTeamEvent } from "@/lib/teamEvents";
+import { spendCoins } from "@/lib/spendCoins";
 
 async function currentUser() {
   const supabase = createClient();
@@ -39,12 +40,17 @@ export async function buySpin(count = 1) {
   if ((profile?.balance ?? 0) < cost)
     return { error: `Нужно ${cost.toLocaleString("ru-RU")} coins` };
 
-  const newSpins = (profile.wheel_spins ?? 0) + n;
+  // Списание коинов и начисление круток — одним атомарным запросом,
+  // иначе двойным кликом можно купить крутки дважды за одни коины.
+  const spent = await spendCoins(admin, user.id, cost, { spinsDelta: n });
+  if (!spent.ok) return { error: spent.error };
 
-  await admin
+  const { data: after } = await admin
     .from("users")
-    .update({ balance: profile.balance - cost, wheel_spins: newSpins })
-    .eq("id", user.id);
+    .select("wheel_spins")
+    .eq("id", user.id)
+    .single();
+  const newSpins = after?.wheel_spins ?? (profile.wheel_spins ?? 0) + n;
 
   await admin.from("transactions").insert({
     user_id: user.id,

@@ -267,6 +267,22 @@ const COIN_ACTIONS = new Set([
   "reject_join",
 ]);
 
+// Кнопки «одобрить/отклонить» двигают коины, а коины — это реальные деньги.
+// Проверяем, что нажал именно админ, а не кто угодно, кто дотянулся до
+// этого адреса. Одной проверки секретного токена мало: она говорит только
+// «запрос пришёл от Telegram», но не «нажал тот, кому можно».
+async function isTelegramAdmin(fromId) {
+  if (!fromId) return false;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("users")
+    .select("role")
+    .eq("telegram_id", fromId)
+    .eq("is_active", true)
+    .maybeSingle();
+  return data?.role === "admin";
+}
+
 async function forwardToSalesBot(update) {
   const baseUrl = process.env.SALES_BOT_URL;
   if (!baseUrl) return;
@@ -292,6 +308,18 @@ async function forwardToSalesBot(update) {
 }
 
 export async function POST(request) {
+  // Telegram подписывает каждый свой запрос заголовком с секретом, который
+  // мы задали в setWebhook. Без этой проверки адрес вебхука — просто
+  // открытая дверь: кто угодно может прислать поддельное «нажатие кнопки».
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (expectedSecret) {
+    const given = request.headers.get("x-telegram-bot-api-secret-token");
+    if (given !== expectedSecret) {
+      console.warn("[webhook] отклонён запрос с неверным секретом");
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+  }
+
   const update = await request.json();
 
   // Команды бота на картинку рейтинга (только для админов).
@@ -363,6 +391,19 @@ export async function POST(request) {
 
   const chatId = callback.message.chat.id;
   const messageId = callback.message.message_id;
+
+  // Дальше идут только кнопки, двигающие коины и аккаунты. Пускаем админов.
+  if (!(await isTelegramAdmin(callback.from?.id))) {
+    console.warn("[webhook] не-админ нажал", action, callback.from?.id);
+    // Сообщение подсказывает и настоящую причину отказа, и частый случай:
+    // человек реально админ, но его Telegram не привязан к аккаунту.
+    await answerCallbackQuery(
+      callback.id,
+      "Только для админов. Если ты админ — твой Telegram не привязан к аккаунту, скажи Ибрагиму",
+      true
+    );
+    return NextResponse.json({ ok: true });
+  }
 
   // Отклонение покупки — в два шага, чтобы не отклонить случайным тапом.
   if (action === "reject_purchase") {
