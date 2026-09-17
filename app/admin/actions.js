@@ -282,11 +282,12 @@ export async function rejectRevenueRequest(requestId, comment) {
 
   if (error) return { error: error.message };
 
-  if (comment?.trim() && request?.user_id) {
+  if (request?.user_id) {
+    const rejectText = "❌ Заявка на выручку отклонена";
     await notifyUser(
       admin,
       request.user_id,
-      `❌ Заявка на выручку отклонена\n\n💬 ${escapeHtml(comment.trim())}`,
+      comment?.trim() ? `${rejectText}\n\n💬 ${escapeHtml(comment.trim())}` : rejectText,
       "notify_requests"
     );
   }
@@ -636,11 +637,12 @@ export async function rejectBonusRequest(requestId, comment) {
 
   if (error) return { error: error.message };
 
-  if (comment?.trim() && request?.user_id) {
+  if (request?.user_id) {
+    const rejectText = "❌ Заявка на бонус отклонена";
     await notifyUser(
       admin,
       request.user_id,
-      `❌ Заявка на бонус отклонена\n\n💬 ${escapeHtml(comment.trim())}`,
+      comment?.trim() ? `${rejectText}\n\n💬 ${escapeHtml(comment.trim())}` : rejectText,
       "notify_requests"
     );
   }

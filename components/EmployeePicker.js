@@ -22,8 +22,13 @@ function groupEmployees(employees) {
   const byName = (a, b) => a.name.localeCompare(b.name);
 
   return {
+    // РОП — первой строкой в своей же команде, чтобы его можно было
+    // выбрать так же, как любого мопа, без отдельной зоны клика на шапке.
     teams: rops
-      .map((rop) => ({ rop, members: (byRop.get(rop.id) || []).sort(byName) }))
+      .map((rop) => ({
+        rop,
+        members: [rop, ...(byRop.get(rop.id) || []).sort(byName)],
+      }))
       .sort((a, b) => byName(a.rop, b.rop)),
     admins: admins.sort(byName),
     observers: observers.sort(byName),
@@ -112,43 +117,21 @@ export default function EmployeePicker({
     );
   }
 
-  function GroupHeader({ groupKey, label, count, headerId }) {
-    const active = !multiple && headerId && value === headerId;
-    const checked = multiple && headerId && selectedSet.has(headerId);
+  // Вся строка — это ТОЛЬКО разворот/сворот команды, без второго смысла.
+  // Выбрать самого РОПа можно строкой внутри списка (он там первым).
+  function GroupHeader({ groupKey, label, count }) {
     return (
-      <div className="flex items-center justify-between hover:bg-dark-700">
-        <span
-          onMouseDown={
-            headerId
-              ? (e) => {
-                  e.preventDefault();
-                  pick(headerId);
-                }
-              : undefined
-          }
-          className={`flex-1 flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide truncate ${
-            headerId ? "cursor-pointer" : ""
-          } ${active ? "text-acid-400" : "text-gray-400"}`}
-        >
-          {multiple && headerId && (
-            <input
-              type="checkbox"
-              checked={checked}
-              readOnly
-              className="pointer-events-none w-4 h-4 shrink-0"
-            />
-          )}
-          {label}
-        </span>
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => toggleGroup(groupKey)}
-          className="px-3 py-2 text-xs text-gray-500 shrink-0"
-        >
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => toggleGroup(groupKey)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-400 hover:bg-dark-700"
+      >
+        <span className="truncate">{label}</span>
+        <span className="text-gray-500 shrink-0 pl-2">
           {count} {openGroups[groupKey] ? "▾" : "▸"}
-        </button>
-      </div>
+        </span>
+      </button>
     );
   }
 
@@ -192,12 +175,17 @@ export default function EmployeePicker({
                 <div key={rop.id}>
                   <GroupHeader
                     groupKey={rop.id}
-                    headerId={rop.id}
                     label={rop.name}
                     count={members.length}
                   />
                   {openGroups[rop.id] &&
-                    members.map((e) => <Row key={e.id} emp={e} />)}
+                    members.map((e) => (
+                      <Row
+                        key={e.id}
+                        emp={e}
+                        subLabel={e.role === "rop" ? "РОП" : undefined}
+                      />
+                    ))}
                 </div>
               ))}
               {grouped.noTeam.length > 0 && (
