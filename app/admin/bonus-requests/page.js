@@ -42,7 +42,7 @@ export default async function BonusRequestsPage() {
 
   const { data: employees } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, role, rop_id")
     .in("role", ["mop", "rop"])
     .eq("is_active", true)
     .eq("is_guest", false)

@@ -13,6 +13,7 @@ import {
   approveBonusRequestExempt,
 } from "@/app/admin/ratingExemptActions";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import EmployeePicker from "@/components/EmployeePicker";
 import TopBonus from "@/components/TopBonus";
 import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
 
@@ -227,17 +228,11 @@ export default function BonusRequestsClient({
           <p className="text-xs text-gray-400 uppercase tracking-wider">
             Добавить одному участнику
           </p>
-          <select
+          <EmployeePicker
+            employees={employees}
             value={singleUserId}
-            onChange={(e) => setSingleUserId(e.target.value)}
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-          >
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.name}
-              </option>
-            ))}
-          </select>
+            onChange={setSingleUserId}
+          />
           <input
             type="number"
             value={singleAmount}
@@ -276,21 +271,13 @@ export default function BonusRequestsClient({
           <p className="text-xs text-gray-400 uppercase tracking-wider">
             Добавить нескольким одинаково
           </p>
-          <div className="max-h-32 overflow-y-auto space-y-1 bg-dark-700 border border-dark-600 rounded-lg p-2">
-            {employees.map((emp) => (
-              <label
-                key={emp.id}
-                className="flex items-center gap-2 text-sm py-1 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedEmployeeIds.includes(emp.id)}
-                  onChange={() => toggleEmployeeSelected(emp.id)}
-                />
-                {emp.name}
-              </label>
-            ))}
-          </div>
+          <EmployeePicker
+            employees={employees}
+            multiple
+            values={selectedEmployeeIds}
+            onToggle={toggleEmployeeSelected}
+            placeholder="Найти сотрудников…"
+          />
           <input
             type="number"
             value={bulkAmount}
