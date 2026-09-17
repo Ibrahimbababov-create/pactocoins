@@ -6,6 +6,7 @@ import {
   sendTestBroadcast,
   sendToEmployee,
 } from "@/app/admin/broadcastActions";
+import EmployeePicker from "@/components/EmployeePicker";
 
 export default function BroadcastClient({ employees = [] }) {
   const [isPending, startTransition] = useTransition();
@@ -159,19 +160,13 @@ export default function BroadcastClient({ employees = [] }) {
         </button>
       </div>
 
-      <div className="flex gap-2 items-center pt-2 border-t border-dark-600">
-        <select
+      <div className="pt-2 border-t border-dark-600">
+        <EmployeePicker
+          employees={employees}
           value={selectedUserId}
-          onChange={(e) => setSelectedUserId(e.target.value)}
-          className="flex-1 bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-acid-400"
-        >
-          <option value="">Написать конкретному сотруднику...</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedUserId}
+          placeholder="Написать конкретному сотруднику…"
+        />
       </div>
 
       <div className="flex gap-2">

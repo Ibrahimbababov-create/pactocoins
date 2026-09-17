@@ -6,8 +6,8 @@ export default async function MergeAccountsPage() {
 
   const { data: employees } = await supabase
     .from("users")
-    .select("id, name, email, balance, total_earned")
-    .eq("role", "mop")
+    .select("id, name, email, balance, total_earned, role, rop_id")
+    .in("role", ["mop", "rop"])
     .order("name");
 
   return (

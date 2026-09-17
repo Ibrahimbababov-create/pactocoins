@@ -42,6 +42,7 @@ export default function EmployeePicker({
   onChange,
   onToggle,
   placeholder = "Найти сотрудника…",
+  describe,
 }) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
@@ -84,6 +85,7 @@ export default function EmployeePicker({
   function Row({ emp, subLabel }) {
     const checked = multiple && selectedSet.has(emp.id);
     const active = !multiple && value === emp.id;
+    const line2 = describe ? describe(emp) : subLabel;
     return (
       <div
         onMouseDown={(e) => {
@@ -104,7 +106,7 @@ export default function EmployeePicker({
         )}
         <span className="truncate">
           {emp.name}
-          {subLabel && <span className="text-gray-500"> · {subLabel}</span>}
+          {line2 && <span className="text-gray-500"> · {line2}</span>}
         </span>
       </div>
     );
@@ -156,7 +158,11 @@ export default function EmployeePicker({
     <div>
       {!multiple && (
         <p className="mb-1 text-xs text-gray-500 truncate">
-          {selectedOne ? `Выбран: ${selectedOne.name}` : "Никто не выбран"}
+          {selectedOne
+            ? `Выбран: ${selectedOne.name}${
+                describe ? ` — ${describe(selectedOne)}` : ""
+              }`
+            : "Никто не выбран"}
         </p>
       )}
       {multiple && (

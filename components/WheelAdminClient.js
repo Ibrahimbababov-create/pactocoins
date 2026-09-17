@@ -9,6 +9,7 @@ import {
   grantSpinsBulk,
 } from "@/app/admin/wheelActions";
 import { expectedPayoutCoins, PRIZE_TYPES, segmentColor } from "@/lib/wheel";
+import EmployeePicker from "@/components/EmployeePicker";
 
 function isoToAlmatyLocal(iso) {
   if (!iso) return "";
@@ -292,17 +293,11 @@ export default function WheelAdminClient({
           <p className="text-xs text-gray-400 uppercase tracking-wider">
             Выдать крутки одному
           </p>
-          <select
+          <EmployeePicker
+            employees={employees}
             value={singleId}
-            onChange={(e) => setSingleId(e.target.value)}
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
-          >
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-          </select>
+            onChange={setSingleId}
+          />
           <input
             type="number"
             value={singleN}
@@ -328,27 +323,17 @@ export default function WheelAdminClient({
           <p className="text-xs text-gray-400 uppercase tracking-wider">
             Выдать крутки нескольким
           </p>
-          <div className="max-h-32 overflow-y-auto space-y-1 bg-dark-700 border border-dark-600 rounded-lg p-2">
-            {employees.map((e) => (
-              <label
-                key={e.id}
-                className="flex items-center gap-2 text-sm py-1 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={bulkIds.includes(e.id)}
-                  onChange={() =>
-                    setBulkIds((p) =>
-                      p.includes(e.id)
-                        ? p.filter((x) => x !== e.id)
-                        : [...p, e.id]
-                    )
-                  }
-                />
-                {e.name}
-              </label>
-            ))}
-          </div>
+          <EmployeePicker
+            employees={employees}
+            multiple
+            values={bulkIds}
+            onToggle={(id) =>
+              setBulkIds((p) =>
+                p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
+              )
+            }
+            placeholder="Найти сотрудников…"
+          />
           <input
             type="number"
             value={bulkN}

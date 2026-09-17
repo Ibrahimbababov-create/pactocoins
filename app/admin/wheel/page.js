@@ -18,7 +18,7 @@ export default async function AdminWheelPage() {
       supabase.from("wheel_config").select("*").eq("id", true).maybeSingle(),
       supabase
         .from("users")
-        .select("id, name")
+        .select("id, name, role, rop_id")
         .in("role", ["mop", "rop"])
         .eq("is_active", true)
         .eq("is_guest", false)

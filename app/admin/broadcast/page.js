@@ -9,7 +9,7 @@ export default async function BroadcastPage() {
 
   const { data: employees } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, role, rop_id")
     .not("telegram_id", "is", null)
     .eq("is_active", true)
     .eq("is_guest", false)

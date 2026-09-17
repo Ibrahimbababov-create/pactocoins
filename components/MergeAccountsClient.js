@@ -2,6 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { mergeAccounts } from "@/app/admin/mergeAccountActions";
+import EmployeePicker from "@/components/EmployeePicker";
+
+function describeBalance(e) {
+  return `баланс ${e.balance}, всего ${e.total_earned}`;
+}
 
 export default function MergeAccountsClient({ employees }) {
   const [isPending, startTransition] = useTransition();
@@ -52,36 +57,24 @@ export default function MergeAccountsClient({ employees }) {
         <label className="block text-sm text-gray-400 mb-1">
           Старый аккаунт (будет удалён)
         </label>
-        <select
+        <EmployeePicker
+          employees={employees}
           value={oldId}
-          onChange={(e) => setOldId(e.target.value)}
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2.5 text-white text-sm"
-        >
-          <option value="">Выбери сотрудника</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name} — баланс {e.balance}, всего {e.total_earned}
-            </option>
-          ))}
-        </select>
+          onChange={setOldId}
+          describe={describeBalance}
+        />
       </div>
 
       <div>
         <label className="block text-sm text-gray-400 mb-1">
           Новый аккаунт (получит всё)
         </label>
-        <select
+        <EmployeePicker
+          employees={employees}
           value={newId}
-          onChange={(e) => setNewId(e.target.value)}
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2.5 text-white text-sm"
-        >
-          <option value="">Выбери сотрудника</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name} — баланс {e.balance}, всего {e.total_earned}
-            </option>
-          ))}
-        </select>
+          onChange={setNewId}
+          describe={describeBalance}
+        />
       </div>
 
       {oldUser && newUser && oldId !== newId && (
