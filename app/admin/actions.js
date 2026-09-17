@@ -7,7 +7,7 @@ import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso } from "@/lib/timezone";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { uploadPhoto } from "@/lib/uploadPhoto";
-import { notifyUser } from "@/lib/notifyUser";
+import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 import { maybeGraduateTrainee } from "@/lib/onboarding";
 import { fetchTelegraphContent } from "@/lib/telegraph";
@@ -170,7 +170,7 @@ export async function manualAdjustBalance(userId, amount, description) {
 
 // ---------- Заявки на выручку ----------
 
-export async function approveRevenueRequest(requestId, earnedAtDate) {
+export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
@@ -243,10 +243,11 @@ export async function approveRevenueRequest(requestId, earnedAtDate) {
 
   await admin.from("transactions").insert(transactionPayload);
 
+  const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} coins`;
   await notifyUser(
     admin,
     request.user_id,
-    `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} coins`,
+    comment?.trim() ? `${revenueText}\n\n💬 ${escapeHtml(comment.trim())}` : revenueText,
     "notify_requests"
   );
 
@@ -259,9 +260,15 @@ export async function approveRevenueRequest(requestId, earnedAtDate) {
   return { success: true };
 }
 
-export async function rejectRevenueRequest(requestId) {
+export async function rejectRevenueRequest(requestId, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
+
+  const { data: request } = await admin
+    .from("revenue_requests")
+    .select("user_id")
+    .eq("id", requestId)
+    .single();
 
   const { error } = await admin
     .from("revenue_requests")
@@ -275,13 +282,22 @@ export async function rejectRevenueRequest(requestId) {
 
   if (error) return { error: error.message };
 
+  if (comment?.trim() && request?.user_id) {
+    await notifyUser(
+      admin,
+      request.user_id,
+      `❌ Заявка на выручку отклонена\n\n💬 ${escapeHtml(comment.trim())}`,
+      "notify_requests"
+    );
+  }
+
   revalidatePath("/admin/revenue-requests");
   return { success: true };
 }
 
 // ---------- Заявки на покупки ----------
 
-export async function updatePurchaseStatus(purchaseId, newStatus) {
+export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
@@ -345,12 +361,13 @@ export async function updatePurchaseStatus(purchaseId, newStatus) {
     const title = reward?.title ?? "награда";
     const priceStr = purchase.price_coins?.toLocaleString("ru-RU") ?? "";
 
-    const text =
+    let text =
       newStatus === "approved"
         ? `✅ Покупка «${title}» одобрена`
         : `❌ Покупка «${title}» отклонена${
             priceStr ? ` — ${priceStr} coins вернулись на баланс` : ""
           }`;
+    if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
 
     await notifyUser(admin, purchase.user_id, text, "notify_requests");
   }
@@ -508,7 +525,7 @@ export async function updateReward(rewardId, formData) {
 
 // ---------- Заявки на бонусы (приход вовремя, план и т.д.) ----------
 
-export async function approveBonusRequest(requestId) {
+export async function approveBonusRequest(requestId, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
@@ -563,10 +580,11 @@ export async function approveBonusRequest(requestId) {
       created_by: admin_user.id,
     });
 
+    const bonusText = `✅ Заявка на бонус одобрена — +${coins} coins`;
     await notifyUser(
       admin,
       request.user_id,
-      `✅ Заявка на бонус одобрена — +${coins} coins`,
+      comment?.trim() ? `${bonusText}\n\n💬 ${escapeHtml(comment.trim())}` : bonusText,
       "notify_requests"
     );
   }
@@ -582,10 +600,11 @@ export async function approveBonusRequest(requestId) {
       .from("users")
       .update({ wheel_spins: (w?.wheel_spins ?? 0) + 1 })
       .eq("id", request.user_id);
+    const spinText = "🎡 +1 крутка на колесе фортуны за приход вовремя!";
     await notifyUser(
       admin,
       request.user_id,
-      "🎡 +1 крутка на колесе фортуны за приход вовремя!",
+      comment?.trim() ? `${spinText}\n\n💬 ${escapeHtml(comment.trim())}` : spinText,
       "notify_requests"
     );
   }
@@ -595,9 +614,15 @@ export async function approveBonusRequest(requestId) {
   return { success: true };
 }
 
-export async function rejectBonusRequest(requestId) {
+export async function rejectBonusRequest(requestId, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
+
+  const { data: request } = await admin
+    .from("bonus_requests")
+    .select("user_id")
+    .eq("id", requestId)
+    .single();
 
   const { error } = await admin
     .from("bonus_requests")
@@ -610,6 +635,15 @@ export async function rejectBonusRequest(requestId) {
     .eq("status", "pending");
 
   if (error) return { error: error.message };
+
+  if (comment?.trim() && request?.user_id) {
+    await notifyUser(
+      admin,
+      request.user_id,
+      `❌ Заявка на бонус отклонена\n\n💬 ${escapeHtml(comment.trim())}`,
+      "notify_requests"
+    );
+  }
 
   revalidatePath("/admin/bonus-requests");
   return { success: true };

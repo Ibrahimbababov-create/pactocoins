@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { calculateRevenueCoins } from "@/lib/coinRate";
@@ -76,6 +77,19 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
     );
 
     console.log("TELEGRAM_SEND_RESULT", JSON.stringify(tgResult));
+
+    // Message id нужен, чтобы потом узнать реплай админа на это
+    // сообщение и подтянуть его текст как комментарий к одобрению.
+    if (tgResult?.result?.message_id) {
+      const admin = createAdminClient();
+      await admin
+        .from("revenue_requests")
+        .update({
+          admin_chat_id: groupChatId,
+          admin_message_id: tgResult.result.message_id,
+        })
+        .eq("id", inserted.id);
+    }
   } else {
     console.log("TELEGRAM_GROUP_CHAT_ID is not set");
   }

@@ -283,6 +283,53 @@ async function isTelegramAdmin(fromId) {
   return data?.role === "admin";
 }
 
+const REPLY_COMMENT_TABLES = [
+  "revenue_requests",
+  "bonus_requests",
+  "purchase_requests",
+  "join_requests",
+];
+
+// Админ отвечает (reply) прямо на уведомление о заявке в группе — этот
+// текст сохраняем как комментарий и подтягиваем его при одобрении/отклонении
+// кнопкой на этом же сообщении. Так же работает reply-механика в другом
+// боте Ибрагима (там реплай двигает дату/название в таблице).
+async function handleAdminReplyComment(msg) {
+  const repliedId = msg?.reply_to_message?.message_id;
+  if (!repliedId || !msg.text || !msg.chat?.id) return false;
+  if (!(await isTelegramAdmin(msg.from?.id))) return false;
+
+  const admin = createAdminClient();
+
+  for (const table of REPLY_COMMENT_TABLES) {
+    const { data: row } = await admin
+      .from(table)
+      .select("id")
+      .eq("admin_chat_id", msg.chat.id)
+      .eq("admin_message_id", repliedId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (row) {
+      await admin
+        .from(table)
+        .update({ admin_reply_comment: msg.text })
+        .eq("id", row.id);
+
+      await sendTelegramMessage(
+        msg.chat.id,
+        "💬 Сохранил — добавлю к решению по заявке.",
+        undefined,
+        msg.message_thread_id,
+        msg.message_id
+      );
+      return true;
+    }
+  }
+
+  return false;
+}
+
 async function forwardToSalesBot(update) {
   const baseUrl = process.env.SALES_BOT_URL;
   if (!baseUrl) return;
@@ -337,6 +384,14 @@ export async function POST(request) {
   if (msg?.text && ALL_RE.test(msg.text)) {
     await handleAllCommand(msg);
     return NextResponse.json({ ok: true });
+  }
+
+  // Реплай админа на уведомление о заявке — сохраняем как комментарий,
+  // не даём улететь дальше как обычному тексту.
+  if (msg?.reply_to_message && msg.text && !parseCommand(msg.text)) {
+    if (await handleAdminReplyComment(msg)) {
+      return NextResponse.json({ ok: true });
+    }
   }
 
   const cmd = parseCommand(msg?.text);

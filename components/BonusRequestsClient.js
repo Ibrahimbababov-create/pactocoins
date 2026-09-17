@@ -33,6 +33,7 @@ export default function BonusRequestsClient({
   const [selectedIds, setSelectedIds] = useState([]);
   const [exemptMap, setExemptMap] = useState({});
   const [hiddenIds, setHiddenIds] = useState(new Set());
+  const [comments, setComments] = useState({});
 
   // Одному участнику
   const [singleUserId, setSingleUserId] = useState(employees[0]?.id ?? "");
@@ -70,9 +71,10 @@ export default function BonusRequestsClient({
 
   function handleApprove(id) {
     const exempt = !!exemptMap[id];
+    const comment = comments[id] || undefined;
     hide([id]);
     startTransition(async () => {
-      const res = await approveBonusRequestExempt(id, exempt);
+      const res = await approveBonusRequestExempt(id, exempt, comment);
       if (res?.error) {
         unhide([id]);
         showMessage(res.error, "error");
@@ -81,9 +83,10 @@ export default function BonusRequestsClient({
   }
 
   function handleReject(id) {
+    const comment = comments[id] || undefined;
     hide([id]);
     startTransition(async () => {
-      const res = await rejectBonusRequest(id);
+      const res = await rejectBonusRequest(id, comment);
       if (res?.error) {
         unhide([id]);
         showMessage(res.error, "error");
@@ -402,6 +405,14 @@ export default function BonusRequestsClient({
                   />
                   Не в рейтинг (ДР и т.п.)
                 </label>
+                <input
+                  value={comments[r.id] || ""}
+                  onChange={(e) =>
+                    setComments((prev) => ({ ...prev, [r.id]: e.target.value }))
+                  }
+                  placeholder="💬 Комментарий сотруднику (необязательно)"
+                  className="mt-2 w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
+                />
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
                 <button

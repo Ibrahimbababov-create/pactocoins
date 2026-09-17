@@ -8,7 +8,7 @@ import { sendTelegramMessage } from "@/lib/telegramBot";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { spendCoins } from "@/lib/spendCoins";
 
-async function notifyPurchaseGroup(purchaseId, employeeName, text) {
+async function notifyPurchaseGroup(admin, purchaseId, employeeName, text) {
   const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
   if (!groupChatId) return;
 
@@ -16,7 +16,7 @@ async function notifyPurchaseGroup(purchaseId, employeeName, text) {
     ? Number(process.env.TELEGRAM_PURCHASES_THREAD_ID)
     : undefined;
 
-  await sendTelegramMessage(
+  const tgResult = await sendTelegramMessage(
     groupChatId,
     `🛍 <b>Новая покупка</b>\n\nОт: <b>${employeeName}</b>\n${text}`,
     {
@@ -29,6 +29,18 @@ async function notifyPurchaseGroup(purchaseId, employeeName, text) {
     },
     threadId
   );
+
+  // Message id нужен, чтобы потом узнать реплай админа на это
+  // сообщение и подтянуть его текст как комментарий к одобрению.
+  if (tgResult?.result?.message_id) {
+    await admin
+      .from("purchase_requests")
+      .update({
+        admin_chat_id: groupChatId,
+        admin_message_id: tgResult.result.message_id,
+      })
+      .eq("id", purchaseId);
+  }
 }
 
 export async function purchaseReward(rewardId) {
@@ -94,6 +106,7 @@ export async function purchaseReward(rewardId) {
   }
 
   await notifyPurchaseGroup(
+    admin,
     inserted.id,
     profile?.name ?? "МОП",
     `Награда: ${reward.title}\nЦена: ${effectivePrice} coins`
@@ -177,6 +190,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
   }
 
   await notifyPurchaseGroup(
+    admin,
     inserted.id,
     profile?.name ?? "МОП",
     `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${priceCoins} coins`

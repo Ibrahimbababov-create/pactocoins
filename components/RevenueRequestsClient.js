@@ -22,6 +22,7 @@ export default function RevenueRequestsClient({ requests }) {
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const [dateOverrides, setDateOverrides] = useState({});
   const [dateEditingId, setDateEditingId] = useState(null);
+  const [comments, setComments] = useState({});
 
   const pending = requests.filter(
     (r) => r.status === "pending" && !hiddenIds.has(r.id)
@@ -61,9 +62,10 @@ export default function RevenueRequestsClient({ requests }) {
 
   function handleApprove(id) {
     const earnedAtDate = dateOverrides[id] || undefined;
+    const comment = comments[id] || undefined;
     hide([id]);
     startTransition(async () => {
-      const res = await approveRevenueRequest(id, earnedAtDate);
+      const res = await approveRevenueRequest(id, earnedAtDate, comment);
       if (res?.error) {
         unhide([id]);
         showMessage(res.error, "error");
@@ -72,9 +74,10 @@ export default function RevenueRequestsClient({ requests }) {
   }
 
   function handleReject(id) {
+    const comment = comments[id] || undefined;
     hide([id]);
     startTransition(async () => {
-      const res = await rejectRevenueRequest(id);
+      const res = await rejectRevenueRequest(id, comment);
       if (res?.error) {
         unhide([id]);
         showMessage(res.error, "error");
@@ -260,6 +263,14 @@ export default function RevenueRequestsClient({ requests }) {
                     : "Задать другую дату (для рейтинга)"}
                 </button>
               )}
+              <input
+                value={comments[r.id] || ""}
+                onChange={(e) =>
+                  setComments((prev) => ({ ...prev, [r.id]: e.target.value }))
+                }
+                placeholder="💬 Комментарий сотруднику (необязательно)"
+                className="mt-2 w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
+              />
               </div>
           </div>
         ))}

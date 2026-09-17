@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { sendTelegramMessage } from "@/lib/telegramBot";
@@ -69,7 +70,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
       ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)
       : undefined;
 
-    await sendTelegramMessage(
+    const tgResult = await sendTelegramMessage(
       groupChatId,
       text,
       {
@@ -88,6 +89,19 @@ export async function submitBonusRequest(category, comment, customAmount) {
       },
       threadId
     );
+
+    // Message id нужен, чтобы потом узнать реплай админа на это
+    // сообщение и подтянуть его текст как комментарий к одобрению.
+    if (tgResult?.result?.message_id) {
+      const admin = createAdminClient();
+      await admin
+        .from("bonus_requests")
+        .update({
+          admin_chat_id: groupChatId,
+          admin_message_id: tgResult.result.message_id,
+        })
+        .eq("id", inserted.id);
+    }
   }
 
   revalidatePath("/mop");

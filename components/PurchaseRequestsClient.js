@@ -16,6 +16,7 @@ export default function PurchaseRequestsClient({ purchases }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
   const [localStatuses, setLocalStatuses] = useState({});
+  const [comments, setComments] = useState({});
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -31,11 +32,12 @@ export default function PurchaseRequestsClient({ purchases }) {
 
   function handleChange(id, newStatus) {
     const previousStatus = localStatuses[id] ?? purchases.find((p) => p.id === id)?.status;
+    const comment = comments[id] || undefined;
 
     setLocalStatuses((prev) => ({ ...prev, [id]: newStatus }));
 
     startTransition(async () => {
-      const res = await updatePurchaseStatus(id, newStatus);
+      const res = await updatePurchaseStatus(id, newStatus, comment);
       if (res?.error) {
         setLocalStatuses((prev) => ({ ...prev, [id]: previousStatus }));
         showMessage(res.error, "error");
@@ -67,59 +69,71 @@ export default function PurchaseRequestsClient({ purchases }) {
         return (
           <div
             key={p.id}
-            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-col gap-2"
           >
-            <div className="min-w-0">
-              <p className="font-semibold">{p.rewards?.title}</p>
-              <p className="text-sm text-gray-500">
-                {p.users?.name}
-                {p.users?.is_guest
-                  ? " (гость)"
-                  : p.users?.role === "observer"
-                  ? " (наблюдатель)"
-                  : ""}{" "}
-                · {p.price_coins.toLocaleString("ru-RU")} coins
-                {p.kzt_amount ? ` · ${p.kzt_amount.toLocaleString("ru-RU")} ₸` : ""}
-              </p>
-              <p className="text-xs text-gray-600">
-                {new Date(p.created_at).toLocaleString("ru-RU")}
-                {p.reviewer?.name && currentStatus !== "pending" && (
-                  <>
-                    {" · "}
-                    {currentStatus === "rejected" ? "отклонил" : "обработал"}:{" "}
-                    {p.reviewer.name}
-                  </>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold">{p.rewards?.title}</p>
+                <p className="text-sm text-gray-500">
+                  {p.users?.name}
+                  {p.users?.is_guest
+                    ? " (гость)"
+                    : p.users?.role === "observer"
+                    ? " (наблюдатель)"
+                    : ""}{" "}
+                  · {p.price_coins.toLocaleString("ru-RU")} coins
+                  {p.kzt_amount ? ` · ${p.kzt_amount.toLocaleString("ru-RU")} ₸` : ""}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {new Date(p.created_at).toLocaleString("ru-RU")}
+                  {p.reviewer?.name && currentStatus !== "pending" && (
+                    <>
+                      {" · "}
+                      {currentStatus === "rejected" ? "отклонил" : "обработал"}:{" "}
+                      {p.reviewer.name}
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {currentStatus !== "rejected" && (
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="₸ потрачено в магазине"
+                    defaultValue={p.actual_kzt_amount ?? ""}
+                    onBlur={(e) => {
+                      const raw = e.target.value;
+                      if (String(p.actual_kzt_amount ?? "") === raw) return;
+                      handleSpendSave(p.id, raw);
+                    }}
+                    className="w-36 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs"
+                  />
                 )}
-              </p>
+                <select
+                  value={currentStatus}
+                  disabled={isPending}
+                  onChange={(e) => handleChange(p.id, e.target.value)}
+                  className={`text-xs rounded-full px-3 py-1.5 border-none ${meta?.color}`}
+                >
+                  {statuses.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {currentStatus !== "rejected" && (
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="₸ потрачено в магазине"
-                  defaultValue={p.actual_kzt_amount ?? ""}
-                  onBlur={(e) => {
-                    const raw = e.target.value;
-                    if (String(p.actual_kzt_amount ?? "") === raw) return;
-                    handleSpendSave(p.id, raw);
-                  }}
-                  className="w-36 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs"
-                />
-              )}
-              <select
-                value={currentStatus}
-                disabled={isPending}
-                onChange={(e) => handleChange(p.id, e.target.value)}
-                className={`text-xs rounded-full px-3 py-1.5 border-none ${meta?.color}`}
-              >
-                {statuses.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {currentStatus === "pending" && (
+              <input
+                value={comments[p.id] || ""}
+                onChange={(e) =>
+                  setComments((prev) => ({ ...prev, [p.id]: e.target.value }))
+                }
+                placeholder="💬 Комментарий сотруднику (необязательно)"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
+              />
+            )}
           </div>
         );
       })}

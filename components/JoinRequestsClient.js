@@ -14,6 +14,7 @@ export default function JoinRequestsClient({ requests }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
   const [localStatuses, setLocalStatuses] = useState({});
+  const [comments, setComments] = useState({});
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -21,8 +22,9 @@ export default function JoinRequestsClient({ requests }) {
   }
 
   function handleApprove(id) {
+    const comment = comments[id] || undefined;
     startTransition(async () => {
-      const res = await approveJoinRequest(id);
+      const res = await approveJoinRequest(id, comment);
       if (res?.error) showMessage(res.error, "error");
       else {
         setLocalStatuses((prev) => ({ ...prev, [id]: "approved" }));
@@ -32,8 +34,9 @@ export default function JoinRequestsClient({ requests }) {
   }
 
   function handleReject(id) {
+    const comment = comments[id] || undefined;
     startTransition(async () => {
-      const res = await rejectJoinRequest(id);
+      const res = await rejectJoinRequest(id, comment);
       if (res?.error) showMessage(res.error, "error");
       else {
         setLocalStatuses((prev) => ({ ...prev, [id]: "rejected" }));
@@ -66,47 +69,59 @@ export default function JoinRequestsClient({ requests }) {
         return (
           <div
             key={r.id}
-            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+            className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-col gap-2"
           >
-            <div>
-              <p className="font-semibold">{r.name}</p>
-              <p className="text-sm text-gray-500">
-                {r.telegram_username ? `@${r.telegram_username}` : `id ${r.telegram_id}`}
-              </p>
-              {r.birthday && (
-                <p className="text-xs text-gray-500">
-                  🎂{" "}
-                  {new Date(r.birthday).toLocaleDateString("ru-RU", {
-                    day: "numeric",
-                    month: "long",
-                  })}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">{r.name}</p>
+                <p className="text-sm text-gray-500">
+                  {r.telegram_username ? `@${r.telegram_username}` : `id ${r.telegram_id}`}
                 </p>
-              )}
-              <p className="text-xs text-gray-600">
-                {new Date(r.created_at).toLocaleString("ru-RU")}
-              </p>
-            </div>
-            {status === "pending" ? (
-              <div className="flex flex-wrap gap-2 shrink-0">
-                <button
-                  onClick={() => handleApprove(r.id)}
-                  disabled={isPending}
-                  className="text-xs bg-acid-400 text-black font-bold rounded-lg px-3 py-1.5 disabled:opacity-50"
-                >
-                  Принять
-                </button>
-                <button
-                  onClick={() => handleReject(r.id)}
-                  disabled={isPending}
-                  className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5 disabled:opacity-50"
-                >
-                  Отклонить
-                </button>
+                {r.birthday && (
+                  <p className="text-xs text-gray-500">
+                    🎂{" "}
+                    {new Date(r.birthday).toLocaleDateString("ru-RU", {
+                      day: "numeric",
+                      month: "long",
+                    })}
+                  </p>
+                )}
+                <p className="text-xs text-gray-600">
+                  {new Date(r.created_at).toLocaleString("ru-RU")}
+                </p>
               </div>
-            ) : (
-              <span className={`text-xs rounded-full px-3 py-1.5 shrink-0 ${meta.color}`}>
-                {meta.label}
-              </span>
+              {status === "pending" ? (
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  <button
+                    onClick={() => handleApprove(r.id)}
+                    disabled={isPending}
+                    className="text-xs bg-acid-400 text-black font-bold rounded-lg px-3 py-1.5 disabled:opacity-50"
+                  >
+                    Принять
+                  </button>
+                  <button
+                    onClick={() => handleReject(r.id)}
+                    disabled={isPending}
+                    className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5 disabled:opacity-50"
+                  >
+                    Отклонить
+                  </button>
+                </div>
+              ) : (
+                <span className={`text-xs rounded-full px-3 py-1.5 shrink-0 ${meta.color}`}>
+                  {meta.label}
+                </span>
+              )}
+            </div>
+            {status === "pending" && (
+              <input
+                value={comments[r.id] || ""}
+                onChange={(e) =>
+                  setComments((prev) => ({ ...prev, [r.id]: e.target.value }))
+                }
+                placeholder="💬 Комментарий сотруднику (необязательно)"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
+              />
             )}
           </div>
         );

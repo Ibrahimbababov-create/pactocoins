@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
-import { notifyUser } from "@/lib/notifyUser";
+import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 
 async function requireAdmin() {
@@ -214,7 +214,7 @@ export async function manualAdjustBalanceBulkExempt(
   return { success: true, count: successCount };
 }
 
-export async function approveBonusRequestExempt(requestId, ratingExempt) {
+export async function approveBonusRequestExempt(requestId, ratingExempt, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
@@ -228,24 +228,28 @@ export async function approveBonusRequestExempt(requestId, ratingExempt) {
     return { error: "Заявка уже обработана" };
   }
 
-  const { data: profile } = await admin
-    .from("users")
-    .select("balance, total_earned, month_earned")
-    .eq("id", request.user_id)
-    .single();
+  // «Приход вовремя» — награда не coins, а крутка на колесе фортуны.
+  const spinOnly = request.category === "attendance";
+  const coins = spinOnly ? 0 : request.amount_coins;
 
-  const coins = request.amount_coins;
+  if (!spinOnly) {
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance, total_earned, month_earned")
+      .eq("id", request.user_id)
+      .single();
 
-  await admin
-    .from("users")
-    .update({
-      balance: profile.balance + coins,
-      total_earned: profile.total_earned + coins,
-      month_earned: profile.month_earned + coins,
-    })
-    .eq("id", request.user_id);
+    await admin
+      .from("users")
+      .update({
+        balance: profile.balance + coins,
+        total_earned: profile.total_earned + coins,
+        month_earned: profile.month_earned + coins,
+      })
+      .eq("id", request.user_id);
 
-  await checkAndApplyLevelUp(request.user_id, admin);
+    await checkAndApplyLevelUp(request.user_id, admin);
+  }
 
   await admin
     .from("bonus_requests")
@@ -256,21 +260,44 @@ export async function approveBonusRequestExempt(requestId, ratingExempt) {
     })
     .eq("id", requestId);
 
-  await admin.from("transactions").insert({
-    user_id: request.user_id,
-    type: "earn",
-    amount_coins: coins,
-    description: `Бонус: ${request.category}`,
-    created_by: admin_user.id,
-    rating_exempt: !!ratingExempt,
-  });
+  if (!spinOnly) {
+    await admin.from("transactions").insert({
+      user_id: request.user_id,
+      type: "earn",
+      amount_coins: coins,
+      description: `Бонус: ${request.category}`,
+      created_by: admin_user.id,
+      rating_exempt: !!ratingExempt,
+    });
 
-  await notifyUser(
-    admin,
-    request.user_id,
-    `✅ Заявка на бонус одобрена — +${coins} coins`,
-    "notify_requests"
-  );
+    const bonusText = `✅ Заявка на бонус одобрена — +${coins} coins`;
+    await notifyUser(
+      admin,
+      request.user_id,
+      comment?.trim() ? `${bonusText}\n\n💬 ${escapeHtml(comment.trim())}` : bonusText,
+      "notify_requests"
+    );
+  }
+
+  // За приход вовремя — крутка на колесе фортуны (1 за заявку).
+  if (spinOnly) {
+    const { data: w } = await admin
+      .from("users")
+      .select("wheel_spins")
+      .eq("id", request.user_id)
+      .single();
+    await admin
+      .from("users")
+      .update({ wheel_spins: (w?.wheel_spins ?? 0) + 1 })
+      .eq("id", request.user_id);
+    const spinText = "🎡 +1 крутка на колесе фортуны за приход вовремя!";
+    await notifyUser(
+      admin,
+      request.user_id,
+      comment?.trim() ? `${spinText}\n\n💬 ${escapeHtml(comment.trim())}` : spinText,
+      "notify_requests"
+    );
+  }
 
   revalidatePath("/admin/bonus-requests");
   revalidatePath("/admin");

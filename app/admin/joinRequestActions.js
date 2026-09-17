@@ -26,18 +26,18 @@ async function requireAdmin() {
   return user;
 }
 
-export async function approveJoinRequest(requestId) {
+export async function approveJoinRequest(requestId, comment) {
   await requireAdmin();
-  const result = await approveJoinRequestInternal(requestId);
+  const result = await approveJoinRequestInternal(requestId, comment);
 
   revalidatePath("/admin/join-requests");
   revalidatePath("/admin/employees");
   return result;
 }
 
-export async function rejectJoinRequest(requestId) {
+export async function rejectJoinRequest(requestId, comment) {
   await requireAdmin();
-  const result = await rejectJoinRequestInternal(requestId);
+  const result = await rejectJoinRequestInternal(requestId, comment);
 
   revalidatePath("/admin/join-requests");
   return result;

@@ -102,7 +102,7 @@ export async function POST(request) {
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
-    await sendTelegramMessage(
+    const tgResult = await sendTelegramMessage(
       JOIN_REQUEST_CHAT_ID,
       `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${name}</b>\nTelegram: ${
         tgUser.username ? `@${tgUser.username}` : `id ${tgUser.id}`
@@ -119,6 +119,18 @@ export async function POST(request) {
       },
       JOIN_REQUEST_THREAD_ID
     );
+
+    // Message id нужен, чтобы потом узнать реплай админа на это
+    // сообщение и подтянуть его текст как комментарий к решению.
+    if (tgResult?.result?.message_id) {
+      await admin
+        .from("join_requests")
+        .update({
+          admin_chat_id: JOIN_REQUEST_CHAT_ID,
+          admin_message_id: tgResult.result.message_id,
+        })
+        .eq("id", joinRequest.id);
+    }
 
     // Аккаунта пока нет — сессию не открываем, просто сообщаем что
     // заявка ушла на рассмотрение.
