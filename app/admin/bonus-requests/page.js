@@ -49,9 +49,19 @@ export default async function BonusRequestsPage() {
     .not("email", "like", "%.test@pactocoins.local")
     .order("name");
 
-  const empIds = (employees ?? []).map((e) => e.id);
+  // Отдельно — без is_active, только для истории топ-3: уволенный, но
+  // реально заработавший в том периоде сотрудник должен остаться виден по
+  // имени. В пикер начисления (`employees` выше) уволенные не попадают.
+  const { data: historyEmployees } = await supabase
+    .from("users")
+    .select("id, name")
+    .in("role", ["mop", "rop"])
+    .eq("is_guest", false)
+    .not("email", "like", "%.test@pactocoins.local");
+
+  const empIds = (historyEmployees ?? []).map((e) => e.id);
   const nameById = Object.fromEntries(
-    (employees ?? []).map((e) => [e.id, e.name])
+    (historyEmployees ?? []).map((e) => [e.id, e.name])
   );
 
   const [lastWeekRanking, thisWeekRanking, lastMonthRanking, thisMonthRanking] =

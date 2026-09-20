@@ -7,11 +7,12 @@ export default async function AdminRating() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Без фильтра is_active: уволенный, но реально заработавший в прошлом
+  // сотрудник должен оставаться виден в истории рейтинга — под своим именем.
   const { data: users } = await supabase
     .from("users")
     .select("id, name, total_earned")
     .eq("role", "mop")
-    .eq("is_active", true)
     .eq("is_guest", false)
     .not("email", "like", "%.test@pactocoins.local");
 
