@@ -7,6 +7,7 @@ import {
   rejectRevenueRequest,
   bulkApproveRevenue,
   bulkRejectRevenue,
+  cancelApprovedRevenueRequest,
 } from "@/app/admin/actions";
 
 const statusLabels = {
@@ -23,6 +24,7 @@ export default function RevenueRequestsClient({ requests }) {
   const [dateOverrides, setDateOverrides] = useState({});
   const [dateEditingId, setDateEditingId] = useState(null);
   const [comments, setComments] = useState({});
+  const [cancelComments, setCancelComments] = useState({});
 
   const pending = requests.filter(
     (r) => r.status === "pending" && !hiddenIds.has(r.id)
@@ -82,6 +84,16 @@ export default function RevenueRequestsClient({ requests }) {
         unhide([id]);
         showMessage(res.error, "error");
       }
+    });
+  }
+
+  function handleCancelApproved(id) {
+    if (!window.confirm("Отменить одобренную заявку? Coins спишутся обратно.")) return;
+    const comment = cancelComments[id] || undefined;
+    startTransition(async () => {
+      const res = await cancelApprovedRevenueRequest(id, comment);
+      if (res?.error) showMessage(res.error, "error");
+      else showMessage("Заявка отменена, coins списаны обратно");
     });
   }
 
@@ -283,28 +295,49 @@ export default function RevenueRequestsClient({ requests }) {
           return (
             <div
               key={r.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-wrap items-center justify-between gap-2"
+              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex flex-col gap-2"
             >
-              <div className="min-w-0">
-                <p className="font-semibold">
-                  {r.users?.name}
-                  {r.users?.is_guest && (
-                    <span className="text-xs text-gray-500 font-normal"> (гость)</span>
-                  )}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {r.amount_kzt.toLocaleString("ru-RU")} ₸ ·{" "}
-                  {r.calculated_coins.toLocaleString("ru-RU")} coins
-                </p>
-                <p className="text-xs text-gray-600">
-                  {new Date(
-                    r.reviewed_at || r.created_at
-                  ).toLocaleString("ru-RU")}
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold">
+                    {r.users?.name}
+                    {r.users?.is_guest && (
+                      <span className="text-xs text-gray-500 font-normal"> (гость)</span>
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {r.amount_kzt.toLocaleString("ru-RU")} ₸ ·{" "}
+                    {r.calculated_coins.toLocaleString("ru-RU")} coins
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {new Date(
+                      r.reviewed_at || r.created_at
+                    ).toLocaleString("ru-RU")}
+                  </p>
+                </div>
+                <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>
+                  {meta.label}
+                </span>
               </div>
-              <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>
-                {meta.label}
-              </span>
+              {r.status === "approved" && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={cancelComments[r.id] || ""}
+                    onChange={(e) =>
+                      setCancelComments((prev) => ({ ...prev, [r.id]: e.target.value }))
+                    }
+                    placeholder="💬 Причина отмены сотруднику (необязательно)"
+                    className="flex-1 min-w-[160px] bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
+                  />
+                  <button
+                    onClick={() => handleCancelApproved(r.id)}
+                    disabled={isPending}
+                    className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5 shrink-0 disabled:opacity-50"
+                  >
+                    Отменить одобрение
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

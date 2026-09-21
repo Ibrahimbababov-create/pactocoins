@@ -257,6 +257,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       status: "approved",
       reviewed_at: new Date().toISOString(),
       reviewed_by: admin_user.id,
+      credited_coins: coins,
     })
     .eq("id", requestId);
 

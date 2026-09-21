@@ -217,6 +217,7 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
       status: "approved",
       reviewed_at: new Date().toISOString(),
       reviewed_by: admin_user.id,
+      credited_coins: coins,
     })
     .eq("id", requestId);
 
@@ -293,6 +294,74 @@ export async function rejectRevenueRequest(requestId, comment) {
   }
 
   revalidatePath("/admin/revenue-requests");
+  return { success: true };
+}
+
+// Одобрили по ошибке (случайный тап) — откатываем начисленные coins и
+// переводим заявку в «отклонено». Комментарий уходит сотруднику, чтобы не
+// пугался внезапного списания.
+export async function cancelApprovedRevenueRequest(requestId, comment) {
+  const admin_user = await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: request } = await admin
+    .from("revenue_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (!request || request.status !== "approved") {
+    return { error: "Заявка не в статусе «одобрено»" };
+  }
+
+  const coins = request.credited_coins ?? 0;
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("balance, total_earned, month_earned")
+    .eq("id", request.user_id)
+    .single();
+
+  await admin
+    .from("users")
+    .update({
+      balance: profile.balance - coins,
+      total_earned: profile.total_earned - coins,
+      month_earned: profile.month_earned - coins,
+    })
+    .eq("id", request.user_id);
+
+  await admin
+    .from("revenue_requests")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+    })
+    .eq("id", requestId);
+
+  if (coins) {
+    await admin.from("transactions").insert({
+      user_id: request.user_id,
+      type: "manual_subtract",
+      amount_coins: -coins,
+      description: `Отменено (одобрено по ошибке): выручка ${request.amount_kzt.toLocaleString(
+        "ru-RU"
+      )} ₸`,
+      created_by: admin_user.id,
+    });
+  }
+
+  let text = `⚠️ Заявка на выручку ${request.amount_kzt.toLocaleString(
+    "ru-RU"
+  )} ₸ отменена (одобрена по ошибке)${coins ? ` — ${coins} coins списаны обратно` : ""}`;
+  if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
+  await notifyUser(admin, request.user_id, text, "notify_requests");
+
+  revalidatePath("/admin/revenue-requests");
+  revalidatePath("/admin");
+  revalidatePath("/mop/rating");
+  revalidatePath("/mop");
   return { success: true };
 }
 
@@ -569,6 +638,7 @@ export async function approveBonusRequest(requestId, comment) {
       status: "approved",
       reviewed_at: new Date().toISOString(),
       reviewed_by: admin_user.id,
+      credited_coins: coins,
     })
     .eq("id", requestId);
 
@@ -648,6 +718,83 @@ export async function rejectBonusRequest(requestId, comment) {
   }
 
   revalidatePath("/admin/bonus-requests");
+  return { success: true };
+}
+
+// Одобрили по ошибке — откатываем coins (или крутку колеса за «приход
+// вовремя») и переводим заявку в «отклонено».
+export async function cancelApprovedBonusRequest(requestId, comment) {
+  const admin_user = await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: request } = await admin
+    .from("bonus_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (!request || request.status !== "approved") {
+    return { error: "Заявка не в статусе «одобрено»" };
+  }
+
+  const spinOnly = request.category === "attendance";
+  const coins = request.credited_coins ?? 0;
+
+  if (spinOnly) {
+    const { data: w } = await admin
+      .from("users")
+      .select("wheel_spins")
+      .eq("id", request.user_id)
+      .single();
+    await admin
+      .from("users")
+      .update({ wheel_spins: Math.max(0, (w?.wheel_spins ?? 0) - 1) })
+      .eq("id", request.user_id);
+  } else if (coins) {
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance, total_earned, month_earned")
+      .eq("id", request.user_id)
+      .single();
+
+    await admin
+      .from("users")
+      .update({
+        balance: profile.balance - coins,
+        total_earned: profile.total_earned - coins,
+        month_earned: profile.month_earned - coins,
+      })
+      .eq("id", request.user_id);
+
+    await admin.from("transactions").insert({
+      user_id: request.user_id,
+      type: "manual_subtract",
+      amount_coins: -coins,
+      description: `Отменено (одобрено по ошибке): бонус ${request.category}`,
+      created_by: admin_user.id,
+    });
+  }
+
+  await admin
+    .from("bonus_requests")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+    })
+    .eq("id", requestId);
+
+  let text = spinOnly
+    ? "⚠️ Заявка на бонус отменена (одобрена по ошибке) — крутка на колесе списана обратно"
+    : `⚠️ Заявка на бонус отменена (одобрена по ошибке)${
+        coins ? ` — ${coins} coins списаны обратно` : ""
+      }`;
+  if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
+  await notifyUser(admin, request.user_id, text, "notify_requests");
+
+  revalidatePath("/admin/bonus-requests");
+  revalidatePath("/admin");
+  revalidatePath("/mop/rating");
   return { success: true };
 }
 

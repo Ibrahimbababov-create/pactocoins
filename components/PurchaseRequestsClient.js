@@ -124,13 +124,17 @@ export default function PurchaseRequestsClient({ purchases }) {
                 </select>
               </div>
             </div>
-            {currentStatus === "pending" && (
+            {currentStatus !== "rejected" && (
               <input
                 value={comments[p.id] || ""}
                 onChange={(e) =>
                   setComments((prev) => ({ ...prev, [p.id]: e.target.value }))
                 }
-                placeholder="💬 Комментарий сотруднику (необязательно)"
+                placeholder={
+                  currentStatus === "pending"
+                    ? "💬 Комментарий сотруднику (необязательно)"
+                    : "💬 Причина отмены, если переключишь на «Отклонено» (необязательно)"
+                }
                 className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
               />
             )}
