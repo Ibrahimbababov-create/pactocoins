@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import AnimatedNumber from "@/components/AnimatedNumber";
+import Icon from "@/components/Icon";
 
 const SIZE = 96;
 const STROKE = 8;
@@ -32,7 +33,10 @@ export default function GoalWidget({ goal, balance }) {
   if (!goal) {
     return (
       <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-acid-400/40 rounded-2xl p-5">
-        <p className="font-bold text-lg">🎯 Поставь себе цель</p>
+        <p className="font-bold text-lg flex items-center gap-2">
+          <Icon name="target" className="w-5 h-5 text-acid-400" />
+          Поставь себе цель
+        </p>
         <p className="text-sm text-gray-400 mt-1">
           Копи на конкретную награду — так виден прогресс и до неё быстрее
           доходишь.
@@ -40,9 +44,8 @@ export default function GoalWidget({ goal, balance }) {
 
         <ol className="mt-3 space-y-1.5 text-sm text-gray-300">
           <li>
-            <span className="text-acid-400 font-bold">1.</span> Открой{" "}
-            <span className="font-semibold">«Магазин»</span> — кнопка{" "}
-            <span className="font-semibold">★</span> внизу экрана
+            <span className="text-acid-400 font-bold">1.</span> Открой вкладку{" "}
+            <span className="font-semibold">«Магазин»</span> внизу экрана
           </li>
           <li>
             <span className="text-acid-400 font-bold">2.</span> Выбери награду,
@@ -50,8 +53,7 @@ export default function GoalWidget({ goal, balance }) {
           </li>
           <li>
             <span className="text-acid-400 font-bold">3.</span> Нажми на её
-            карточке{" "}
-            <span className="font-semibold">«🎯 Копить на это»</span>
+            карточке <span className="font-semibold">«Копить на это»</span>
           </li>
         </ol>
 
@@ -103,7 +105,7 @@ export default function GoalWidget({ goal, balance }) {
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             {achieved ? (
-              <span className="text-2xl">✅</span>
+              <Icon name="check" className="w-7 h-7 text-amber-400" strokeWidth={2.5} />
             ) : (
               <span className={`text-xl font-black ${textColorClass}`}>
                 <AnimatedNumber value={pct} format={false} />%

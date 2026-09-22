@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
-import RevenueRequestForm from "@/components/RevenueRequestForm";
-import BonusRequestForm from "@/components/BonusRequestForm";
+import RequestActions from "@/components/RequestActions";
 import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
 import FlashSaleCard from "@/components/FlashSaleCard";
@@ -210,53 +209,46 @@ export default async function MopDashboard({ searchParams }) {
         </div>
       )}
 
-      {/* Заявка на выручку */}
-      <RevenueRequestForm />
+      {/* Записать выручку / Бонус */}
+      <RequestActions />
 
-      {/* Заявка на бонус */}
-      <BonusRequestForm />
-
-      {/* Заявки в ожидании */}
+      {/* Заявки в ожидании — янтарная точка вместо цветной плашки */}
       {hasPending && (
         <div className="space-y-2">
-          <p className="text-sm text-gray-500">Ожидают подтверждения</p>
-
           {pendingRevenue?.map((r) => (
             <div
               key={r.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
+              className="flex items-center gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3"
             >
-              <div>
-                <p className="font-semibold">
-                  {r.amount_kzt.toLocaleString("ru-RU")} ₸
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold truncate">
+                  {r.amount_kzt.toLocaleString("ru-RU")} ₸ ожидает подтверждения
                 </p>
-                <p className="text-xs text-gray-500">{r.comment}</p>
+                {r.comment && (
+                  <p className="text-xs text-gray-500 truncate">{r.comment}</p>
+                )}
               </div>
-              <span className="text-xs bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full">
-                Ожидает
-              </span>
             </div>
           ))}
 
           {pendingBonus?.map((r) => (
             <div
               key={r.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
+              className="flex items-center gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3"
             >
-              <div>
-                <p className="font-semibold">
-                  {BONUS_CATEGORIES[r.category]?.label ?? r.category}
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold truncate">
+                  {BONUS_CATEGORIES[r.category]?.label ?? r.category} ожидает
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 truncate">
                   {BONUS_CATEGORIES[r.category]?.spin
-                    ? "🎡 крутка на колесе"
-                    : `${r.amount_coins} coins`}
+                    ? "крутка на колесе"
+                    : `${r.amount_coins} коинов`}
                   {r.comment ? ` · ${r.comment}` : ""}
                 </p>
               </div>
-              <span className="text-xs bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full">
-                Ожидает
-              </span>
             </div>
           ))}
         </div>

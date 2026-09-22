@@ -6,10 +6,10 @@ import { submitBonusRequest } from "@/app/mop/bonus/actions";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { haptic } from "@/lib/haptics";
 
-export default function BonusRequestForm() {
+export default function BonusRequestForm({ open, onOpenChange }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [open, setOpen] = useState(false);
+  const setOpen = onOpenChange;
   const [category, setCategory] = useState("attendance");
   const [customAmount, setCustomAmount] = useState("");
   const [comment, setComment] = useState("");
@@ -57,9 +57,9 @@ export default function BonusRequestForm() {
             haptic.light();
             setOpen(true);
           }}
-          className="w-full bg-dark-800 border border-dark-600 text-white font-bold rounded-2xl py-4 hover:border-acid-400 transition"
+          className="shrink-0 bg-dark-800 border border-dark-600 text-white font-bold rounded-2xl py-4 px-5 active:scale-[0.98] transition"
         >
-          + Отправить достижение
+          Бонус
         </button>
       ) : (
         <form
@@ -90,9 +90,9 @@ export default function BonusRequestForm() {
                 <option key={key} value={key}>
                   {m.label}
                   {m.spin
-                    ? " — 🎡 крутка на колесе"
+                    ? " — крутка на колесе"
                     : m.amount
-                    ? ` — ${m.amount} coins`
+                    ? ` — ${m.amount} коинов`
                     : ""}
                 </option>
               ))}
@@ -102,7 +102,7 @@ export default function BonusRequestForm() {
           {isVariable && (
             <div>
               <label className="block text-sm text-gray-400 mb-1">
-                Сколько coins
+                Сколько коинов
               </label>
               <input
                 type="number"

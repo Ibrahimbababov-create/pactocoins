@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
 import { haptic } from "@/lib/haptics";
 
-export default function RevenueRequestForm() {
+export default function RevenueRequestForm({ open, onOpenChange }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [open, setOpen] = useState(false);
+  const setOpen = onOpenChange;
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [receiptConfirmed, setReceiptConfirmed] = useState(false);
@@ -60,9 +60,9 @@ export default function RevenueRequestForm() {
           haptic.light();
           setOpen(true);
         }}
-        className="w-full bg-acid-400 text-black font-bold rounded-2xl py-4 hover:bg-acid-500 transition"
+        className="flex-1 bg-acid-400 text-black font-bold rounded-2xl py-4 active:scale-[0.98] transition"
       >
-        + Отправить заявку на выручку
+        Записать выручку
       </button>
     );
   }
@@ -98,7 +98,7 @@ export default function RevenueRequestForm() {
         />
         {amount > 0 && (
           <p className="text-xs text-acid-400 mt-1">
-            = {coins} coins (1000 ₸ = 1 coin)
+            = {coins} коинов (1000 ₸ = 1 коин)
           </p>
         )}
       </div>
