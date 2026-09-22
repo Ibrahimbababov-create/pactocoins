@@ -74,6 +74,7 @@ export default function GoalWidget({ goal, balance }) {
   const ringColorClass = achieved ? "stroke-amber-400" : "stroke-acid-400";
   const textColorClass = achieved ? "text-amber-400" : "text-acid-400";
   const rewardTitle = goal.rewards?.title ?? "награду";
+  const fullTitle = goal.variant_label ? `${rewardTitle} — ${goal.variant_label}` : rewardTitle;
 
   return (
     <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-dark-600 rounded-2xl p-4">
@@ -115,7 +116,7 @@ export default function GoalWidget({ goal, balance }) {
           <p className="text-xs text-gray-500">
             {achieved ? "Цель достигнута" : "Копишь на"}
           </p>
-          <p className="font-bold truncate mt-0.5">{rewardTitle}</p>
+          <p className="font-bold truncate mt-0.5">{fullTitle}</p>
           <p className="text-sm mt-1">
             <span className={achieved ? "text-amber-400" : "text-acid-400"}>
               <AnimatedNumber value={balance} />

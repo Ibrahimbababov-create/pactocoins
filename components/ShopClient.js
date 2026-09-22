@@ -30,8 +30,10 @@ function slugify(text) {
 }
 
 // Карточка с вариантами внутри (барбер по бюджету, сертификаты по номиналу
-// и т.п.) — сначала выбираешь вариант кнопкой, потом обычный «Купить».
-function VariantCard({ reward, displayBalance, isPending, onBuy, isPurchased }) {
+// и т.п.) — сначала выбираешь вариант строкой (название + своя цена сразу
+// видна), потом обычный «Купить». Есть и «Копить на это» — цель просто
+// запоминает, какой именно вариант выбрали.
+function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPurchased }) {
   const [selected, setSelected] = useState(reward.variants[0]?.id ?? null);
   const [confirming, setConfirming] = useState(false);
 
@@ -65,48 +67,68 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, isPurchased }) 
         )}
       </div>
 
-      <div className="mt-3">
-        <div className="flex flex-wrap gap-1 mb-2">
-          {reward.variants.map((v) => (
+      <div className="mt-3 space-y-1">
+        {reward.variants.map((v) => {
+          const active = v.id === (variant?.id);
+          return (
             <button
               key={v.id}
               onClick={() => {
                 setSelected(v.id);
                 setConfirming(false);
               }}
-              className={`text-[11px] rounded-full px-2 py-1 border ${
-                v.id === (variant?.id)
-                  ? "bg-acid-400 text-black border-acid-400 font-bold"
-                  : "border-dark-600 text-gray-400"
+              className={`w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs border transition ${
+                active
+                  ? "bg-acid-400/15 border-acid-400 text-acid-400 font-bold"
+                  : "border-dark-600 text-gray-400 hover:border-dark-500"
               }`}
             >
-              {v.label}
+              <span className="flex items-center gap-1.5 truncate">
+                <span
+                  className={`w-3.5 h-3.5 rounded-full border shrink-0 flex items-center justify-center ${
+                    active ? "border-acid-400 bg-acid-400" : "border-dark-500"
+                  }`}
+                >
+                  {active && <span className="text-[9px] text-black leading-none">✓</span>}
+                </span>
+                <span className="truncate">{v.label}</span>
+              </span>
+              <span className="shrink-0 tabular-nums">{v.price_coins}</span>
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
 
-        <p className="text-acid-400 font-bold">{variant?.price_coins} coins</p>
-
+      <div className="mt-3">
         {isPurchased ? (
           <div
-            className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+            className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
             style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
           >
             ✅ Куплено
           </div>
         ) : !confirming ? (
-          <button
-            disabled={!canAfford}
-            onClick={() => {
-              haptic.light();
-              setConfirming(true);
-            }}
-            className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
-          >
-            {canAfford ? "Купить" : "Не хватает"}
-          </button>
+          <>
+            <button
+              disabled={!canAfford}
+              onClick={() => {
+                haptic.light();
+                setConfirming(true);
+              }}
+              className="w-full rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+            >
+              {canAfford ? `Купить за ${variant?.price_coins}` : "Не хватает"}
+            </button>
+            <button
+              onClick={() => onSetGoal(reward, variant)}
+              disabled={isPending}
+              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 hover:text-acid-400 hover:border-acid-400 transition disabled:opacity-50"
+            >
+              🎯 Копить на это
+            </button>
+          </>
         ) : (
-          <div className="flex gap-1 mt-2">
+          <div className="flex gap-1">
             <button
               onClick={() => onBuy(reward, variant)}
               disabled={isPending}
@@ -360,12 +382,12 @@ export default function ShopClient({ grouped, balance }) {
     });
   }
 
-  function handleSetGoal(reward) {
+  function handleSetGoal(reward, variant) {
     startTransition(async () => {
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rewardId: reward.id }),
+        body: JSON.stringify({ rewardId: reward.id, variantId: variant?.id }),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -373,7 +395,8 @@ export default function ShopClient({ grouped, balance }) {
         setMessage({ type: "error", text: data.error || "Не получилось поставить цель" });
         haptic.error();
       } else {
-        setMessage({ type: "success", text: `🎯 Цель поставлена: ${reward.title}` });
+        const label = variant ? `${reward.title} — ${variant.label}` : reward.title;
+        setMessage({ type: "success", text: `🎯 Цель поставлена: ${label}` });
         haptic.success();
       }
       setTimeout(() => setMessage(null), 3000);
@@ -514,6 +537,7 @@ export default function ShopClient({ grouped, balance }) {
                     isPending={isPending}
                     isPurchased={isPurchased}
                     onBuy={handleBuyVariant}
+                    onSetGoal={handleSetGoal}
                   />
                 );
               }

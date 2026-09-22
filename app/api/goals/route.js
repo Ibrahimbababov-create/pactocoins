@@ -14,6 +14,7 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => ({}));
   const rewardId = body.rewardId;
+  const variantId = body.variantId;
 
   if (!rewardId) {
     return NextResponse.json({ error: "Выбери награду" }, { status: 400 });
@@ -33,7 +34,24 @@ export async function POST(request) {
     );
   }
 
-  const { effectivePrice } = getEffectivePrice(reward);
+  let targetAmount;
+  let variantLabel = null;
+
+  if (variantId) {
+    const { data: variant } = await supabase
+      .from("reward_variants")
+      .select("*")
+      .eq("id", variantId)
+      .eq("reward_id", rewardId)
+      .single();
+    if (!variant) {
+      return NextResponse.json({ error: "Вариант не найден" }, { status: 400 });
+    }
+    targetAmount = variant.price_coins;
+    variantLabel = variant.label;
+  } else {
+    targetAmount = getEffectivePrice(reward).effectivePrice;
+  }
 
   // У человека в любой момент максимум одна активная цель — если
   // уже есть, просто меняем её на новую награду, а не заводим вторую.
@@ -47,7 +65,8 @@ export async function POST(request) {
   const payload = {
     user_id: user.id,
     reward_id: rewardId,
-    target_amount: effectivePrice,
+    target_amount: targetAmount,
+    variant_label: variantLabel,
     status: "active",
     updated_at: new Date().toISOString(),
   };
