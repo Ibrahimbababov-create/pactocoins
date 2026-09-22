@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import MessageThread from "@/components/MessageThread";
-import { markThreadRead } from "@/app/mop/messages/actions";
+import { markThreadRead } from "@/app/messages/actions";
 
 export default async function AdminMessageThreadPage({ params }) {
   const supabase = createClient();

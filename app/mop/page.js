@@ -15,6 +15,9 @@ import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 import { getMonthEarned } from "@/lib/earnings";
+import EarningsMiniChart from "@/components/EarningsMiniChart";
+import { recentDaysAlmaty, almatyDayKey } from "@/lib/timezone";
+import Icon from "@/components/Icon";
 
 export default async function MopDashboard({ searchParams }) {
   const supabase = createClient();
@@ -70,6 +73,21 @@ export default async function MopDashboard({ searchParams }) {
 
   const monthEarned = await getMonthEarned(supabase, user.id);
 
+  const chartDays = recentDaysAlmaty(10);
+  const chartStartIso = new Date(`${chartDays[0].key}T00:00:00+05:00`).toISOString();
+  const { data: chartInflows } = await supabase
+    .from("transactions")
+    .select("amount_coins, created_at")
+    .eq("user_id", user.id)
+    .gt("amount_coins", 0)
+    .gte("created_at", chartStartIso);
+  const chartByDay = Object.fromEntries(chartDays.map((d) => [d.key, 0]));
+  for (const t of chartInflows ?? []) {
+    const k = almatyDayKey(t.created_at);
+    if (k in chartByDay) chartByDay[k] += t.amount_coins;
+  }
+  const chartSeries = chartDays.map((d) => ({ ...d, value: chartByDay[d.key] }));
+
   // Админ может заглянуть в стажёрский экран (?as=trainee) — только чтобы
   // проверить, как он выглядит, роль в базе при этом не меняется.
   const previewTrainee = profile?.role === "admin" && searchParams?.as === "trainee";
@@ -121,13 +139,12 @@ export default async function MopDashboard({ searchParams }) {
           storageKey={CURRENT_ANNOUNCEMENT.storageKey}
           title={CURRENT_ANNOUNCEMENT.title}
           text={CURRENT_ANNOUNCEMENT.text}
-          href="/mop/wheel"
+          href="/mop/games"
         />
       )}
 
       <div>
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
-        <h1 className="text-2xl font-bold">PactoCoins</h1>
       </div>
 
       {isTrainee && (
@@ -150,16 +167,17 @@ export default async function MopDashboard({ searchParams }) {
 
       {(profile?.wheel_spins ?? 0) > 0 && (
         <Link
-          href="/mop/wheel"
-          className="block rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4"
+          href="/mop/games"
+          className="flex items-center gap-3 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4"
         >
-          <p className="font-bold text-acid-400">
-            🎡 У тебя {profile.wheel_spins}{" "}
-            {profile.wheel_spins === 1 ? "крутка" : "крутки"} на колесе фортуны
-          </p>
-          <p className="text-sm text-gray-400 mt-1">
-            Нажми, чтобы крутить →
-          </p>
+          <Icon name="wheel" className="w-8 h-8 text-acid-400 shrink-0" />
+          <div>
+            <p className="font-bold text-acid-400">
+              У тебя {profile.wheel_spins}{" "}
+              {profile.wheel_spins === 1 ? "крутка" : "крутки"} на колесе фортуны
+            </p>
+            <p className="text-sm text-gray-400 mt-0.5">Нажми, чтобы крутить →</p>
+          </div>
         </Link>
       )}
 
@@ -178,6 +196,8 @@ export default async function MopDashboard({ searchParams }) {
         initialTotalEarned={profile?.total_earned ?? 0}
         initialMonthEarned={monthEarned}
       />
+
+      <EarningsMiniChart series={chartSeries} />
 
       <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
 

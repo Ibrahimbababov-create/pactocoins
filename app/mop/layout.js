@@ -26,19 +26,15 @@ export default async function MopLayout({ children }) {
     .is("read_at", null);
 
   return (
-    <div className="relative min-h-screen bg-dark-900 pb-20">
+    <div className="relative min-h-screen bg-dark-900 pb-28">
       {/* мягкое свечение сверху за шапкой */}
       <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(163,255,18,0.07),transparent_70%)]" />
 
-      <MopTopBar
-        balance={profile?.balance ?? 0}
-        unreadCount={unreadCount ?? 0}
-        role={profile?.role}
-      />
+      <MopTopBar balance={profile?.balance ?? 0} />
 
       {profile?.role === "admin" && (
         <div className="relative bg-acid-400/[0.08] border-b border-acid-400/20 text-acid-400 text-sm px-4 py-2 flex items-center justify-between gap-2">
-          <span className="font-semibold">👁 Просмотр как МОП</span>
+          <span className="font-semibold">Просмотр как МОП</span>
           <Link href="/admin" className="underline underline-offset-2">
             Вернуться в админку
           </Link>
@@ -47,7 +43,7 @@ export default async function MopLayout({ children }) {
       <div className="relative max-w-lg mx-auto px-4 pt-4">
         <PageTransition>{children}</PageTransition>
       </div>
-      <BottomNav />
+      <BottomNav role={profile?.role} unreadCount={unreadCount ?? 0} />
     </div>
   );
 }

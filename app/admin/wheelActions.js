@@ -48,7 +48,7 @@ export async function saveWheelSegment(input) {
   if (error) return { error: error.message };
 
   revalidatePath("/admin/wheel");
-  revalidatePath("/mop/wheel");
+  revalidatePath("/mop/games");
   return { success: true };
 }
 
@@ -58,7 +58,7 @@ export async function deleteWheelSegment(id) {
   const { error } = await admin.from("wheel_segments").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/wheel");
-  revalidatePath("/mop/wheel");
+  revalidatePath("/mop/games");
   return { success: true };
 }
 
@@ -89,7 +89,7 @@ export async function saveWheelConfig({
     .eq("id", true);
   if (error) return { error: error.message };
   revalidatePath("/admin/wheel");
-  revalidatePath("/mop/wheel");
+  revalidatePath("/mop/games");
   return { success: true };
 }
 

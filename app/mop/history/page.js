@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
 import HistoryClient from "@/components/HistoryClient";
-import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 
 export default async function HistoryPage() {
   const supabase = createClient();
@@ -10,8 +9,10 @@ export default async function HistoryPage() {
 
   const [
     { data: transactions },
-    { data: revenueRequests },
-    { data: bonusRequests },
+    { data: purchases },
+    { count: pendingRevenue },
+    { count: pendingBonus },
+    { count: pendingPurchases },
   ] = await Promise.all([
     supabase
       .from("transactions")
@@ -19,42 +20,38 @@ export default async function HistoryPage() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
-      .from("revenue_requests")
-      .select("*")
+      .from("purchase_requests")
+      .select("*, rewards(title, category)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
-      .from("bonus_requests")
-      .select("*")
+      .from("revenue_requests")
+      .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false }),
+      .eq("status", "pending"),
+    supabase
+      .from("bonus_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "pending"),
+    supabase
+      .from("purchase_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "pending"),
   ]);
 
-  const requests = [
-    ...(revenueRequests ?? []).map((r) => ({
-      id: `rev-${r.id}`,
-      status: r.status,
-      created_at: r.created_at,
-      comment: r.comment,
-      label: `Выручка: ${r.amount_kzt.toLocaleString("ru-RU")} ₸ → ${
-        r.calculated_coins
-      } coins`,
-    })),
-    ...(bonusRequests ?? []).map((r) => ({
-      id: `bonus-${r.id}`,
-      status: r.status,
-      created_at: r.created_at,
-      comment: r.comment,
-      label: `${BONUS_CATEGORIES[r.category]?.label ?? r.category} → ${
-        r.amount_coins
-      } coins`,
-    })),
-  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const pendingCount =
+    (pendingRevenue ?? 0) + (pendingBonus ?? 0) + (pendingPurchases ?? 0);
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">История</h1>
-      <HistoryClient transactions={transactions ?? []} requests={requests} />
+      <HistoryClient
+        transactions={transactions ?? []}
+        purchases={purchases ?? []}
+        pendingCount={pendingCount}
+      />
     </div>
   );
 }

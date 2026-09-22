@@ -60,7 +60,7 @@ export async function buySpin(count = 1) {
     rating_exempt: true,
   });
 
-  revalidatePath("/mop/wheel");
+  revalidatePath("/mop/games");
   return { success: true, spins: newSpins, cost };
 }
 
@@ -146,7 +146,7 @@ export async function spinWheel() {
     );
   }
 
-  revalidatePath("/mop/wheel");
+  revalidatePath("/mop/games");
   revalidatePath("/mop");
 
   return {

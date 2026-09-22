@@ -115,7 +115,7 @@ export async function purchaseReward(rewardId) {
 
   revalidatePath("/mop");
   revalidatePath("/mop/shop");
-  revalidatePath("/mop/purchases");
+  revalidatePath("/mop/history");
   revalidatePath("/observer");
   revalidatePath("/observer/shop");
 
@@ -197,7 +197,7 @@ export async function purchaseRewardVariant(variantId) {
 
   revalidatePath("/mop");
   revalidatePath("/mop/shop");
-  revalidatePath("/mop/purchases");
+  revalidatePath("/mop/history");
   revalidatePath("/observer");
   revalidatePath("/observer/shop");
 
@@ -281,7 +281,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
 
   revalidatePath("/mop");
   revalidatePath("/mop/shop");
-  revalidatePath("/mop/purchases");
+  revalidatePath("/mop/history");
   revalidatePath("/observer");
   revalidatePath("/observer/shop");
 
