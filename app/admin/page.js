@@ -7,6 +7,7 @@ import {
   currentMonthKeyAlmaty,
   recentMonthKeysAlmaty,
 } from "@/lib/timezone";
+import { getEarnedMap } from "@/lib/earnings";
 
 export default async function AdminOverview({ searchParams }) {
   const supabase = createClient();
@@ -21,11 +22,11 @@ export default async function AdminOverview({ searchParams }) {
     { data: users },
     { count: pendingRevenue },
     { count: pendingPurchases },
-    { data: spentPurchases },
+    { data: totalSpentRpc },
     { data: topups },
     { data: budgetExpenses },
     { data: funds },
-    { data: fundContributions },
+    { data: fundTotalsRows },
   ] = await Promise.all([
     supabase
       .from("users")
@@ -45,12 +46,8 @@ export default async function AdminOverview({ searchParams }) {
       .eq("status", "pending"),
     // "Реально потратили" — все покупки в магазине за месяц, кроме
     // отклонённых (те возвращаются пользователю и деньгами не считаются).
-    supabase
-      .from("purchase_requests")
-      .select("price_coins")
-      .neq("status", "rejected")
-      .gte("created_at", start)
-      .lt("created_at", end),
+    // Агрегат в БД — не тянем все строки purchase_requests в JS.
+    supabase.rpc("purchases_spent_total", { p_start: start, p_end: end }),
     supabase.from("budget_topups").select("amount_kzt"),
     supabase
       .from("purchase_requests")
@@ -60,32 +57,35 @@ export default async function AdminOverview({ searchParams }) {
       .from("funds")
       .select("id, title, status")
       .order("created_at", { ascending: false }),
-    supabase.from("fund_contributions").select("fund_id, amount_coins"),
+    supabase.rpc("fund_totals"),
   ]);
 
   const totalBalance = users?.reduce((sum, u) => sum + u.balance, 0) ?? 0;
+
+  const fundTotals = {};
+  (fundTotalsRows ?? []).forEach((row) => {
+    fundTotals[row.fund_id] = row.total;
+  });
 
   // Коины, лежащие в активных копилках, тоже в обороте — это те же деньги,
   // просто отложенные. Закрытые копилки уже потрачены/возвращены.
   const activeFundIds = new Set(
     (funds ?? []).filter((f) => f.status === "active").map((f) => f.id)
   );
-  const coinsInFunds =
-    fundContributions
-      ?.filter((c) => activeFundIds.has(c.fund_id))
-      .reduce((sum, c) => sum + c.amount_coins, 0) ?? 0;
+  const coinsInFunds = (funds ?? [])
+    .filter((f) => activeFundIds.has(f.id))
+    .reduce((sum, f) => sum + (fundTotals[f.id] ?? 0), 0);
   const coinsInCirculation = totalBalance + coinsInFunds;
 
-  const totalSpent =
-    spentPurchases?.reduce((sum, p) => sum + p.price_coins, 0) ?? 0;
+  const totalSpent = typeof totalSpentRpc === "number" ? totalSpentRpc : 0;
 
   const remainingBudget =
     (topups?.reduce((sum, t) => sum + t.amount_kzt, 0) ?? 0) -
     (budgetExpenses?.reduce((sum, e) => sum + e.actual_kzt_amount, 0) ?? 0);
 
-  const fundTotals = {};
-  fundContributions?.forEach((c) => {
-    fundTotals[c.fund_id] = (fundTotals[c.fund_id] ?? 0) + c.amount_coins;
+  const earnedMap = await getEarnedMap(supabase, (users ?? []).map((u) => u.id), {
+    start,
+    end,
   });
 
   return (
@@ -228,8 +228,8 @@ export default async function AdminOverview({ searchParams }) {
                 {u.balance.toLocaleString("ru-RU")}
               </p>
               <p className="text-xs text-gray-500 tabular-nums">
-                всего {u.total_earned.toLocaleString("ru-RU")} · месяц{" "}
-                {u.month_earned.toLocaleString("ru-RU")}
+                всего {u.total_earned.toLocaleString("ru-RU")} · за месяц{" "}
+                {(earnedMap[u.id] ?? 0).toLocaleString("ru-RU")}
               </p>
             </div>
           </div>

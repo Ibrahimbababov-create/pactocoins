@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import EmployeesClient from "@/components/EmployeesClient";
+import { getMonthEarnedMap } from "@/lib/earnings";
 
 export default async function EmployeesPage() {
   const supabase = createClient();
@@ -32,8 +33,11 @@ export default async function EmployeesPage() {
     ((obByUser[p.user_id] ||= { 1: 0, 2: 0, 3: 0 })[day])++;
   }
 
+  const monthEarnedMap = await getMonthEarnedMap(supabase, (users ?? []).map((u) => u.id));
+
   const usersWithGoals = (users ?? []).map((u) => ({
     ...u,
+    month_earned: monthEarnedMap[u.id] ?? 0,
     goal: goalByUser[u.id] ?? null,
     onboarding:
       u.role === "trainee"

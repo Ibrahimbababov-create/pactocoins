@@ -52,23 +52,23 @@ export async function mergeAccounts(oldUserId, newUserId) {
     return { error: "Аккаунт не найден" };
   }
 
-  // Переносим баланс и статистику на новый аккаунт
+  // Переносим баланс на новый аккаунт
   await admin
     .from("users")
     .update({
       balance: newUser.balance + oldUser.balance,
-      total_earned: newUser.total_earned + oldUser.total_earned,
-      month_earned: newUser.month_earned + oldUser.month_earned,
     })
     .eq("id", newUserId);
 
-  await checkAndApplyLevelUp(newUserId, admin);
-
-  // Переносим всю историю и заявки на новый id
+  // Переносим всю историю и заявки на новый id — total_earned на обоих
+  // аккаунтах пересчитывается сам, триггером на transactions, как только
+  // меняется владелец строки.
   await admin
     .from("transactions")
     .update({ user_id: newUserId })
     .eq("user_id", oldUserId);
+
+  await checkAndApplyLevelUp(newUserId, admin);
 
   await admin
     .from("revenue_requests")

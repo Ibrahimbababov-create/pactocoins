@@ -73,8 +73,6 @@ export async function createMop(formData) {
     role,
     level: role === "trainee" ? 0 : 1,
     balance: 0,
-    total_earned: 0,
-    month_earned: 0,
   });
 
   if (insertError) return { error: insertError.message };
@@ -132,29 +130,19 @@ export async function manualAdjustBalance(userId, amount, description) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance, total_earned, month_earned")
+    .select("balance")
     .eq("id", userId)
     .single();
 
   const newBalance = profile.balance + amount;
   if (newBalance < 0) return { error: "Баланс не может уйти в минус" };
 
-  const update = { balance: newBalance };
-  if (amount > 0) {
-    update.total_earned = profile.total_earned + amount;
-    update.month_earned = profile.month_earned + amount;
-  }
-
   const { error: updateError } = await admin
     .from("users")
-    .update(update)
+    .update({ balance: newBalance })
     .eq("id", userId);
 
   if (updateError) return { error: updateError.message };
-
-  if (amount > 0) {
-    await checkAndApplyLevelUp(userId, admin);
-  }
 
   await admin.from("transactions").insert({
     user_id: userId,
@@ -162,6 +150,10 @@ export async function manualAdjustBalance(userId, amount, description) {
     amount_coins: amount,
     description: description || "Ручная корректировка",
   });
+
+  if (amount > 0) {
+    await checkAndApplyLevelUp(userId, admin);
+  }
 
   revalidatePath("/admin/employees");
   revalidatePath("/admin");
@@ -186,7 +178,7 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance, total_earned, month_earned, coin_rate_multiplier")
+    .select("balance, coin_rate_multiplier")
     .eq("id", request.user_id)
     .single();
 
@@ -202,14 +194,10 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     .from("users")
     .update({
       balance: profile.balance + coins,
-      total_earned: profile.total_earned + coins,
-      month_earned: profile.month_earned + coins,
     })
     .eq("id", request.user_id);
 
   if (updateUserError) return { error: updateUserError.message };
-
-  await checkAndApplyLevelUp(request.user_id, admin);
 
   await admin
     .from("revenue_requests")
@@ -243,6 +231,8 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
   }
 
   await admin.from("transactions").insert(transactionPayload);
+
+  await checkAndApplyLevelUp(request.user_id, admin);
 
   const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} coins`;
   await notifyUser(
@@ -318,7 +308,7 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance, total_earned, month_earned")
+    .select("balance")
     .eq("id", request.user_id)
     .single();
 
@@ -326,8 +316,6 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
     .from("users")
     .update({
       balance: profile.balance - coins,
-      total_earned: profile.total_earned - coins,
-      month_earned: profile.month_earned - coins,
     })
     .eq("id", request.user_id);
 
@@ -616,7 +604,7 @@ export async function approveBonusRequest(requestId, comment) {
   if (!spinOnly) {
     const { data: profile } = await admin
       .from("users")
-      .select("balance, total_earned, month_earned")
+      .select("balance")
       .eq("id", request.user_id)
       .single();
 
@@ -624,12 +612,8 @@ export async function approveBonusRequest(requestId, comment) {
       .from("users")
       .update({
         balance: profile.balance + coins,
-        total_earned: profile.total_earned + coins,
-        month_earned: profile.month_earned + coins,
       })
       .eq("id", request.user_id);
-
-    await checkAndApplyLevelUp(request.user_id, admin);
   }
 
   await admin
@@ -650,6 +634,8 @@ export async function approveBonusRequest(requestId, comment) {
       description: `Бонус: ${request.category}`,
       created_by: admin_user.id,
     });
+
+    await checkAndApplyLevelUp(request.user_id, admin);
 
     const bonusText = `✅ Заявка на бонус одобрена — +${coins} coins`;
     await notifyUser(
@@ -753,7 +739,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
   } else if (coins) {
     const { data: profile } = await admin
       .from("users")
-      .select("balance, total_earned, month_earned")
+      .select("balance")
       .eq("id", request.user_id)
       .single();
 
@@ -761,8 +747,6 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
       .from("users")
       .update({
         balance: profile.balance - coins,
-        total_earned: profile.total_earned - coins,
-        month_earned: profile.month_earned - coins,
       })
       .eq("id", request.user_id);
 
@@ -844,7 +828,7 @@ export async function awardTopPerformers(period) {
 
     const { data: profile } = await admin
       .from("users")
-      .select("balance, total_earned, month_earned")
+      .select("balance")
       .eq("id", userId)
       .single();
 
@@ -852,12 +836,8 @@ export async function awardTopPerformers(period) {
       .from("users")
       .update({
         balance: profile.balance + prize,
-        total_earned: profile.total_earned + prize,
-        month_earned: profile.month_earned + prize,
       })
       .eq("id", userId);
-
-    await checkAndApplyLevelUp(userId, admin);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -865,6 +845,8 @@ export async function awardTopPerformers(period) {
       amount_coins: prize,
       description: labels[i],
     });
+
+    await checkAndApplyLevelUp(userId, admin);
   }
 
   revalidatePath("/admin");
@@ -883,7 +865,7 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
   for (const userId of userIds) {
     const { data: profile } = await admin
       .from("users")
-      .select("balance, total_earned, month_earned")
+      .select("balance")
       .eq("id", userId)
       .single();
 
@@ -892,17 +874,7 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
     const newBalance = profile.balance + amount;
     if (newBalance < 0) continue;
 
-    const update = { balance: newBalance };
-    if (amount > 0) {
-      update.total_earned = profile.total_earned + amount;
-      update.month_earned = profile.month_earned + amount;
-    }
-
-    await admin.from("users").update(update).eq("id", userId);
-
-    if (amount > 0) {
-      await checkAndApplyLevelUp(userId, admin);
-    }
+    await admin.from("users").update({ balance: newBalance }).eq("id", userId);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -910,6 +882,10 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
       amount_coins: amount,
       description: description || "Массовое начисление",
     });
+
+    if (amount > 0) {
+      await checkAndApplyLevelUp(userId, admin);
+    }
 
     successCount++;
   }
@@ -933,7 +909,7 @@ export async function resetAllStats() {
 
   await admin
     .from("users")
-    .update({ balance: 0, total_earned: 0, month_earned: 0, last_level_id: 1 })
+    .update({ balance: 0, total_earned: 0, last_level_id: 1 })
     .eq("role", "mop")
     .eq("is_active", true)
     .eq("is_guest", false);
@@ -962,7 +938,7 @@ export async function resetUserStats(userId) {
 
   await admin
     .from("users")
-    .update({ balance: 0, total_earned: 0, month_earned: 0, last_level_id: 1 })
+    .update({ balance: 0, total_earned: 0, last_level_id: 1 })
     .eq("id", userId);
 
   revalidatePath("/admin");

@@ -14,6 +14,7 @@ import { recordTeamEvent } from "@/lib/teamEvents";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
+import { getMonthEarned } from "@/lib/earnings";
 
 export default async function MopDashboard({ searchParams }) {
   const supabase = createClient();
@@ -66,6 +67,8 @@ export default async function MopDashboard({ searchParams }) {
 
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
+
+  const monthEarned = await getMonthEarned(supabase, user.id);
 
   // Админ может заглянуть в стажёрский экран (?as=trainee) — только чтобы
   // проверить, как он выглядит, роль в базе при этом не меняется.
@@ -173,7 +176,7 @@ export default async function MopDashboard({ searchParams }) {
         userId={user.id}
         initialBalance={profile?.balance ?? 0}
         initialTotalEarned={profile?.total_earned ?? 0}
-        initialMonthEarned={profile?.month_earned ?? 0}
+        initialMonthEarned={monthEarned}
       />
 
       <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />

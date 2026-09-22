@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { redirect } from "next/navigation";
 import TeamManageClient from "@/components/TeamManageClient";
+import { getMonthEarnedMap } from "@/lib/earnings";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function TeamPage() {
   const [{ data: mops }, { data: obBlocks }, { data: obProgress }] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, role, rop_id, total_earned, month_earned")
+      .select("id, name, role, rop_id, total_earned")
       .in("role", ["mop", "trainee"])
       .eq("is_active", true)
       .eq("is_guest", false)
@@ -37,6 +38,8 @@ export default async function TeamPage() {
       .in("kind", ["article", "test"]),
     admin.from("onboarding_progress").select("user_id, block_id"),
   ]);
+
+  const monthEarnedMap = await getMonthEarnedMap(admin, (mops ?? []).map((m) => m.id));
 
   const dayOfBlock = Object.fromEntries((obBlocks ?? []).map((b) => [b.id, b.day]));
   const totalByDay = { 1: 0, 2: 0, 3: 0 };
@@ -51,6 +54,7 @@ export default async function TeamPage() {
 
   const withProgress = (m) => ({
     ...m,
+    month_earned: monthEarnedMap[m.id] ?? 0,
     onboarding:
       m.role === "trainee"
         ? { done: progressByUser[m.id] ?? { 1: 0, 2: 0, 3: 0 }, total: totalByDay }

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
+import { getMonthEarned } from "@/lib/earnings";
 
 export default async function EmployeeHistoryPage({ params }) {
   const supabase = createClient();
@@ -20,6 +21,8 @@ export default async function EmployeeHistoryPage({ params }) {
   if (!employee) {
     return <p className="text-gray-500">Сотрудник не найден</p>;
   }
+
+  const monthEarned = await getMonthEarned(supabase, id);
 
   return (
     <div className="space-y-6">
@@ -45,7 +48,7 @@ export default async function EmployeeHistoryPage({ params }) {
         </div>
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
           <p className="text-xs text-gray-500">За этот месяц</p>
-          <p className="text-2xl font-bold">{employee.month_earned}</p>
+          <p className="text-2xl font-bold">{monthEarned}</p>
         </div>
       </div>
 

@@ -47,7 +47,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
 
     const { data: profile } = await admin
       .from("users")
-      .select("name, balance, total_earned, month_earned")
+      .select("name, balance")
       .eq("id", userId)
       .single();
     if (!profile) continue;
@@ -56,12 +56,8 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
       .from("users")
       .update({
         balance: profile.balance + amt,
-        total_earned: profile.total_earned + amt,
-        month_earned: profile.month_earned + amt,
       })
       .eq("id", userId);
-
-    await checkAndApplyLevelUp(userId, admin);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -70,6 +66,8 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
       description: reason || `Топ-3 ${periodPhrase}`,
       rating_exempt: true,
     });
+
+    await checkAndApplyLevelUp(userId, admin);
 
     await notifyUser(
       admin,
@@ -123,29 +121,19 @@ export async function manualAdjustBalanceExempt(
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance, total_earned, month_earned")
+    .select("balance")
     .eq("id", userId)
     .single();
 
   const newBalance = profile.balance + amount;
   if (newBalance < 0) return { error: "Баланс не может уйти в минус" };
 
-  const update = { balance: newBalance };
-  if (amount > 0) {
-    update.total_earned = profile.total_earned + amount;
-    update.month_earned = profile.month_earned + amount;
-  }
-
   const { error: updateError } = await admin
     .from("users")
-    .update(update)
+    .update({ balance: newBalance })
     .eq("id", userId);
 
   if (updateError) return { error: updateError.message };
-
-  if (amount > 0) {
-    await checkAndApplyLevelUp(userId, admin);
-  }
 
   await admin.from("transactions").insert({
     user_id: userId,
@@ -154,6 +142,10 @@ export async function manualAdjustBalanceExempt(
     description: description || "Ручная корректировка",
     rating_exempt: !!ratingExempt,
   });
+
+  if (amount > 0) {
+    await checkAndApplyLevelUp(userId, admin);
+  }
 
   revalidatePath("/admin/employees");
   revalidatePath("/admin");
@@ -175,7 +167,7 @@ export async function manualAdjustBalanceBulkExempt(
   for (const userId of userIds) {
     const { data: profile } = await admin
       .from("users")
-      .select("balance, total_earned, month_earned")
+      .select("balance")
       .eq("id", userId)
       .single();
 
@@ -184,17 +176,7 @@ export async function manualAdjustBalanceBulkExempt(
     const newBalance = profile.balance + amount;
     if (newBalance < 0) continue;
 
-    const update = { balance: newBalance };
-    if (amount > 0) {
-      update.total_earned = profile.total_earned + amount;
-      update.month_earned = profile.month_earned + amount;
-    }
-
-    await admin.from("users").update(update).eq("id", userId);
-
-    if (amount > 0) {
-      await checkAndApplyLevelUp(userId, admin);
-    }
+    await admin.from("users").update({ balance: newBalance }).eq("id", userId);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -203,6 +185,10 @@ export async function manualAdjustBalanceBulkExempt(
       description: description || "Массовое начисление",
       rating_exempt: !!ratingExempt,
     });
+
+    if (amount > 0) {
+      await checkAndApplyLevelUp(userId, admin);
+    }
 
     successCount++;
   }
@@ -235,7 +221,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
   if (!spinOnly) {
     const { data: profile } = await admin
       .from("users")
-      .select("balance, total_earned, month_earned")
+      .select("balance")
       .eq("id", request.user_id)
       .single();
 
@@ -243,12 +229,8 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       .from("users")
       .update({
         balance: profile.balance + coins,
-        total_earned: profile.total_earned + coins,
-        month_earned: profile.month_earned + coins,
       })
       .eq("id", request.user_id);
-
-    await checkAndApplyLevelUp(request.user_id, admin);
   }
 
   await admin
@@ -270,6 +252,8 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       created_by: admin_user.id,
       rating_exempt: !!ratingExempt,
     });
+
+    await checkAndApplyLevelUp(request.user_id, admin);
 
     const bonusText = `✅ Заявка на бонус одобрена — +${coins} coins`;
     await notifyUser(

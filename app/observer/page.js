@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getMonthEarnedMap } from "@/lib/earnings";
 
 export default async function ObserverOverview() {
   const supabase = createClient();
@@ -9,7 +10,7 @@ export default async function ObserverOverview() {
     { count: pendingBonus },
     { count: pendingPurchases },
     { data: funds },
-    { data: fundContributions },
+    { data: fundTotalsRows },
   ] = await Promise.all([
     supabase
       .from("users")
@@ -32,19 +33,26 @@ export default async function ObserverOverview() {
       .select("*", { count: "exact", head: true })
       .eq("status", "pending"),
     supabase.from("funds").select("id, status"),
-    supabase.from("fund_contributions").select("fund_id, amount_coins"),
+    supabase.rpc("fund_totals"),
   ]);
+
+  const fundTotals = {};
+  (fundTotalsRows ?? []).forEach((row) => {
+    fundTotals[row.fund_id] = row.total;
+  });
 
   const activeFundIds = new Set(
     (funds ?? []).filter((f) => f.status === "active").map((f) => f.id)
   );
-  const coinsInFunds =
-    fundContributions
-      ?.filter((c) => activeFundIds.has(c.fund_id))
-      .reduce((sum, c) => sum + c.amount_coins, 0) ?? 0;
+  const coinsInFunds = [...activeFundIds].reduce(
+    (sum, id) => sum + (fundTotals[id] ?? 0),
+    0
+  );
 
   const totalBalance =
     (users?.reduce((sum, u) => sum + u.balance, 0) ?? 0) + coinsInFunds;
+
+  const earnedMap = await getMonthEarnedMap(supabase, (users ?? []).map((u) => u.id));
 
   return (
     <div className="space-y-6">
@@ -108,8 +116,8 @@ export default async function ObserverOverview() {
                 {u.balance.toLocaleString("ru-RU")}
               </p>
               <p className="text-xs text-gray-500 tabular-nums">
-                всего {u.total_earned.toLocaleString("ru-RU")} · месяц{" "}
-                {u.month_earned.toLocaleString("ru-RU")}
+                всего {u.total_earned.toLocaleString("ru-RU")} · за месяц{" "}
+                {(earnedMap[u.id] ?? 0).toLocaleString("ru-RU")}
               </p>
             </div>
           </div>

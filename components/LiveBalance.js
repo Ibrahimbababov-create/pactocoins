@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import { haptic } from "@/lib/haptics";
+import { monthRangeAlmaty, currentMonthKeyAlmaty } from "@/lib/timezone";
 
 // Плавный счётчик от прошлого значения к новому.
 function useCountUp(target, duration = 650) {
@@ -71,19 +72,30 @@ export default function LiveBalance({
             const delta = payload.new?.amount_coins ?? 0;
             if (!delta || !alive) return;
 
-            // Источник правды — перечитываем строку пользователя.
-            const { data: fresh } = await supabase
-              .from("users")
-              .select("balance, total_earned, month_earned")
-              .eq("id", userId)
-              .single();
+            // Источник правды — перечитываем строку пользователя (баланс,
+            // всего заработано) и агрегат по транзакциям текущего месяца
+            // (month_earned как отдельная колонка больше не существует —
+            // она никогда не обнулялась и всегда совпадала с total_earned).
+            const { start, end } = monthRangeAlmaty(currentMonthKeyAlmaty());
+            const [{ data: fresh }, { data: monthRows }] = await Promise.all([
+              supabase
+                .from("users")
+                .select("balance, total_earned")
+                .eq("id", userId)
+                .single(),
+              supabase.rpc("earned_in_range", {
+                p_user_ids: [userId],
+                p_start: start,
+                p_end: end,
+              }),
+            ]);
 
             if (!alive) return;
 
             if (fresh) {
               setBalance(fresh.balance);
               setTotalEarned(fresh.total_earned);
-              setMonthEarned(fresh.month_earned);
+              setMonthEarned(monthRows?.[0]?.total ?? 0);
             } else {
               setBalance((b) => b + delta);
             }
