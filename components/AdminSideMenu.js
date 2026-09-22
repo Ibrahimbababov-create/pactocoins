@@ -9,6 +9,12 @@ import Icon from "@/components/Icon";
 
 const ITEMS = [
   { href: "/admin/rewards", label: "Магазин наград", icon: "bag" },
+  {
+    href: "/admin/reward-suggestions",
+    label: "Предложения в магазин",
+    icon: "sparkle",
+    badgeKey: "pendingSuggestions",
+  },
   { href: "/admin/funds", label: "Копилки", icon: "piggy" },
   { href: "/admin/broadcast", label: "Рассылка", icon: "megaphone" },
   { href: "/admin/merge-accounts", label: "Слияние аккаунтов", icon: "link" },
@@ -21,10 +27,14 @@ const ITEMS = [
   },
 ];
 
-export default function AdminSideMenu({ unreadMessages = 0, unreadBotMessages = 0 }) {
+export default function AdminSideMenu({
+  unreadMessages = 0,
+  unreadBotMessages = 0,
+  pendingSuggestions = 0,
+}) {
   const [open, setOpen] = useState(false);
-  const totalUnread = unreadMessages + unreadBotMessages;
-  const badges = { unreadMessages, unreadBotMessages };
+  const totalUnread = unreadMessages + unreadBotMessages + pendingSuggestions;
+  const badges = { unreadMessages, unreadBotMessages, pendingSuggestions };
 
   return (
     <>

@@ -8,6 +8,7 @@ import AddToHomeScreen from "@/components/AddToHomeScreen";
 import Icon from "@/components/Icon";
 
 const ITEMS = [
+  { href: "/mop/materials", label: "Регламенты и обучение", icon: "sparkle" },
   { href: "/mop/wheel", label: "Колесо фортуны", icon: "wheel" },
   { href: "/mop/stats", label: "Моя динамика", icon: "chart" },
   { href: "/mop/settings", label: "Настройки", icon: "settings" },

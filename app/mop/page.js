@@ -15,7 +15,7 @@ import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 
-export default async function MopDashboard() {
+export default async function MopDashboard({ searchParams }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -67,7 +67,10 @@ export default async function MopDashboard() {
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
 
-  const isTrainee = profile?.role === "trainee";
+  // Админ может заглянуть в стажёрский экран (?as=trainee) — только чтобы
+  // проверить, как он выглядит, роль в базе при этом не меняется.
+  const previewTrainee = profile?.role === "admin" && searchParams?.as === "trainee";
+  const isTrainee = profile?.role === "trainee" || previewTrainee;
   let ropName = null;
   let onboardingDays = null;
   if (isTrainee) {

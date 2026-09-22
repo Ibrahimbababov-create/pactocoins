@@ -7,6 +7,7 @@ import { getEffectivePrice } from "@/lib/rewardPricing";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { spendCoins } from "@/lib/spendCoins";
+import { escapeHtml } from "@/lib/notifyUser";
 
 async function notifyPurchaseGroup(admin, purchaseId, employeeName, text) {
   const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
@@ -203,4 +204,56 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
   revalidatePath("/observer/shop");
 
   return { success: true, priceCoins };
+}
+
+// ---------- Свои предложения в магазин ----------
+
+export async function submitRewardSuggestion(title, priceCoins, description, imageUrl) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Не авторизован" };
+
+  const cleanTitle = (title || "").trim();
+  if (!cleanTitle) return { error: "Укажи название" };
+
+  const price = Math.floor(Number(priceCoins));
+  if (!price || price <= 0) return { error: "Укажи цену в coins" };
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("name")
+    .eq("id", user.id)
+    .single();
+
+  const { error } = await supabase.from("reward_suggestions").insert({
+    user_id: user.id,
+    title: cleanTitle,
+    price_coins: price,
+    description: (description || "").trim() || null,
+    image_url: imageUrl || null,
+  });
+
+  if (error) return { error: "Не удалось отправить предложение" };
+
+  const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+  if (groupChatId) {
+    const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID
+      ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)
+      : undefined;
+    await sendTelegramMessage(
+      groupChatId,
+      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${price} coins${
+        description ? `\n${escapeHtml(description)}` : ""
+      }\n\nПосмотреть: https://pactocoins.vercel.app/admin/reward-suggestions`,
+      undefined,
+      threadId
+    );
+  }
+
+  revalidatePath("/mop/shop");
+  revalidatePath("/admin/reward-suggestions");
+  return { success: true };
 }

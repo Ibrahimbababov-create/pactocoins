@@ -90,14 +90,34 @@ export default async function AdminOverview({ searchParams }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Обзор</h1>
-        <Link
-          href="/mop"
-          className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
-        >
-          👁 Открыть как МОП
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/mop"
+            className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-xs"
+          >
+            👁 МОП
+          </Link>
+          <Link
+            href="/mop/team"
+            className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs"
+          >
+            👁 РОП
+          </Link>
+          <Link
+            href="/observer"
+            className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs"
+          >
+            👁 Наблюдатель
+          </Link>
+          <Link
+            href="/mop?as=trainee"
+            className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs"
+          >
+            👁 Стажёр
+          </Link>
+        </div>
       </div>
 
       <Link

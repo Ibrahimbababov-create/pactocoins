@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
-import { purchaseReward, purchaseVariableReward } from "@/app/mop/shop/actions";
+import { useRef, useState, useTransition, useMemo } from "react";
+import {
+  purchaseReward,
+  purchaseVariableReward,
+  submitRewardSuggestion,
+} from "@/app/mop/shop/actions";
+import { uploadRewardSuggestionPhoto } from "@/lib/uploadRewardSuggestionPhoto";
 import { getEffectivePrice } from "@/lib/rewardPricing";
 import { haptic } from "@/lib/haptics";
 
@@ -23,6 +28,131 @@ function slugify(text) {
   return "cat-" + text.replace(/[^a-zA-Zа-яА-Я0-9]+/g, "-").toLowerCase();
 }
 
+function SuggestForm({ onDone }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [msg, setMsg] = useState(null);
+  const inputRef = useRef(null);
+
+  function reset() {
+    setTitle("");
+    setPrice("");
+    setDescription("");
+    setPhoto(null);
+  }
+
+  function submit() {
+    setMsg(null);
+    startTransition(async () => {
+      let imageUrl = null;
+      if (photo) {
+        setUploading(true);
+        const up = await uploadRewardSuggestionPhoto(photo);
+        setUploading(false);
+        if (up.error) {
+          setMsg(up.error);
+          return;
+        }
+        imageUrl = up.url;
+      }
+      const res = await submitRewardSuggestion(title, price, description, imageUrl);
+      if (res.error) {
+        setMsg(res.error);
+      } else {
+        reset();
+        setOpen(false);
+        onDone();
+      }
+    });
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full rounded-xl border border-dashed border-dark-600 py-3 text-sm text-gray-400 hover:border-acid-400 hover:text-acid-400 transition"
+      >
+        + Предложить свою награду
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-dark-800 border border-dark-600 rounded-xl p-4 space-y-2">
+      <p className="text-sm font-semibold">Предложить свою награду</p>
+      <p className="text-xs text-gray-500">
+        Админ увидит и решит — добавлять или нет.
+      </p>
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Название"
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+      />
+      <input
+        type="number"
+        min="1"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+        placeholder="Цена в coins"
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+      />
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        rows={2}
+        placeholder="Описание (необязательно)"
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="text-xs bg-dark-700 text-gray-300 rounded-lg px-3 py-2"
+        >
+          {uploading ? "Загрузка…" : photo ? `📎 ${photo.name}` : "📎 Фото"}
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) setPhoto(f);
+          }}
+        />
+      </div>
+      {msg && <p className="text-xs text-red-400">{msg}</p>}
+      <div className="flex gap-2 pt-1">
+        <button
+          onClick={submit}
+          disabled={pending || uploading || !title.trim() || !price}
+          className="flex-1 rounded-lg py-2 text-sm font-bold bg-acid-400 text-black disabled:opacity-40"
+        >
+          {pending ? "Отправляю…" : "Отправить"}
+        </button>
+        <button
+          onClick={() => {
+            reset();
+            setOpen(false);
+          }}
+          className="rounded-lg px-4 py-2 text-sm bg-dark-700 text-gray-400"
+        >
+          Отмена
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ShopClient({ grouped, balance }) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null);
@@ -32,6 +162,7 @@ export default function ShopClient({ grouped, balance }) {
   const [kztInputs, setKztInputs] = useState({});
   const [confirmingVariable, setConfirmingVariable] = useState(null);
   const [query, setQuery] = useState("");
+  const [openCategories, setOpenCategories] = useState({});
 
   // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер
   const filteredGrouped = useMemo(() => {
@@ -128,11 +259,20 @@ export default function ShopClient({ grouped, balance }) {
   }
 
   function scrollToCategory(category) {
-    const el = document.getElementById(slugify(category));
-    if (el) {
-      const y = el.getBoundingClientRect().top + window.scrollY - 64;
-      window.scrollTo({ top: y, behavior: "smooth" });
-    }
+    setOpenCategories((prev) => ({ ...prev, [category]: true }));
+    // Категория ещё не раскрыта в DOM в этот же тик — ждём кадр, иначе
+    // scrollIntoView целится в высоту схлопнутой секции.
+    requestAnimationFrame(() => {
+      const el = document.getElementById(slugify(category));
+      if (el) {
+        const y = el.getBoundingClientRect().top + window.scrollY - 64;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    });
+  }
+
+  function toggleCategory(category) {
+    setOpenCategories((prev) => ({ ...prev, [category]: !prev[category] }));
   }
 
   const categories = Object.keys(filteredGrouped);
@@ -156,6 +296,13 @@ export default function ShopClient({ grouped, balance }) {
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Поиск по магазину..."
         className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-acid-400"
+      />
+
+      <SuggestForm
+        onDone={() => {
+          setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
+          setTimeout(() => setMessage(null), 3000);
+        }}
       />
 
       {isSearching && categories.length === 0 && (
@@ -193,13 +340,32 @@ export default function ShopClient({ grouped, balance }) {
         </div>
       )}
 
-      {categories.map((category) => (
+      {categories.map((category) => {
+        const isOpen = isSearching || !!openCategories[category];
+        return (
         <div
           key={category}
           id={slugify(category)}
           className="space-y-3 scroll-mt-16"
         >
-          <p className="text-sm text-gray-500">{category}</p>
+          <button
+            onClick={() => toggleCategory(category)}
+            disabled={isSearching}
+            className="w-full flex items-center justify-between gap-2 text-left disabled:cursor-default"
+          >
+            <span className="text-sm font-semibold text-gray-300">
+              {category}{" "}
+              <span className="text-gray-600 font-normal">
+                ({filteredGrouped[category].length})
+              </span>
+            </span>
+            {!isSearching && (
+              <span className="text-gray-500 text-xs shrink-0">
+                {isOpen ? "▾ свернуть" : "▸ открыть"}
+              </span>
+            )}
+          </button>
+          {isOpen && (
           <div className="grid grid-cols-2 gap-3">
             {filteredGrouped[category].map((reward) => {
               const isPurchased = purchasedIds.has(reward.id);
@@ -385,8 +551,10 @@ export default function ShopClient({ grouped, balance }) {
               );
             })}
           </div>
+          )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
