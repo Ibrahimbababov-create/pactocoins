@@ -73,7 +73,12 @@ export default function PurchaseRequestsClient({ purchases }) {
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-semibold">{p.rewards?.title}</p>
+                <p className="font-semibold">
+                  {p.rewards?.title}
+                  {p.variant_label && (
+                    <span className="text-gray-400 font-normal"> — {p.variant_label}</span>
+                  )}
+                </p>
                 <p className="text-sm text-gray-500">
                   {p.users?.name}
                   {p.users?.is_guest

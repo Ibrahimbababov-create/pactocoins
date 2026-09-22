@@ -9,7 +9,7 @@ export default async function ShopPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: categories }, { data: rewards }] =
+  const [{ data: profile }, { data: categories }, { data: rewards }, { data: variants }] =
     await Promise.all([
       supabase.from("users").select("balance").eq("id", user.id).single(),
       supabase
@@ -23,7 +23,13 @@ export default async function ShopPage() {
         .eq("is_active", true)
         .order("sort_order")
         .order("price_coins"),
+      supabase.from("reward_variants").select("*").order("sort_order"),
     ]);
+
+  const variantsByReward = {};
+  variants?.forEach((v) => {
+    (variantsByReward[v.reward_id] ||= []).push(v);
+  });
 
   const grouped = {};
   categories?.forEach((c) => {
@@ -32,7 +38,7 @@ export default async function ShopPage() {
 
   rewards?.forEach((r) => {
     if (!grouped[r.category]) grouped[r.category] = [];
-    grouped[r.category].push(r);
+    grouped[r.category].push({ ...r, variants: variantsByReward[r.id] ?? [] });
   });
 
   // Убираем пустые категории из отображения

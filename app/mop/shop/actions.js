@@ -122,6 +122,88 @@ export async function purchaseReward(rewardId) {
   return { success: true };
 }
 
+// Награда с вариантами (барбер по бюджету, сертификаты по номиналу и т.п.) —
+// сама карточка одна, цену определяет выбранный внутри вариант.
+export async function purchaseRewardVariant(variantId) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Не авторизован" };
+
+  const admin = createAdminClient();
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("name, balance, is_guest")
+    .eq("id", user.id)
+    .single();
+
+  const { data: variant } = await admin
+    .from("reward_variants")
+    .select("*, rewards(*)")
+    .eq("id", variantId)
+    .single();
+
+  if (!variant || !variant.rewards || !variant.rewards.is_active) {
+    return { error: "Награда недоступна" };
+  }
+
+  const reward = variant.rewards;
+  const price = variant.price_coins;
+
+  const spent = await spendCoins(admin, user.id, price);
+  if (!spent.ok) return { error: spent.error };
+
+  const { data: inserted, error: purchaseError } = await admin
+    .from("purchase_requests")
+    .insert({
+      user_id: user.id,
+      reward_id: reward.id,
+      price_coins: price,
+      variant_label: variant.label,
+      status: "pending",
+    })
+    .select()
+    .single();
+
+  if (purchaseError) return { error: "Ошибка создания заявки" };
+
+  await admin.from("transactions").insert({
+    user_id: user.id,
+    type: "spend",
+    amount_coins: -price,
+    description: `Покупка: ${reward.title} — ${variant.label}`,
+    created_by: user.id,
+  });
+
+  if (!profile?.is_guest) {
+    await recordTeamEvent(admin, {
+      userId: user.id,
+      userName: profile?.name ?? "Кто-то",
+      kind: "purchase",
+      title: `${reward.title} — ${variant.label}`,
+      icon: "🛍",
+    });
+  }
+
+  await notifyPurchaseGroup(
+    admin,
+    inserted.id,
+    profile?.name ?? "МОП",
+    `Награда: ${reward.title} — ${variant.label}\nЦена: ${price} coins`
+  );
+
+  revalidatePath("/mop");
+  revalidatePath("/mop/shop");
+  revalidatePath("/mop/purchases");
+  revalidatePath("/observer");
+  revalidatePath("/observer/shop");
+
+  return { success: true };
+}
+
 export async function purchaseVariableReward(rewardId, kztAmount) {
   const supabase = createClient();
   const {

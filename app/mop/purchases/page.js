@@ -40,7 +40,12 @@ export default async function PurchasesPage() {
               className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between"
             >
               <div>
-                <p className="font-semibold">{p.rewards?.title}</p>
+                <p className="font-semibold">
+                  {p.rewards?.title}
+                  {p.variant_label && (
+                    <span className="text-gray-400 font-normal"> — {p.variant_label}</span>
+                  )}
+                </p>
                 <p className="text-xs text-gray-500">
                   {p.price_coins} coins
                   {p.kzt_amount

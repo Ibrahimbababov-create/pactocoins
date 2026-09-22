@@ -4,6 +4,7 @@ import { useRef, useState, useTransition, useMemo } from "react";
 import {
   purchaseReward,
   purchaseVariableReward,
+  purchaseRewardVariant,
   submitRewardSuggestion,
 } from "@/app/mop/shop/actions";
 import { uploadRewardSuggestionPhoto } from "@/lib/uploadRewardSuggestionPhoto";
@@ -26,6 +27,104 @@ const GLOW_BORDERS = {
 
 function slugify(text) {
   return "cat-" + text.replace(/[^a-zA-Zа-яА-Я0-9]+/g, "-").toLowerCase();
+}
+
+// Карточка с вариантами внутри (барбер по бюджету, сертификаты по номиналу
+// и т.п.) — сначала выбираешь вариант кнопкой, потом обычный «Купить».
+function VariantCard({ reward, displayBalance, isPending, onBuy, isPurchased }) {
+  const [selected, setSelected] = useState(reward.variants[0]?.id ?? null);
+  const [confirming, setConfirming] = useState(false);
+
+  const variant = reward.variants.find((v) => v.id === selected) ?? reward.variants[0];
+  const canAfford = variant ? displayBalance >= variant.price_coins : false;
+
+  return (
+    <div
+      className={`bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between ${
+        reward.highlight_color ? GLOW_BORDERS[reward.highlight_color] : "border-dark-600"
+      }`}
+      style={
+        reward.highlight_color
+          ? { boxShadow: GLOW_STYLES[reward.highlight_color] }
+          : undefined
+      }
+    >
+      <div>
+        {reward.image_url && (
+          <img
+            src={reward.image_url}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="w-full h-24 object-cover rounded-lg mb-2"
+          />
+        )}
+        <p className="font-semibold text-sm leading-tight">{reward.title}</p>
+        {reward.description && (
+          <p className="text-xs text-gray-500 mt-1">{reward.description}</p>
+        )}
+      </div>
+
+      <div className="mt-3">
+        <div className="flex flex-wrap gap-1 mb-2">
+          {reward.variants.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => {
+                setSelected(v.id);
+                setConfirming(false);
+              }}
+              className={`text-[11px] rounded-full px-2 py-1 border ${
+                v.id === (variant?.id)
+                  ? "bg-acid-400 text-black border-acid-400 font-bold"
+                  : "border-dark-600 text-gray-400"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-acid-400 font-bold">{variant?.price_coins} coins</p>
+
+        {isPurchased ? (
+          <div
+            className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+            style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
+          >
+            ✅ Куплено
+          </div>
+        ) : !confirming ? (
+          <button
+            disabled={!canAfford}
+            onClick={() => {
+              haptic.light();
+              setConfirming(true);
+            }}
+            className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+          >
+            {canAfford ? "Купить" : "Не хватает"}
+          </button>
+        ) : (
+          <div className="flex gap-1 mt-2">
+            <button
+              onClick={() => onBuy(reward, variant)}
+              disabled={isPending}
+              className="flex-1 rounded-lg py-2 text-xs font-bold bg-acid-400 text-black"
+            >
+              Точно?
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              className="flex-1 rounded-lg py-2 text-xs bg-dark-700 text-gray-400"
+            >
+              Отмена
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function SuggestForm({ onDone }) {
@@ -199,6 +298,29 @@ export default function ShopClient({ grouped, balance }) {
         haptic.error();
       } else {
         setMessage({ type: "success", text: `Куплено: ${reward.title}` });
+        haptic.success();
+      }
+      setTimeout(() => setMessage(null), 3000);
+    });
+  }
+
+  function handleBuyVariant(reward, variant) {
+    setDisplayBalance((prev) => prev - variant.price_coins);
+    setPurchasedIds((prev) => new Set([...prev, reward.id]));
+
+    startTransition(async () => {
+      const res = await purchaseRewardVariant(variant.id);
+      if (res.error) {
+        setDisplayBalance((prev) => prev + variant.price_coins);
+        setPurchasedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(reward.id);
+          return next;
+        });
+        setMessage({ type: "error", text: res.error });
+        haptic.error();
+      } else {
+        setMessage({ type: "success", text: `Куплено: ${reward.title} — ${variant.label}` });
         haptic.success();
       }
       setTimeout(() => setMessage(null), 3000);
@@ -382,6 +504,19 @@ export default function ShopClient({ grouped, balance }) {
                 ? Number(kztValue) > 0 && displayBalance >= computedCoins
                 : displayBalance >= effectivePrice;
               const isConfirmingVariable = confirmingVariable === reward.id;
+
+              if (reward.variants && reward.variants.length > 0) {
+                return (
+                  <VariantCard
+                    key={reward.id}
+                    reward={reward}
+                    displayBalance={displayBalance}
+                    isPending={isPending}
+                    isPurchased={isPurchased}
+                    onBuy={handleBuyVariant}
+                  />
+                );
+              }
 
               return (
                 <div
