@@ -4,11 +4,29 @@
 
 html,
 body {
-  background-color: #0a0a0a;
-  color: #f2f2f2;
+  background-color: #07080a;
+  color: #f2f5ef;
   overflow-x: hidden;
   overscroll-behavior-x: none;
   max-width: 100vw;
+  font-family: var(--font-onest), system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-unbounded), var(--font-onest), system-ui, sans-serif;
+}
+
+/* Денежные и другие числа — моноширинные цифры шрифтом заголовков. */
+.tabular-nums {
+  font-family: var(--font-unbounded), var(--font-onest), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .no-scrollbar::-webkit-scrollbar {
