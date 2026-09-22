@@ -10,6 +10,7 @@ import {
 import { uploadRewardSuggestionPhoto } from "@/lib/uploadRewardSuggestionPhoto";
 import { getEffectivePrice } from "@/lib/rewardPricing";
 import { haptic } from "@/lib/haptics";
+import Icon from "@/components/Icon";
 
 const GLOW_STYLES = {
   gold: "0 0 24px rgba(250, 204, 21, 0.55)",
@@ -29,6 +30,35 @@ function slugify(text) {
   return "cat-" + text.replace(/[^a-zA-Zа-яА-Я0-9]+/g, "-").toLowerCase();
 }
 
+function fmtCoins(n) {
+  return Number(n || 0).toLocaleString("ru-RU");
+}
+
+// Эмодзи по ключевым словам в названии категории — чтобы новые категории
+// из админки сразу получали иконку без ручной правки маппинга.
+function categoryEmoji(category) {
+  const c = category.toLowerCase();
+  if (c.includes("больш")) return "🏆";
+  if (c.includes("техник")) return "💻";
+  if (c.includes("достав")) return "🛵";
+  if (c.includes("еда") || c.includes("напит")) return "🍔";
+  if (c.includes("куря")) return "🚬";
+  if (c.includes("машин")) return "🚗";
+  if (c.includes("транспорт") || c.includes("бензин")) return "⛽";
+  if (c.includes("сем")) return "👨‍👩‍👧";
+  if (c.includes("комфорт") || c.includes("гаджет")) return "🎧";
+  if (c.includes("секрет") || c.includes("особ")) return "🎁";
+  if (c.includes("обучен") || c.includes("развит")) return "📚";
+  if (c.includes("красот")) return "💅";
+  if (c.includes("мерч") || c.includes("аксессуар")) return "👕";
+  if (c.includes("сертификат")) return "🎫";
+  if (c.includes("привилег")) return "⭐";
+  if (c.includes("опыт") || c.includes("развлечен")) return "🎉";
+  if (c.includes("подписк") || c.includes("сервис")) return "📱";
+  if (c.includes("предложен")) return "💡";
+  return "🛍️";
+}
+
 // Карточка с вариантами внутри (барбер по бюджету, сертификаты по номиналу
 // и т.п.) — сначала выбираешь вариант строкой (название + своя цена сразу
 // видна), потом обычный «Купить». Есть и «Копить на это» — цель просто
@@ -42,7 +72,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
 
   return (
     <div
-      className={`bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between ${
+      className={`group bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between transition-colors hover:border-dark-500 ${
         reward.highlight_color ? GLOW_BORDERS[reward.highlight_color] : "border-dark-600"
       }`}
       style={
@@ -53,13 +83,15 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
     >
       <div>
         {reward.image_url && (
-          <img
-            src={reward.image_url}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="w-full h-24 object-cover rounded-lg mb-2"
-          />
+          <div className="w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
+            <img
+              src={reward.image_url}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          </div>
         )}
         <p className="font-semibold text-sm leading-tight">{reward.title}</p>
         {reward.description && (
@@ -93,7 +125,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
                 </span>
                 <span className="truncate">{v.label}</span>
               </span>
-              <span className="shrink-0 tabular-nums">{v.price_coins}</span>
+              <span className="shrink-0 tabular-nums">🪙 {fmtCoins(v.price_coins)}</span>
             </button>
           );
         })}
@@ -115,9 +147,9 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
                 haptic.light();
                 setConfirming(true);
               }}
-              className="w-full rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+              className="w-full rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 active:scale-[0.98] transition"
             >
-              {canAfford ? `Купить за ${variant?.price_coins}` : "Не хватает"}
+              {canAfford ? `Купить за 🪙 ${fmtCoins(variant?.price_coins)}` : "Не хватает"}
             </button>
             <button
               onClick={() => onSetGoal(reward, variant)}
@@ -196,9 +228,10 @@ function SuggestForm({ onDone }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full rounded-xl border border-dashed border-dark-600 py-3 text-sm text-gray-400 hover:border-acid-400 hover:text-acid-400 transition"
+        className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-dark-600 py-3 text-sm text-gray-400 hover:border-acid-400 hover:text-acid-400 active:scale-[0.99] transition"
       >
-        + Предложить свою награду
+        <span className="text-base leading-none">💡</span>
+        Предложить свою награду
       </button>
     );
   }
@@ -425,23 +458,42 @@ export default function ShopClient({ grouped, balance }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Магазин наград</h1>
-        <div className="text-right">
-          <p className="text-xs text-gray-500">Баланс</p>
-          <p className="text-xl font-black text-acid-400">
-            {displayBalance}
-          </p>
+      <div className="relative overflow-hidden rounded-3xl p-5 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800 shadow-[0_0_40px_-18px_rgba(163,255,18,0.35)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+        <div className="relative flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-black flex items-center gap-1.5">
+              <Icon name="bag" className="w-5 h-5 text-acid-400 shrink-0" />
+              Магазин наград
+            </h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Меняй coins на то, что реально хочешь
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+              Баланс
+            </p>
+            <p className="text-2xl font-black text-acid-400 tabular-nums">
+              {fmtCoins(displayBalance)}
+            </p>
+          </div>
         </div>
       </div>
 
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Поиск по магазину..."
-        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-acid-400"
-      />
+      <div className="relative">
+        <Icon
+          name="search"
+          className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+        />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск по магазину..."
+          className="w-full bg-dark-800 border border-dark-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-acid-400 transition"
+        />
+      </div>
 
       <SuggestForm
         onDone={() => {
@@ -451,18 +503,19 @@ export default function ShopClient({ grouped, balance }) {
       />
 
       {isSearching && categories.length === 0 && (
-        <p className="text-gray-600 text-sm text-center py-4">
-          Ничего не нашлось
+        <p className="text-gray-600 text-sm text-center py-6">
+          🔍 Ничего не нашлось
         </p>
       )}
 
       {message && (
         <div
-          className={`rounded-xl p-3 text-sm text-center ${
+          className={`rounded-xl p-3 text-sm text-center font-medium ${
             message.type === "error"
               ? "bg-red-500/10 text-red-400"
               : "bg-acid-400/10 text-acid-400"
           }`}
+          style={{ animation: "levelup-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}
         >
           {message.text}
         </div>
@@ -476,8 +529,9 @@ export default function ShopClient({ grouped, balance }) {
               <button
                 key={category}
                 onClick={() => scrollToCategory(category)}
-                className="whitespace-nowrap text-xs bg-dark-800 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300 hover:border-acid-400 hover:text-acid-400 transition"
+                className="whitespace-nowrap flex items-center gap-1.5 text-xs bg-dark-800 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300 hover:border-acid-400 hover:text-acid-400 active:scale-95 transition"
               >
+                <span>{categoryEmoji(category)}</span>
                 {category}
               </button>
             ))}
@@ -496,18 +550,22 @@ export default function ShopClient({ grouped, balance }) {
           <button
             onClick={() => toggleCategory(category)}
             disabled={isSearching}
-            className="w-full flex items-center justify-between gap-2 text-left disabled:cursor-default"
+            className="w-full flex items-center justify-between gap-2 text-left disabled:cursor-default group"
           >
-            <span className="text-sm font-semibold text-gray-300">
-              {category}{" "}
-              <span className="text-gray-600 font-normal">
-                ({filteredGrouped[category].length})
+            <span className="flex items-center gap-2 text-sm font-bold text-gray-200">
+              <span className="text-base leading-none">{categoryEmoji(category)}</span>
+              {category}
+              <span className="text-[11px] font-normal text-gray-500 bg-dark-800 border border-dark-600 rounded-full px-1.5 py-0.5">
+                {filteredGrouped[category].length}
               </span>
             </span>
             {!isSearching && (
-              <span className="text-gray-500 text-xs shrink-0">
-                {isOpen ? "▾ свернуть" : "▸ открыть"}
-              </span>
+              <Icon
+                name="chevronRight"
+                className={`w-4 h-4 text-gray-500 shrink-0 transition-transform group-hover:text-acid-400 ${
+                  isOpen ? "rotate-90" : ""
+                }`}
+              />
             )}
           </button>
           {isOpen && (
@@ -545,7 +603,7 @@ export default function ShopClient({ grouped, balance }) {
               return (
                 <div
                   key={reward.id}
-                  className={`bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between ${
+                  className={`group bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between transition-colors hover:border-dark-500 ${
                     reward.highlight_color
                       ? GLOW_BORDERS[reward.highlight_color]
                       : "border-dark-600"
@@ -558,13 +616,15 @@ export default function ShopClient({ grouped, balance }) {
                 >
                   <div>
                     {reward.image_url && (
-                      <img
-                        src={reward.image_url}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-24 object-cover rounded-lg mb-2"
-                      />
+                      <div className="w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
+                        <img
+                          src={reward.image_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
                     )}
                     <p className="font-semibold text-sm leading-tight">
                       {reward.title}
@@ -580,8 +640,8 @@ export default function ShopClient({ grouped, balance }) {
                     {reward.is_variable ? (
                       <>
                         <p className="text-xs text-gray-500 mb-1.5">
-                          {reward.rate_coins} coins за каждые{" "}
-                          {reward.rate_kzt} ₸
+                          🪙 {reward.rate_coins} за каждые{" "}
+                          {fmtCoins(reward.rate_kzt)} ₸
                         </p>
 
                         {isPurchased ? (
@@ -604,11 +664,11 @@ export default function ShopClient({ grouped, balance }) {
                                 }))
                               }
                               placeholder="Сумма в ₸"
-                              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-acid-400"
+                              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-acid-400 transition"
                             />
                             {Number(kztValue) > 0 && (
                               <p className="text-acid-400 text-xs font-bold mt-1">
-                                = {computedCoins} coins
+                                = 🪙 {fmtCoins(computedCoins)}
                               </p>
                             )}
                             <button
@@ -617,7 +677,7 @@ export default function ShopClient({ grouped, balance }) {
                                 haptic.light();
                                 setConfirmingVariable(reward.id);
                               }}
-                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 active:scale-[0.98] transition"
                             >
                               {Number(kztValue) > 0 && !canAfford
                                 ? "Не хватает"
@@ -631,7 +691,7 @@ export default function ShopClient({ grouped, balance }) {
                               disabled={isPending}
                               className="flex-1 rounded-lg py-2 text-xs font-bold bg-acid-400 text-black"
                             >
-                              Точно? ({computedCoins} coins)
+                              Точно? (🪙 {fmtCoins(computedCoins)})
                             </button>
                             <button
                               onClick={() => setConfirmingVariable(null)}
@@ -647,15 +707,15 @@ export default function ShopClient({ grouped, balance }) {
                         {saleActive ? (
                           <p className="flex items-baseline gap-2">
                             <span className="text-gray-500 text-xs line-through">
-                              {reward.price_coins}
+                              {fmtCoins(reward.price_coins)}
                             </span>
                             <span className="text-red-400 font-bold">
-                              {effectivePrice} coins
+                              🪙 {fmtCoins(effectivePrice)}
                             </span>
                           </p>
                         ) : (
                           <p className="text-acid-400 font-bold">
-                            {reward.price_coins} coins
+                            🪙 {fmtCoins(reward.price_coins)}
                           </p>
                         )}
 
@@ -674,7 +734,7 @@ export default function ShopClient({ grouped, balance }) {
                                 haptic.light();
                                 setConfirming(reward.id);
                               }}
-                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 transition"
+                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 active:scale-[0.98] transition"
                             >
                               {canAfford ? "Купить" : "Не хватает"}
                             </button>
