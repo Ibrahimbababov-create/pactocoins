@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { setMyBirthday } from "@/app/mop/actions";
 import BirthdayInput from "@/components/BirthdayInput";
+import Icon from "@/components/Icon";
 
 export default function BirthdayProfile({ birthday, variant = "inline" }) {
   const [isPending, startTransition] = useTransition();
@@ -36,9 +37,12 @@ export default function BirthdayProfile({ birthday, variant = "inline" }) {
         action={handleSubmit}
         className="bg-gradient-to-br from-acid-400/10 to-dark-800 border border-acid-400/40 rounded-2xl p-5 space-y-3"
       >
-        <p className="text-lg font-bold">🎂 Укажи свой день рождения</p>
+        <p className="text-lg font-bold flex items-center gap-2">
+          <Icon name="gift" className="w-5 h-5 text-acid-400" />
+          Укажи свой день рождения
+        </p>
         <p className="text-sm text-gray-400">
-          В этот день тебе автоматически начислят 3000 coins. Указать можно
+          В этот день тебе автоматически начислят 3000 коинов. Указать можно
           один раз — потом поменять сможет только админ.
         </p>
 
@@ -75,7 +79,10 @@ export default function BirthdayProfile({ birthday, variant = "inline" }) {
 
     return (
       <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 flex items-center justify-between">
-        <p className="text-sm text-gray-400">🎂 Твой день рождения</p>
+        <p className="text-sm text-gray-400 flex items-center gap-2">
+          <Icon name="gift" className="w-4 h-4" />
+          Твой день рождения
+        </p>
         <p className="text-sm font-semibold">{displayDate}</p>
       </div>
     );
@@ -86,10 +93,13 @@ export default function BirthdayProfile({ birthday, variant = "inline" }) {
       action={handleSubmit}
       className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
     >
-      <p className="text-sm text-gray-400">
-        🎂 Укажи день рождения — в этот день тебе автоматически начислят 3000
-        coins. Указать можно только один раз, поменять потом сможет только
-        админ.
+      <p className="text-sm text-gray-400 flex items-start gap-2">
+        <Icon name="gift" className="w-4 h-4 mt-0.5 shrink-0" />
+        <span>
+          Укажи день рождения — в этот день тебе автоматически начислят 3000
+          коинов. Указать можно только один раз, поменять потом сможет только
+          админ.
+        </span>
       </p>
 
       {message && (

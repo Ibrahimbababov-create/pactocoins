@@ -207,7 +207,7 @@ export default async function MopDashboard({ searchParams }) {
       {profile?.is_guest && (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
           <p className="text-sm text-gray-400">
-            👀 Гостевой режим — это общий демо-аккаунт, баланс и заявки
+            Гостевой режим — это общий демо-аккаунт, баланс и заявки
             сбрасываются каждую ночь.
           </p>
         </div>

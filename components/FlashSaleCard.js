@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import { purchaseReward } from "@/app/mop/shop/actions";
 import { haptic } from "@/lib/haptics";
+import Icon from "@/components/Icon";
 
 export default function FlashSaleCard({ reward, balance }) {
   const [isPending, startTransition] = useTransition();
@@ -40,17 +42,14 @@ export default function FlashSaleCard({ reward, balance }) {
   return (
     <div className="relative bg-dark-800 border-2 border-red-500/60 rounded-3xl p-5 overflow-hidden">
       <div className="absolute top-4 right-4 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
-        🔥 Успей до {deadline}
+        Успей до {deadline}
       </div>
 
       <div className="flex gap-4 items-center pr-16">
         {reward.image_url && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={reward.image_url}
-            alt=""
-            className="w-24 h-24 rounded-2xl object-cover shrink-0 border border-dark-600"
-          />
+          <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-dark-600">
+            <Image src={reward.image_url} alt="" fill sizes="96px" className="object-cover" />
+          </div>
         )}
         <div className="min-w-0 flex-1">
           <p className="font-bold text-lg leading-tight">{reward.title}</p>
@@ -61,8 +60,8 @@ export default function FlashSaleCard({ reward, balance }) {
             <span className="text-gray-500 text-sm line-through">
               {reward.price_coins}
             </span>
-            <span className="text-red-400 font-black text-2xl">
-              {reward.sale_price_coins} coins
+            <span className="text-red-400 font-black text-2xl tabular-nums">
+              {reward.sale_price_coins}
             </span>
           </div>
         </div>
@@ -76,20 +75,21 @@ export default function FlashSaleCard({ reward, balance }) {
 
       {purchased ? (
         <div
-          className="w-full mt-4 rounded-xl py-3 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+          className="w-full mt-4 rounded-xl py-3 text-sm font-bold text-center bg-acid-400/10 text-acid-400 flex items-center justify-center gap-1.5"
           style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
         >
-          ✅ Куплено
+          <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
+          Куплено
         </div>
       ) : !confirming ? (
         <button
           disabled={!canAfford}
           onClick={() => setConfirming(true)}
-          className="w-full mt-4 rounded-xl py-3 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-red-500 text-white hover:bg-red-400 transition"
+          className="w-full mt-4 rounded-xl py-3 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-red-500 text-white active:scale-[0.98] transition"
         >
           {canAfford
-            ? `Купить за ${reward.sale_price_coins} coins`
-            : "Не хватает коинов"}
+            ? `Купить за ${reward.sale_price_coins} коинов`
+            : `Не хватает ${reward.sale_price_coins - displayBalance}`}
         </button>
       ) : (
         <div className="flex gap-2 mt-4">
