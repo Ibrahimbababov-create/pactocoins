@@ -85,6 +85,11 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
     return { start: startOfMonth(d), end: endOfMonth(d) };
   }, [pickedDate, periodMode]);
 
+  // Первый запрос пропускаем ТОЛЬКО если сервер уже прислал числа.
+  // Иначе экран останется пустым навсегда — так и было на рейтинге
+  // в админке и у наблюдателя.
+  const hasInitial = Object.keys(initialTotals).length > 0;
+
   const rangeKey =
     periodMode === "all"
       ? "all"
@@ -93,7 +98,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
 
   useEffect(() => {
     // Первый показ — данные уже пришли с сервера, второй раз не ходим.
-    if (rangeKey === firstRangeKey.current) return;
+    if (hasInitial && rangeKey === firstRangeKey.current) return;
 
     let alive = true;
     setLoading(true);
@@ -126,7 +131,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
     return () => {
       alive = false;
     };
-  }, [periodMode, range, rangeKey]);
+  }, [periodMode, range, rangeKey, hasInitial]);
 
   const { ranked, zeroCount } = useMemo(() => {
     const withValues = users.map((u) => ({
