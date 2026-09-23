@@ -156,9 +156,12 @@ export default async function MopDashboard({ searchParams }) {
 
       {profile?.role === "rop" && (
         <div className="bg-gradient-to-br from-purple-500/10 to-dark-800 border border-purple-500/30 rounded-2xl p-4">
-          <p className="font-bold text-purple-300">🚀 Для РОПов скоро новинка</p>
+          <p className="font-bold text-purple-300 flex items-center gap-2">
+            <Icon name="sparkle" className="w-4 h-4" />
+            Для РОПов скоро новинка
+          </p>
           <p className="text-sm text-gray-400 mt-1">
-            Мы готовим отдельную функцию под вашу должность. Пока всё
+            Мы готовим отдельную функцию под твою должность. Пока всё
             работает как у МОПа — выручка, бонусы, магазин.
           </p>
         </div>

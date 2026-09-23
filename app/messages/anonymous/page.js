@@ -31,7 +31,7 @@ export default async function AnonymousMessagesPage() {
       </Link>
       <h1 className="text-2xl font-bold">Анонимное сообщение</h1>
       <p className="text-sm text-gray-500">
-        Уйдёт админу без указания вашего имени.
+        Уйдёт админу без указания твоего имени.
       </p>
       <AnonymousMessageForm />
 

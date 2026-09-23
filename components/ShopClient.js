@@ -228,9 +228,9 @@ function SuggestForm({ onDone }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-dark-600 py-3 text-sm text-gray-400 hover:border-acid-400 hover:text-acid-400 active:scale-[0.99] transition"
+        className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-dark-600 py-3 text-sm text-gray-400 active:scale-[0.99] transition"
       >
-        <span className="text-base leading-none">💡</span>
+        <Icon name="sparkle" className="w-4 h-4" />
         Предложить свою награду
       </button>
     );
@@ -253,7 +253,7 @@ function SuggestForm({ onDone }) {
         min="1"
         value={price}
         onChange={(e) => setPrice(e.target.value)}
-        placeholder="Цена в coins"
+        placeholder="Цена в коинах"
         className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
       />
       <textarea
