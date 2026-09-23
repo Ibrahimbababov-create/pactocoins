@@ -31,42 +31,25 @@ export default function GoalWidget({ goal, balance }) {
   }, [stats?.pct]);
 
   if (!goal) {
+    // Пустой экран — приглашение к действию, а не инструкция из трёх шагов:
+    // кнопка ведёт ровно туда, где цель и ставится.
     return (
-      <div className="bg-gradient-to-br from-dark-800 to-dark-700 border border-acid-400/40 rounded-2xl p-5">
-        <p className="font-bold text-lg flex items-center gap-2">
-          <Icon name="target" className="w-5 h-5 text-acid-400" />
-          Поставь себе цель
-        </p>
-        <p className="text-sm text-gray-400 mt-1">
-          Копи на конкретную награду — так виден прогресс и до неё быстрее
-          доходишь.
-        </p>
-
-        <ol className="mt-3 space-y-1.5 text-sm text-gray-300">
-          <li>
-            <span className="text-acid-400 font-bold">1.</span> Открой вкладку{" "}
-            <span className="font-semibold">«Магазин»</span> внизу экрана
-          </li>
-          <li>
-            <span className="text-acid-400 font-bold">2.</span> Выбери награду,
-            на которую хочешь копить
-          </li>
-          <li>
-            <span className="text-acid-400 font-bold">3.</span> Нажми на её
-            карточке <span className="font-semibold">«Копить на это»</span>
-          </li>
-        </ol>
-
+      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-4 flex items-center gap-3">
+        <span className="w-11 h-11 shrink-0 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400">
+          <Icon name="target" className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">Выбери, на что копишь</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            С целью виден прогресс и до неё доходишь быстрее
+          </p>
+        </div>
         <Link
           href="/mop/shop"
-          className="mt-4 block w-full text-center bg-acid-400 text-black font-bold rounded-xl py-3 text-sm"
+          className="shrink-0 bg-acid-400 text-black font-bold rounded-xl px-4 py-2.5 text-sm active:scale-95 transition"
         >
-          Открыть магазин →
+          Выбрать
         </Link>
-
-        <p className="text-xs text-gray-600 mt-2 text-center">
-          Не обязательно — но с целью интереснее
-        </p>
       </div>
     );
   }
