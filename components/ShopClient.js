@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition, useMemo } from "react";
+import Image from "next/image";
 import {
   purchaseReward,
   purchaseVariableReward,
@@ -11,6 +12,7 @@ import { uploadRewardSuggestionPhoto } from "@/lib/uploadRewardSuggestionPhoto";
 import { getEffectivePrice } from "@/lib/rewardPricing";
 import { haptic } from "@/lib/haptics";
 import Icon from "@/components/Icon";
+import EmptyState from "@/components/EmptyState";
 
 const GLOW_STYLES = {
   gold: "0 0 24px rgba(250, 204, 21, 0.55)",
@@ -26,37 +28,32 @@ const GLOW_BORDERS = {
   red: "border-red-400",
 };
 
-function slugify(text) {
-  return "cat-" + text.replace(/[^a-zA-Zа-яА-Я0-9]+/g, "-").toLowerCase();
-}
-
 function fmtCoins(n) {
   return Number(n || 0).toLocaleString("ru-RU");
 }
 
-// Эмодзи по ключевым словам в названии категории — чтобы новые категории
+// Иконка по ключевым словам в названии категории — чтобы новые категории
 // из админки сразу получали иконку без ручной правки маппинга.
-function categoryEmoji(category) {
+function categoryIcon(category) {
   const c = category.toLowerCase();
-  if (c.includes("больш")) return "🏆";
-  if (c.includes("техник")) return "💻";
-  if (c.includes("достав")) return "🛵";
-  if (c.includes("еда") || c.includes("напит")) return "🍔";
-  if (c.includes("куря")) return "🚬";
-  if (c.includes("машин")) return "🚗";
-  if (c.includes("транспорт") || c.includes("бензин")) return "⛽";
-  if (c.includes("сем")) return "👨‍👩‍👧";
-  if (c.includes("комфорт") || c.includes("гаджет")) return "🎧";
-  if (c.includes("секрет") || c.includes("особ")) return "🎁";
-  if (c.includes("обучен") || c.includes("развит")) return "📚";
-  if (c.includes("красот")) return "💅";
-  if (c.includes("мерч") || c.includes("аксессуар")) return "👕";
-  if (c.includes("сертификат")) return "🎫";
-  if (c.includes("привилег")) return "⭐";
-  if (c.includes("опыт") || c.includes("развлечен")) return "🎉";
-  if (c.includes("подписк") || c.includes("сервис")) return "📱";
-  if (c.includes("предложен")) return "💡";
-  return "🛍️";
+  if (c.includes("больш")) return "trophy";
+  if (c.includes("техник") || c.includes("гаджет")) return "laptop";
+  if (c.includes("достав")) return "gift";
+  if (c.includes("еда") || c.includes("напит")) return "food";
+  if (c.includes("машин")) return "car";
+  if (c.includes("транспорт") || c.includes("бензин")) return "fuel";
+  if (c.includes("сем")) return "users";
+  if (c.includes("комфорт")) return "sparkle";
+  if (c.includes("секрет") || c.includes("особ")) return "gift";
+  if (c.includes("обучен") || c.includes("развит")) return "book";
+  if (c.includes("красот")) return "sparkle";
+  if (c.includes("мерч") || c.includes("аксессуар")) return "bag";
+  if (c.includes("сертификат")) return "receipt";
+  if (c.includes("привилег")) return "award";
+  if (c.includes("опыт") || c.includes("развлечен")) return "sparkle";
+  if (c.includes("подписк") || c.includes("сервис")) return "phone";
+  if (c.includes("предложен")) return "sparkle";
+  return "bag";
 }
 
 // Карточка с вариантами внутри (барбер по бюджету, сертификаты по номиналу
@@ -83,19 +80,19 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
     >
       <div>
         {reward.image_url && (
-          <div className="w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
-            <img
+          <div className="relative w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
+            <Image
               src={reward.image_url}
               alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              fill
+              sizes="(max-width: 500px) 45vw, 200px"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
           </div>
         )}
-        <p className="font-semibold text-sm leading-tight">{reward.title}</p>
+        <p className="font-semibold text-sm leading-tight line-clamp-2">{reward.title}</p>
         {reward.description && (
-          <p className="text-xs text-gray-500 mt-1">{reward.description}</p>
+          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{reward.description}</p>
         )}
       </div>
 
@@ -121,11 +118,11 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
                     active ? "border-acid-400 bg-acid-400" : "border-dark-500"
                   }`}
                 >
-                  {active && <span className="text-[9px] text-black leading-none">✓</span>}
+                  {active && <Icon name="check" className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
                 </span>
                 <span className="truncate">{v.label}</span>
               </span>
-              <span className="shrink-0 tabular-nums">🪙 {fmtCoins(v.price_coins)}</span>
+              <span className="shrink-0 tabular-nums">{fmtCoins(v.price_coins)}</span>
             </button>
           );
         })}
@@ -134,10 +131,11 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
       <div className="mt-3">
         {isPurchased ? (
           <div
-            className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+            className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400 flex items-center justify-center gap-1.5"
             style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
           >
-            ✅ Куплено
+            <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
+            Куплено
           </div>
         ) : !confirming ? (
           <>
@@ -147,16 +145,19 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
                 haptic.light();
                 setConfirming(true);
               }}
-              className="w-full rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 active:scale-[0.98] transition"
+              className="w-full rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black active:scale-[0.98] transition"
             >
-              {canAfford ? `Купить за 🪙 ${fmtCoins(variant?.price_coins)}` : "Не хватает"}
+              {canAfford
+                ? `Купить за ${fmtCoins(variant?.price_coins)}`
+                : `Не хватает ${fmtCoins((variant?.price_coins ?? 0) - displayBalance)}`}
             </button>
             <button
               onClick={() => onSetGoal(reward, variant)}
               disabled={isPending}
-              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 hover:text-acid-400 hover:border-acid-400 transition disabled:opacity-50"
+              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 active:text-acid-400 active:border-acid-400 transition disabled:opacity-50 flex items-center justify-center gap-1"
             >
-              🎯 Копить на это
+              <Icon name="target" className="w-3.5 h-3.5" />
+              Копить на это
             </button>
           </>
         ) : (
@@ -316,7 +317,7 @@ export default function ShopClient({ grouped, balance }) {
   const [kztInputs, setKztInputs] = useState({});
   const [confirmingVariable, setConfirmingVariable] = useState(null);
   const [query, setQuery] = useState("");
-  const [openCategories, setOpenCategories] = useState({});
+  const [activeCategory, setActiveCategory] = useState(null); // null = «Все»
 
   // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер
   const filteredGrouped = useMemo(() => {
@@ -332,6 +333,15 @@ export default function ShopClient({ grouped, balance }) {
     });
     return result;
   }, [grouped, query]);
+
+  // Витрина: сразу плоская сетка товаров, категории — фильтр в одну строку,
+  // а не гармошка, которую нужно по одной раскрывать.
+  const visibleRewards = useMemo(() => {
+    const entries = activeCategory
+      ? [[activeCategory, filteredGrouped[activeCategory] ?? []]]
+      : Object.entries(filteredGrouped);
+    return entries.flatMap(([, items]) => items);
+  }, [filteredGrouped, activeCategory]);
 
   function handleBuy(reward) {
     const { effectivePrice } = getEffectivePrice(reward);
@@ -429,31 +439,14 @@ export default function ShopClient({ grouped, balance }) {
         haptic.error();
       } else {
         const label = variant ? `${reward.title} — ${variant.label}` : reward.title;
-        setMessage({ type: "success", text: `🎯 Цель поставлена: ${label}` });
+        setMessage({ type: "success", text: `Цель поставлена: ${label}` });
         haptic.success();
       }
       setTimeout(() => setMessage(null), 3000);
     });
   }
 
-  function scrollToCategory(category) {
-    setOpenCategories((prev) => ({ ...prev, [category]: true }));
-    // Категория ещё не раскрыта в DOM в этот же тик — ждём кадр, иначе
-    // scrollIntoView целится в высоту схлопнутой секции.
-    requestAnimationFrame(() => {
-      const el = document.getElementById(slugify(category));
-      if (el) {
-        const y = el.getBoundingClientRect().top + window.scrollY - 64;
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }
-    });
-  }
-
-  function toggleCategory(category) {
-    setOpenCategories((prev) => ({ ...prev, [category]: !prev[category] }));
-  }
-
-  const categories = Object.keys(filteredGrouped);
+  const categories = Object.keys(grouped);
   const isSearching = query.trim().length > 0;
 
   return (
@@ -501,10 +494,27 @@ export default function ShopClient({ grouped, balance }) {
         }}
       />
 
-      {isSearching && categories.length === 0 && (
-        <p className="text-gray-600 text-sm text-center py-6">
-          🔍 Ничего не нашлось
-        </p>
+      {visibleRewards.length === 0 && (
+        <EmptyState
+          icon="search"
+          title="Ничего не нашлось"
+          hint={
+            isSearching
+              ? "Попробуй другой запрос или сбрось поиск."
+              : "В этой категории пока нет наград."
+          }
+          action={
+            <button
+              onClick={() => {
+                setQuery("");
+                setActiveCategory(null);
+              }}
+              className="inline-block bg-acid-400 text-black font-bold rounded-xl px-5 py-2.5 text-sm active:scale-95"
+            >
+              Показать всё
+            </button>
+          }
+        />
       )}
 
       {message && (
@@ -520,17 +530,34 @@ export default function ShopClient({ grouped, balance }) {
         </div>
       )}
 
-      {/* Липкая панель быстрого перехода по категориям — бессмысленна при поиске */}
+      {/* Категории — фильтр в одну строку, без раскрывающихся секций и без
+          повторения этого же списка где-то ещё */}
       {!isSearching && (
-        <div className="sticky top-0 z-40 -mx-4 px-4 py-2 bg-dark-900/95 backdrop-blur border-b border-dark-600">
+        <div className="-mx-4 px-4">
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className={`whitespace-nowrap flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border active:scale-95 transition ${
+                activeCategory === null
+                  ? "bg-acid-400 text-black border-acid-400 font-semibold"
+                  : "bg-dark-800 border-dark-600 text-gray-300"
+              }`}
+            >
+              Все
+            </button>
             {categories.map((category) => (
               <button
                 key={category}
-                onClick={() => scrollToCategory(category)}
-                className="whitespace-nowrap flex items-center gap-1.5 text-xs bg-dark-800 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300 hover:border-acid-400 hover:text-acid-400 active:scale-95 transition"
+                onClick={() =>
+                  setActiveCategory((c) => (c === category ? null : category))
+                }
+                className={`whitespace-nowrap flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border active:scale-95 transition ${
+                  activeCategory === category
+                    ? "bg-acid-400 text-black border-acid-400 font-semibold"
+                    : "bg-dark-800 border-dark-600 text-gray-300"
+                }`}
               >
-                <span>{categoryEmoji(category)}</span>
+                <Icon name={categoryIcon(category)} className="w-3.5 h-3.5" />
                 {category}
               </button>
             ))}
@@ -538,38 +565,9 @@ export default function ShopClient({ grouped, balance }) {
         </div>
       )}
 
-      {categories.map((category) => {
-        const isOpen = isSearching || !!openCategories[category];
-        return (
-        <div
-          key={category}
-          id={slugify(category)}
-          className="space-y-3 scroll-mt-16"
-        >
-          <button
-            onClick={() => toggleCategory(category)}
-            disabled={isSearching}
-            className="w-full flex items-center justify-between gap-2 text-left disabled:cursor-default group"
-          >
-            <span className="flex items-center gap-2 text-sm font-bold text-gray-200">
-              <span className="text-base leading-none">{categoryEmoji(category)}</span>
-              {category}
-              <span className="text-[11px] font-normal text-gray-500 bg-dark-800 border border-dark-600 rounded-full px-1.5 py-0.5">
-                {filteredGrouped[category].length}
-              </span>
-            </span>
-            {!isSearching && (
-              <Icon
-                name="chevronRight"
-                className={`w-4 h-4 text-gray-500 shrink-0 transition-transform group-hover:text-acid-400 ${
-                  isOpen ? "rotate-90" : ""
-                }`}
-              />
-            )}
-          </button>
-          {isOpen && (
-          <div className="grid grid-cols-2 gap-3">
-            {filteredGrouped[category].map((reward) => {
+      {visibleRewards.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 items-stretch">
+            {visibleRewards.map((reward) => {
               const isPurchased = purchasedIds.has(reward.id);
               const isConfirming = confirming === reward.id;
 
@@ -615,21 +613,21 @@ export default function ShopClient({ grouped, balance }) {
                 >
                   <div>
                     {reward.image_url && (
-                      <div className="w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
-                        <img
+                      <div className="relative w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
+                        <Image
                           src={reward.image_url}
                           alt=""
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          fill
+                          sizes="(max-width: 500px) 45vw, 200px"
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       </div>
                     )}
-                    <p className="font-semibold text-sm leading-tight">
+                    <p className="font-semibold text-sm leading-tight line-clamp-2">
                       {reward.title}
                     </p>
                     {reward.description && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                         {reward.description}
                       </p>
                     )}
@@ -638,17 +636,19 @@ export default function ShopClient({ grouped, balance }) {
                   <div className="mt-3">
                     {reward.is_variable ? (
                       <>
-                        <p className="text-xs text-gray-500 mb-1.5">
-                          🪙 {reward.rate_coins} за каждые{" "}
+                        <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+                          <Icon name="coin" className="w-3.5 h-3.5" />
+                          {reward.rate_coins} за каждые{" "}
                           {fmtCoins(reward.rate_kzt)} ₸
                         </p>
 
                         {isPurchased ? (
                           <div
-                            className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+                            className="w-full rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400 flex items-center justify-center gap-1.5"
                             style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
                           >
-                            ✅ Куплено
+                            <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
+                            Куплено
                           </div>
                         ) : !isConfirmingVariable ? (
                           <>
@@ -666,8 +666,8 @@ export default function ShopClient({ grouped, balance }) {
                               className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-acid-400 transition"
                             />
                             {Number(kztValue) > 0 && (
-                              <p className="text-acid-400 text-xs font-bold mt-1">
-                                = 🪙 {fmtCoins(computedCoins)}
+                              <p className="text-acid-400 text-xs font-bold mt-1 tabular-nums">
+                                = {fmtCoins(computedCoins)}
                               </p>
                             )}
                             <button
@@ -676,10 +676,10 @@ export default function ShopClient({ grouped, balance }) {
                                 haptic.light();
                                 setConfirmingVariable(reward.id);
                               }}
-                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 active:scale-[0.98] transition"
+                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black active:scale-[0.98] transition"
                             >
                               {Number(kztValue) > 0 && !canAfford
-                                ? "Не хватает"
+                                ? `Не хватает ${fmtCoins(computedCoins - displayBalance)}`
                                 : "Купить"}
                             </button>
                           </>
@@ -690,7 +690,7 @@ export default function ShopClient({ grouped, balance }) {
                               disabled={isPending}
                               className="flex-1 rounded-lg py-2 text-xs font-bold bg-acid-400 text-black"
                             >
-                              Точно? (🪙 {fmtCoins(computedCoins)})
+                              Точно? ({fmtCoins(computedCoins)})
                             </button>
                             <button
                               onClick={() => setConfirmingVariable(null)}
@@ -708,22 +708,23 @@ export default function ShopClient({ grouped, balance }) {
                             <span className="text-gray-500 text-xs line-through">
                               {fmtCoins(reward.price_coins)}
                             </span>
-                            <span className="text-red-400 font-bold">
-                              🪙 {fmtCoins(effectivePrice)}
+                            <span className="text-red-400 font-bold tabular-nums">
+                              {fmtCoins(effectivePrice)}
                             </span>
                           </p>
                         ) : (
-                          <p className="text-acid-400 font-bold">
-                            🪙 {fmtCoins(reward.price_coins)}
+                          <p className="text-acid-400 font-bold tabular-nums">
+                            {fmtCoins(reward.price_coins)}
                           </p>
                         )}
 
                         {isPurchased ? (
                           <div
-                            className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400"
+                            className="w-full mt-2 rounded-lg py-2 text-sm font-bold text-center bg-acid-400/10 text-acid-400 flex items-center justify-center gap-1.5"
                             style={{ animation: "levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
                           >
-                            ✅ Куплено
+                            <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
+                            Куплено
                           </div>
                         ) : !isConfirming ? (
                           <>
@@ -733,16 +734,19 @@ export default function ShopClient({ grouped, balance }) {
                                 haptic.light();
                                 setConfirming(reward.id);
                               }}
-                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black hover:bg-acid-500 active:scale-[0.98] transition"
+                              className="w-full mt-2 rounded-lg py-2 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-acid-400 text-black active:scale-[0.98] transition"
                             >
-                              {canAfford ? "Купить" : "Не хватает"}
+                              {canAfford
+                                ? "Купить"
+                                : `Не хватает ${fmtCoins(effectivePrice - displayBalance)}`}
                             </button>
                             <button
                               onClick={() => handleSetGoal(reward)}
                               disabled={isPending}
-                              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 hover:text-acid-400 hover:border-acid-400 transition disabled:opacity-50"
+                              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 active:text-acid-400 active:border-acid-400 transition disabled:opacity-50 flex items-center justify-center gap-1"
                             >
-                              🎯 Копить на это
+                              <Icon name="target" className="w-3.5 h-3.5" />
+                              Копить на это
                             </button>
                           </>
                         ) : (
@@ -769,10 +773,7 @@ export default function ShopClient({ grouped, balance }) {
               );
             })}
           </div>
-          )}
-        </div>
-        );
-      })}
+      )}
     </div>
   );
 }
