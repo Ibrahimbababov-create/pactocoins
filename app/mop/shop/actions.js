@@ -110,7 +110,7 @@ export async function purchaseReward(rewardId) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title}\nЦена: ${effectivePrice} coins`
+    `Награда: ${reward.title}\nЦена: ${effectivePrice} коинов`
   );
 
   revalidatePath("/mop");
@@ -192,7 +192,7 @@ export async function purchaseRewardVariant(variantId) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title} — ${variant.label}\nЦена: ${price} coins`
+    `Награда: ${reward.title} — ${variant.label}\nЦена: ${price} коинов`
   );
 
   revalidatePath("/mop");
@@ -276,7 +276,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${priceCoins} coins`
+    `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${priceCoins} коинов`
   );
 
   revalidatePath("/mop");
@@ -302,7 +302,7 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
   if (!cleanTitle) return { error: "Укажи название" };
 
   const price = Math.floor(Number(priceCoins));
-  if (!price || price <= 0) return { error: "Укажи цену в coins" };
+  if (!price || price <= 0) return { error: "Укажи цену в коинах" };
 
   const { data: profile } = await supabase
     .from("users")
@@ -327,7 +327,7 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
       : undefined;
     await sendTelegramMessage(
       groupChatId,
-      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${price} coins${
+      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${price} коинов${
         description ? `\n${escapeHtml(description)}` : ""
       }\n\nПосмотреть: https://pactocoins.vercel.app/admin/reward-suggestions`,
       undefined,

@@ -24,10 +24,10 @@ export async function submitBonusRequest(category, comment, customAmount) {
   if (amount === null) {
     const parsed = Number(customAmount);
     if (!parsed || parsed <= 0) {
-      return { error: "Укажи количество coins" };
+      return { error: "Укажи количество коинов" };
     }
     if (parsed > MAX_CUSTOM_AMOUNT) {
-      return { error: `Максимум ${MAX_CUSTOM_AMOUNT} coins за раз` };
+      return { error: `Максимум ${MAX_CUSTOM_AMOUNT} коинов за раз` };
     }
     amount = Math.floor(parsed);
 

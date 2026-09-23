@@ -475,8 +475,8 @@ export default function RewardsAdminClient({ rewards, categories }) {
                   <p className="text-xs text-gray-500">
                     {r.category} ·{" "}
                     {r.is_variable
-                      ? `${r.rate_coins} coins за каждые ${r.rate_kzt} ₸`
-                      : `${r.price_coins} coins`}{" "}
+                      ? `${r.rate_coins} коинов за каждые ${r.rate_kzt} ₸`
+                      : `${r.price_coins} коинов`}{" "}
                     · порядок {r.sort_order ?? 0}
                     {r.highlight_color &&
                       ` · свечение: ${
@@ -486,7 +486,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
                   </p>
                   {r.sale_price_coins && r.sale_ends_at && (
                     <p className="text-xs text-red-400 mt-0.5">
-                      🔥 Скидка {r.sale_price_coins} coins до{" "}
+                      🔥 Скидка {r.sale_price_coins} коинов до{" "}
                       {new Date(r.sale_ends_at).toLocaleString("ru-RU", {
                         timeZone: "Asia/Almaty",
                         day: "2-digit",

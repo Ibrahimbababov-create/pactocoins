@@ -234,7 +234,7 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   await checkAndApplyLevelUp(request.user_id, admin);
 
-  const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} coins`;
+  const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} коинов`;
   await notifyUser(
     admin,
     request.user_id,
@@ -342,7 +342,7 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
 
   let text = `⚠️ Заявка на выручку ${request.amount_kzt.toLocaleString(
     "ru-RU"
-  )} ₸ отменена (одобрена по ошибке)${coins ? ` — ${coins} coins списаны обратно` : ""}`;
+  )} ₸ отменена (одобрена по ошибке)${coins ? ` — ${coins} коинов списаны обратно` : ""}`;
   if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");
 
@@ -423,7 +423,7 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
       newStatus === "approved"
         ? `✅ Покупка «${title}» одобрена`
         : `❌ Покупка «${title}» отклонена${
-            priceStr ? ` — ${priceStr} coins вернулись на баланс` : ""
+            priceStr ? ` — ${priceStr} коинов вернулись на баланс` : ""
           }`;
     if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
 
@@ -448,10 +448,10 @@ export async function createReward(formData) {
   const priceCoins = Number(formData.get("price_coins"));
 
   if (isVariable && (!rateCoins || rateCoins <= 0 || !rateKzt || rateKzt <= 0)) {
-    return { error: "Укажи курс: сколько coins за сколько тенге" };
+    return { error: "Укажи курс: сколько коинов за сколько тенге" };
   }
   if (!isVariable && (!priceCoins || priceCoins <= 0)) {
-    return { error: "Укажи цену в coins" };
+    return { error: "Укажи цену в коинах" };
   }
 
   const sale = parseSale(formData);
@@ -522,10 +522,10 @@ export async function updateReward(rewardId, formData) {
   const priceCoins = Number(formData.get("price_coins"));
 
   if (isVariable && (!rateCoins || rateCoins <= 0 || !rateKzt || rateKzt <= 0)) {
-    return { error: "Укажи курс: сколько coins за сколько тенге" };
+    return { error: "Укажи курс: сколько коинов за сколько тенге" };
   }
   if (!isVariable && (!priceCoins || priceCoins <= 0)) {
-    return { error: "Укажи цену в coins" };
+    return { error: "Укажи цену в коинах" };
   }
 
   const sale = parseSale(formData);
@@ -637,7 +637,7 @@ export async function approveBonusRequest(requestId, comment) {
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${coins} coins`;
+    const bonusText = `✅ Заявка на бонус одобрена — +${coins} коинов`;
     await notifyUser(
       admin,
       request.user_id,
@@ -771,7 +771,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
   let text = spinOnly
     ? "⚠️ Заявка на бонус отменена (одобрена по ошибке) — крутка на колесе списана обратно"
     : `⚠️ Заявка на бонус отменена (одобрена по ошибке)${
-        coins ? ` — ${coins} coins списаны обратно` : ""
+        coins ? ` — ${coins} коинов списаны обратно` : ""
       }`;
   if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");

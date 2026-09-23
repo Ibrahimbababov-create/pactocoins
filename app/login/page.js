@@ -441,7 +441,7 @@ export default function LoginPage() {
                   onChange={setRegisterBirthday}
                 />
                 <p className="text-xs text-gray-600 mt-1">
-                  В этот день начислим 3000 coins. Можно указать и позже в
+                  В этот день начислим 3000 коинов. Можно указать и позже в
                   приложении.
                 </p>
               </div>

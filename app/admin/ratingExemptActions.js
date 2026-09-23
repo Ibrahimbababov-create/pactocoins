@@ -72,7 +72,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
     await notifyUser(
       admin,
       userId,
-      `🏆 ${reason || `Бонус за топ ${periodPhrase}`} — +${amt} coins`,
+      `🏆 ${reason || `Бонус за топ ${periodPhrase}`} — +${amt} коинов`,
       "notify_requests"
     );
 
@@ -91,7 +91,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
       ? Number(process.env.TELEGRAM_ANNOUNCE_THREAD_ID)
       : undefined;
     const lines = awarded
-      .map((a) => `${a.medal} <b>${a.name}</b> — +${a.amt} coins`)
+      .map((a) => `${a.medal} <b>${a.name}</b> — +${a.amt} коинов`)
       .join("\n");
     try {
       await sendTelegramMessage(
@@ -255,7 +255,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${coins} coins`;
+    const bonusText = `✅ Заявка на бонус одобрена — +${coins} коинов`;
     await notifyUser(
       admin,
       request.user_id,

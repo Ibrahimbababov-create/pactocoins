@@ -104,7 +104,7 @@ export default function RewardSuggestionsClient({ suggestions }) {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">
                   {s.title} —{" "}
-                  <span className="text-acid-400">{s.price_coins} coins</span>
+                  <span className="text-acid-400">{s.price_coins} коинов</span>
                 </p>
                 <p className="text-xs text-gray-500">
                   {s.users?.name}
@@ -154,7 +154,7 @@ export default function RewardSuggestionsClient({ suggestions }) {
             >
               <div className="min-w-0">
                 <p className="font-semibold">
-                  {s.title} — {s.price_coins} coins
+                  {s.title} — {s.price_coins} коинов
                 </p>
                 <p className="text-sm text-gray-500">
                   {s.users?.name}

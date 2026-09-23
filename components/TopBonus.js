@@ -122,7 +122,7 @@ export default function TopBonus({
         </p>
       ) : winners.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          Порог {effectiveMin.toLocaleString("ru-RU")} coins никто не прошёл —
+          Порог {effectiveMin.toLocaleString("ru-RU")} коинов никто не прошёл —
           бонусов нет. Можно снизить порог выше.
         </p>
       ) : collapsed ? (

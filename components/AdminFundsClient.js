@@ -226,7 +226,7 @@ export default function AdminFundsClient({ funds, contributions }) {
                       <p className="font-semibold truncate">{fund.title}</p>
                       <p className="text-xs text-gray-500">
                         {current.toLocaleString("ru-RU")} /{" "}
-                        {fund.goal_coins.toLocaleString("ru-RU")} coins
+                        {fund.goal_coins.toLocaleString("ru-RU")} коинов
                       </p>
                     </div>
                   </div>
