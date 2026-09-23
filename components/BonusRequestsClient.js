@@ -237,7 +237,7 @@ export default function BonusRequestsClient({
           onSubmit={handleSingleSubmit}
           className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
         >
-          <p className="text-xs text-gray-400 uppercase tracking-wider">
+          <p className="text-xs text-gray-400">
             Добавить одному участнику
           </p>
           <EmployeePicker
@@ -280,7 +280,7 @@ export default function BonusRequestsClient({
           onSubmit={handleEmployeeBulkSubmit}
           className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
         >
-          <p className="text-xs text-gray-400 uppercase tracking-wider">
+          <p className="text-xs text-gray-400">
             Добавить нескольким одинаково
           </p>
           <EmployeePicker
@@ -323,7 +323,7 @@ export default function BonusRequestsClient({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-400 uppercase tracking-wider">
+          <p className="text-xs text-gray-400">
             Заявки от сотрудников ({pending.length})
           </p>
           {pending.length > 0 && (
@@ -435,7 +435,7 @@ export default function BonusRequestsClient({
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs text-gray-400 uppercase tracking-wider">История</p>
+        <p className="text-xs text-gray-400">История</p>
         {processed.map((r) => {
           const meta = statusLabels[r.status];
           return (

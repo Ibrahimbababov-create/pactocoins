@@ -20,7 +20,7 @@ export default function TeamFeed({ events }) {
 
   return (
     <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-      <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">
+      <p className="text-xs text-gray-400 mb-3">
         Что у команды
       </p>
       <ul className="space-y-3">

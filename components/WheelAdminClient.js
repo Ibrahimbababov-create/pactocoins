@@ -273,7 +273,7 @@ export default function WheelAdminClient({
 
       {/* Сегменты */}
       <div className="space-y-3">
-        <p className="text-xs text-gray-400 uppercase tracking-wider">
+        <p className="text-xs text-gray-400">
           Сектора колеса
         </p>
         {segments.map((seg, i) => (
@@ -290,7 +290,7 @@ export default function WheelAdminClient({
       {/* Выдать крутки */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
-          <p className="text-xs text-gray-400 uppercase tracking-wider">
+          <p className="text-xs text-gray-400">
             Выдать крутки одному
           </p>
           <EmployeePicker
@@ -320,7 +320,7 @@ export default function WheelAdminClient({
         </div>
 
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
-          <p className="text-xs text-gray-400 uppercase tracking-wider">
+          <p className="text-xs text-gray-400">
             Выдать крутки нескольким
           </p>
           <EmployeePicker
@@ -361,7 +361,7 @@ export default function WheelAdminClient({
 
       {/* Последние прокрутки */}
       <div className="space-y-2">
-        <p className="text-xs text-gray-400 uppercase tracking-wider">
+        <p className="text-xs text-gray-400">
           Последние прокрутки
         </p>
         {(recentSpins ?? []).length === 0 && (

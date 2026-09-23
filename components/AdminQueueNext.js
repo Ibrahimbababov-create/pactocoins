@@ -50,7 +50,7 @@ export default function AdminQueueNext({ item }) {
   return (
     <div className="bg-dark-800 border border-acid-400/30 rounded-2xl p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-acid-400 uppercase tracking-wider">
+        <span className="text-xs font-bold text-acid-400">
           Следующая в очереди · {TYPE_LABEL[item.type]}
         </span>
         <span className="text-xs text-gray-500">

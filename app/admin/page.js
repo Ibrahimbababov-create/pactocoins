@@ -200,7 +200,7 @@ export default async function AdminOverview({ searchParams }) {
                 href={q.href}
                 className="bg-dark-800 border border-dark-600 rounded-xl p-3 active:scale-[0.98] transition"
               >
-                <p className="text-[11px] text-gray-500 uppercase tracking-wider truncate">
+                <p className="text-[11px] text-gray-500 truncate">
                   {q.label}
                 </p>
                 <p
@@ -253,7 +253,7 @@ export default async function AdminOverview({ searchParams }) {
             href="/admin/budget"
             className="block rounded-2xl p-5 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800"
           >
-            <p className="text-gray-400 text-xs uppercase tracking-widest">
+            <p className="text-gray-400 text-xs">
               Остаток бюджета на закуп
             </p>
             <p
@@ -266,7 +266,7 @@ export default async function AdminOverview({ searchParams }) {
           </Link>
 
           <div className="bg-dark-800 border border-white/5 rounded-2xl p-4">
-            <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+            <p className="text-[11px] text-gray-400">
               Коинов на руках
             </p>
             <p className="text-2xl font-bold tabular-nums mt-0.5 text-acid-400">

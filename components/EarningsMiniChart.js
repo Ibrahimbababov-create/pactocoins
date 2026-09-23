@@ -10,7 +10,7 @@ export default function EarningsMiniChart({ series }) {
   return (
     <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-gray-500 uppercase tracking-wider">
+        <p className="text-xs text-gray-500">
           Заработок за {series.length} дней
         </p>
         <p className="text-sm font-bold text-acid-400 tabular-nums">

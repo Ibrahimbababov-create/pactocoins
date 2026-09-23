@@ -69,7 +69,7 @@ export default function TeamManageClient({ mine = [], others = [] }) {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <p className="text-xs text-gray-400 uppercase tracking-wider">
+        <p className="text-xs text-gray-400">
           В команде ({mine.length})
         </p>
         {mine.length === 0 && (
@@ -118,7 +118,7 @@ export default function TeamManageClient({ mine = [], others = [] }) {
       </div>
 
       <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
-        <p className="text-xs text-gray-400 uppercase tracking-wider">
+        <p className="text-xs text-gray-400">
           Добавить в команду
         </p>
         <select

@@ -44,6 +44,7 @@ export default function LiveBalance({
   initialTotalEarned,
   initialMonthEarned,
   goalTarget = null,
+  goalTitle = null,
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [totalEarned, setTotalEarned] = useState(initialTotalEarned);
@@ -135,78 +136,90 @@ export default function LiveBalance({
 
   const pct = goalTarget > 0 ? Math.min(100, (balance / goalTarget) * 100) : 0;
   const offset = CIRCUMFERENCE * (1 - pct / 100);
+  const remainingToGoal = goalTarget > 0 ? Math.max(0, goalTarget - balance) : 0;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl p-6 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800 shadow-[0_0_50px_-16px_rgba(163,255,18,0.3)]">
-      {/* тонкий световой блик по верхней кромке */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+    <div className="flex flex-col items-center">
+      {/* Монета: тёмный диск, по краю — кольцо прогресса до цели.
+          Никакой карточки вокруг: монета и есть главный объект экрана. */}
+      <div className="relative" style={{ width: SIZE, height: SIZE }}>
+        <div
+          className="absolute rounded-full border border-dark-600"
+          style={{
+            inset: STROKE - 1,
+            background:
+              "radial-gradient(120% 120% at 32% 20%, #1C2128 0%, #0D1014 58%, #08090C 100%)",
+          }}
+        />
 
-      <div className="flex flex-col items-center">
-        <div className="relative" style={{ width: SIZE, height: SIZE }}>
-          <svg width={SIZE} height={SIZE} className="-rotate-90">
+        <svg width={SIZE} height={SIZE} className="relative -rotate-90">
+          <circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={RADIUS}
+            strokeWidth={STROKE}
+            className="stroke-dark-700"
+            fill="none"
+          />
+          {pct > 0 && (
             <circle
               cx={SIZE / 2}
               cy={SIZE / 2}
               r={RADIUS}
               strokeWidth={STROKE}
-              className="stroke-dark-600"
+              strokeLinecap="round"
               fill="none"
+              strokeDasharray={CIRCUMFERENCE}
+              strokeDashoffset={offset}
+              className="stroke-acid-400 transition-[stroke-dashoffset] duration-1000 ease-out"
             />
-            {pct > 0 && (
-              <circle
-                cx={SIZE / 2}
-                cy={SIZE / 2}
-                r={RADIUS}
-                strokeWidth={STROKE}
-                strokeLinecap="round"
-                fill="none"
-                strokeDasharray={CIRCUMFERENCE}
-                strokeDashoffset={offset}
-                className="stroke-acid-400 transition-[stroke-dashoffset] duration-1000 ease-out"
-              />
-            )}
-          </svg>
+          )}
+        </svg>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-gray-500 text-[11px] uppercase tracking-widest">
-              Баланс
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {goalTitle && (
+            <p className="text-[11px] font-semibold text-acid-400 px-6 text-center truncate max-w-full">
+              коплю на {goalTitle}
             </p>
-            <div className="relative mt-1">
-              <span className="block text-4xl font-black text-acid-400 tracking-tight tabular-nums">
-                {fmt(shownBalance)}
+          )}
+          <div className="relative mt-0.5">
+            <span className="block font-display text-[38px] leading-none font-extrabold tracking-tight tabular-nums">
+              {fmt(shownBalance)}
+            </span>
+            {floaters.map((f) => (
+              <span
+                key={f.id}
+                className={`balance-floater pointer-events-none absolute left-full top-1 ml-2 whitespace-nowrap text-base font-bold ${
+                  f.delta > 0 ? "text-acid-400" : "text-red-400"
+                }`}
+              >
+                {f.delta > 0 ? `+${fmt(f.delta)}` : fmt(f.delta)}
               </span>
-              {floaters.map((f) => (
-                <span
-                  key={f.id}
-                  className={`balance-floater pointer-events-none absolute left-full top-1 ml-2 whitespace-nowrap text-base font-bold ${
-                    f.delta > 0 ? "text-acid-400" : "text-red-400"
-                  }`}
-                >
-                  {f.delta > 0 ? `↑ +${fmt(f.delta)}` : `↓ ${fmt(f.delta)}`}
-                </span>
-              ))}
-            </div>
-            <p className="text-gray-500 text-xs mt-1">коинов</p>
+            ))}
           </div>
+          <p className="text-gray-500 text-xs mt-1.5">коинов</p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-white/10 w-full">
-          <div className="text-center">
-            <p className="text-gray-400 text-[11px] uppercase tracking-wider">
-              За этот месяц
-            </p>
-            <p className="text-xl font-bold tabular-nums mt-0.5">
-              {fmt(monthEarned)}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-400 text-[11px] uppercase tracking-wider">
-              Всего заработано
-            </p>
-            <p className="text-xl font-bold tabular-nums mt-0.5">
-              {fmt(totalEarned)}
-            </p>
-          </div>
+      {goalTitle && remainingToGoal > 0 && (
+        <p className="text-xs text-gray-500 mt-2.5">
+          До цели осталось {fmt(remainingToGoal)}
+        </p>
+      )}
+
+      <div className="flex items-center w-full border-y border-dark-700 py-3 mt-4">
+        <div className="flex-1">
+          <p className="text-xs text-gray-500">Заработано в этом месяце</p>
+          <p className="font-display text-[17px] font-medium tabular-nums mt-1">
+            {fmt(monthEarned)}
+          </p>
+        </div>
+        <div className="w-px h-8 bg-dark-700" />
+        <div className="flex-1 pl-4">
+          <p className="text-xs text-gray-500">Всего заработано</p>
+          <p className="font-display text-[17px] font-medium tabular-nums mt-1">
+            {fmt(totalEarned)}
+          </p>
         </div>
       </div>
     </div>

@@ -87,7 +87,7 @@ export default async function ObserverOverview() {
             key={s.label}
             className="bg-dark-800 border border-white/5 rounded-2xl p-4"
           >
-            <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+            <p className="text-[11px] text-gray-400">
               {s.label}
             </p>
             <p className={`text-2xl font-bold tabular-nums mt-0.5 ${s.tone}`}>

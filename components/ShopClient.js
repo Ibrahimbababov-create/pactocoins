@@ -28,6 +28,12 @@ const GLOW_BORDERS = {
   red: "border-red-400",
 };
 
+// Логотипы-векторы (simpleicons, svg на викискладе) оптимизатор картинок
+// не переваривает и отдаёт 502 — такие грузим как есть.
+function isRawImage(url) {
+  return /\.svg(\?|$)/i.test(url) || url.includes("cdn.simpleicons.org");
+}
+
 function fmtCoins(n) {
   return Number(n || 0).toLocaleString("ru-RU");
 }
@@ -85,8 +91,9 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
               src={reward.image_url}
               alt=""
               fill
+              unoptimized={isRawImage(reward.image_url)}
               sizes="(max-width: 500px) 45vw, 200px"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover"
             />
           </div>
         )}
@@ -122,7 +129,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
                 </span>
                 <span className="truncate">{v.label}</span>
               </span>
-              <span className="shrink-0 tabular-nums">{fmtCoins(v.price_coins)}</span>
+              <span className="shrink-0 tabular-nums font-display font-medium">{fmtCoins(v.price_coins)}</span>
             </button>
           );
         })}
@@ -337,12 +344,20 @@ export default function ShopClient({ grouped, balance }) {
 
   // Витрина: сразу плоская сетка товаров, категории — фильтр в одну строку,
   // а не гармошка, которую нужно по одной раскрывать.
-  const visibleRewards = useMemo(() => {
-    const entries = activeCategory
-      ? [[activeCategory, filteredGrouped[activeCategory] ?? []]]
-      : Object.entries(filteredGrouped);
-    return entries.flatMap(([, items]) => items);
+  // Витрина идёт секциями по категориям — иначе 77 наград сливаются в
+  // одну кучу. Внутри категории порядок задан админкой (sort_order, потом
+  // цена). Выбрана категория или идёт поиск — секция одна, без заголовка.
+  const sections = useMemo(() => {
+    if (activeCategory) {
+      return [[activeCategory, filteredGrouped[activeCategory] ?? []]];
+    }
+    return Object.entries(filteredGrouped).filter(([, items]) => items.length > 0);
   }, [filteredGrouped, activeCategory]);
+
+  const visibleRewards = useMemo(
+    () => sections.flatMap(([, items]) => items),
+    [sections]
+  );
 
   function handleBuy(reward) {
     const { effectivePrice } = getEffectivePrice(reward);
@@ -449,28 +464,22 @@ export default function ShopClient({ grouped, balance }) {
 
   const categories = Object.keys(grouped);
   const isSearching = query.trim().length > 0;
+  const showCategoryHeadings = !activeCategory && !isSearching;
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl p-5 border border-dark-600 bg-dark-800">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-black flex items-center gap-1.5">
-              <Icon name="bag" className="w-5 h-5 text-acid-400 shrink-0" />
-              Магазин наград
-            </h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Меняй коины на то, что реально хочешь
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">
-              Баланс
-            </p>
-            <p className="text-2xl font-black text-acid-400 tabular-nums">
-              {fmtCoins(displayBalance)}
-            </p>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-display font-bold">Магазин</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Меняй коины на то, что реально хочешь
+          </p>
+        </div>
+        <div className="shrink-0 flex items-center gap-2 bg-dark-800 border border-dark-700 rounded-full pl-2.5 pr-4 py-1.5">
+          <Icon name="coin" className="w-5 h-5 text-acid-400" />
+          <span className="font-display font-medium tabular-nums">
+            {fmtCoins(displayBalance)}
+          </span>
         </div>
       </div>
 
@@ -488,12 +497,6 @@ export default function ShopClient({ grouped, balance }) {
         />
       </div>
 
-      <SuggestForm
-        onDone={() => {
-          setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
-          setTimeout(() => setMessage(null), 3000);
-        }}
-      />
 
       {visibleRewards.length === 0 && (
         <EmptyState
@@ -566,9 +569,16 @@ export default function ShopClient({ grouped, balance }) {
         </div>
       )}
 
-      {visibleRewards.length > 0 && (
+      {sections.map(([category, items]) => (
+        <section key={category} className="space-y-3">
+          {showCategoryHeadings && (
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-sm font-semibold text-gray-300">{category}</h2>
+              <span className="text-xs text-gray-600 tabular-nums">{items.length}</span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3 items-stretch">
-            {visibleRewards.map((reward) => {
+            {items.map((reward) => {
               const isPurchased = purchasedIds.has(reward.id);
               const isConfirming = confirming === reward.id;
 
@@ -619,8 +629,9 @@ export default function ShopClient({ grouped, balance }) {
                           src={reward.image_url}
                           alt=""
                           fill
+                          unoptimized={isRawImage(reward.image_url)}
                           sizes="(max-width: 500px) 45vw, 200px"
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="object-cover"
                         />
                       </div>
                     )}
@@ -714,7 +725,8 @@ export default function ShopClient({ grouped, balance }) {
                             </span>
                           </p>
                         ) : (
-                          <p className="text-acid-400 font-bold tabular-nums">
+                          <p className="font-display font-medium tabular-nums flex items-center gap-1.5">
+                            <Icon name="coin" className="w-4 h-4 text-gray-500" />
                             {fmtCoins(reward.price_coins)}
                           </p>
                         )}
@@ -774,7 +786,15 @@ export default function ShopClient({ grouped, balance }) {
               );
             })}
           </div>
-      )}
+        </section>
+      ))}
+
+      <SuggestForm
+        onDone={() => {
+          setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
+          setTimeout(() => setMessage(null), 3000);
+        }}
+      />
     </div>
   );
 }

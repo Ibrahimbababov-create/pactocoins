@@ -94,7 +94,7 @@ export default async function GamesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Игры</h1>
+      <h1 className="text-2xl font-display font-bold">Игры</h1>
 
       {wheelClosed ? (
         <div className="rounded-2xl border border-dark-600 bg-dark-800 text-center py-10 px-4">

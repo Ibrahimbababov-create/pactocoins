@@ -125,7 +125,7 @@ export default function EmployeePicker({
         type="button"
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => toggleGroup(groupKey)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-400 hover:bg-dark-700"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold text-gray-400 hover:bg-dark-700"
       >
         <span className="truncate">{label}</span>
         <span className="text-gray-500 shrink-0 pl-2">

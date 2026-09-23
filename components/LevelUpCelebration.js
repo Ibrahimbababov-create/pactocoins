@@ -72,7 +72,7 @@ export default function LevelUpCelebration({ level }) {
         className="relative"
         style={{ animation: "levelup-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)" }}
       >
-        <p className="text-sm font-semibold uppercase tracking-widest text-acid-400">
+        <p className="text-sm font-semibold text-acid-400">
           Новый ранг
         </p>
         <div className="my-4 text-8xl leading-none">{level.icon}</div>

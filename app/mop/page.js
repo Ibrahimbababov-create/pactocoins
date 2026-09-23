@@ -198,6 +198,7 @@ export default async function MopDashboard({ searchParams }) {
         initialTotalEarned={profile?.total_earned ?? 0}
         initialMonthEarned={monthEarned}
         goalTarget={currentGoal?.target_amount ?? null}
+        goalTitle={currentGoal?.rewards?.title ?? null}
       />
 
       <EarningsMiniChart series={chartSeries} />

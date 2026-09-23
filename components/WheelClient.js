@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { spinWheel, buySpin } from "@/app/mop/wheel/actions";
-import { segmentColor } from "@/lib/wheel";
+import { segmentColor, segmentTextColor } from "@/lib/wheel";
 import { haptic } from "@/lib/haptics";
 
 const CX = 150;
@@ -94,27 +94,24 @@ export default function WheelClient({
 
   return (
     <div className="max-w-md mx-auto space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Колесо фортуны</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Крутки капают за полезные действия. Приз начисляется сразу.
-        </p>
-      </div>
+      <p className="text-sm text-gray-500">
+        Крутки капают за полезные действия. Приз начисляется сразу.
+      </p>
 
       <div className="flex items-center justify-between rounded-2xl bg-dark-800 border border-dark-600 p-4">
         <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wider">
+          <p className="text-xs text-gray-500">
             Круток
           </p>
-          <p className="text-3xl font-black text-acid-400 tabular-nums">
+          <p className="font-display text-3xl font-extrabold text-acid-400 tabular-nums">
             {spins}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">
+          <p className="text-xs text-gray-500">
             Баланс
           </p>
-          <p className="text-xl font-bold tabular-nums">
+          <p className="font-display text-xl font-medium tabular-nums">
             {balance.toLocaleString("ru-RU")}
           </p>
         </div>
@@ -165,7 +162,7 @@ export default function WheelClient({
                   <text
                     x={lx}
                     y={ly}
-                    fill="#fff"
+                    fill={segmentTextColor(segmentColor(seg, i))}
                     fontSize="11"
                     fontWeight="700"
                     textAnchor="middle"
@@ -251,7 +248,7 @@ export default function WheelClient({
 
       {bigWins.length > 0 && (
         <div className="pt-3 border-t border-dark-600 space-y-2">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">
+          <p className="text-xs text-gray-500">
             Крупные выигрыши
           </p>
           {bigWins.map((w) => (

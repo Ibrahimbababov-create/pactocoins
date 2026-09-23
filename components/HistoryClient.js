@@ -108,7 +108,7 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
       {!isEmpty &&
         groups.map((g) => (
           <div key={g.key} className="space-y-2">
-            <p className="text-xs text-gray-500 uppercase tracking-wider px-1">
+            <p className="text-xs text-gray-500 px-1">
               {g.label}
             </p>
 

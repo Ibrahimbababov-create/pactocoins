@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
 import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
@@ -66,14 +66,16 @@ function formatRange(start, end, mode) {
   return `${start.getDate()} ${MONTHS_RU[start.getMonth()]} – ${end.getDate()} ${MONTHS_RU[end.getMonth()]}`;
 }
 
-export default function RatingClient({ currentUserId, users }) {
+export default function RatingClient({ currentUserId, users, initialTotals = {} }) {
   const tab = "overall";
   const [periodMode, setPeriodMode] = useState("week");
   const [pickedDate, setPickedDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
-  const [totals, setTotals] = useState({}); // { [userId]: { overall, revenue, bonus } }
-  const [loading, setLoading] = useState(true);
+  // { [userId]: сумма коинов за период }. Текущая неделя приходит уже
+  // посчитанной с сервера — первый экран рисуется сразу, без пустоты.
+  const [totals, setTotals] = useState(initialTotals);
+  const [loading, setLoading] = useState(false);
 
   const range = useMemo(() => {
     const d = new Date(pickedDate + "T00:00:00");
@@ -83,7 +85,16 @@ export default function RatingClient({ currentUserId, users }) {
     return { start: startOfMonth(d), end: endOfMonth(d) };
   }, [pickedDate, periodMode]);
 
+  const rangeKey =
+    periodMode === "all"
+      ? "all"
+      : `${periodMode}:${range.start.toISOString()}`;
+  const firstRangeKey = useRef(rangeKey);
+
   useEffect(() => {
+    // Первый показ — данные уже пришли с сервера, второй раз не ходим.
+    if (rangeKey === firstRangeKey.current) return;
+
     let alive = true;
     setLoading(true);
     const supabase = createClient();
@@ -97,31 +108,31 @@ export default function RatingClient({ currentUserId, users }) {
         if (!alive) return;
         if (error) {
           console.error("[RatingClient] rating_totals", error);
-          setTotals({});
           setLoading(false);
           return;
         }
         const map = {};
         for (const row of data ?? []) {
-          const bucket = (map[row.user_id] ||= { overall: 0, revenue: 0, bonus: 0 });
-          bucket.overall += row.total;
-          if (row.source === "revenue") bucket.revenue += row.total;
-          else bucket.bonus += row.total;
+          map[row.user_id] = (map[row.user_id] ?? 0) + row.total;
         }
         setTotals(map);
         setLoading(false);
+      })
+      .catch(() => {
+        // Сеть отвалилась — оставляем на экране прошлые числа, а не пустоту.
+        if (alive) setLoading(false);
       });
 
     return () => {
       alive = false;
     };
-  }, [periodMode, range]);
+  }, [periodMode, range, rangeKey]);
 
   const { ranked, zeroCount } = useMemo(() => {
     const withValues = users.map((u) => ({
       id: u.id,
       name: u.name,
-      value: totals[u.id]?.[tab] ?? 0,
+      value: totals[u.id] ?? 0,
       totalEarned: u.total_earned ?? 0,
       isActive: u.is_active !== false,
     }));
@@ -211,14 +222,9 @@ export default function RatingClient({ currentUserId, users }) {
         </div>
       )}
 
-      {loading ? (
-        <div className="space-y-2">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="skeleton h-16" />
-          ))}
-        </div>
-      ) : (
-        <>
+      {/* Пока грузим другой период — не стираем экран, а приглушаем
+          прежние числа: пустота читается как поломка. */}
+      <div className={loading ? "opacity-40 transition-opacity" : "transition-opacity"}>
           {podium && (
             <div className="pt-2">
               <div className="flex items-end gap-2">
@@ -318,8 +324,7 @@ export default function RatingClient({ currentUserId, users }) {
               </div>
             )}
           </div>
-        </>
-      )}
+      </div>
     </div>
   );
 }
