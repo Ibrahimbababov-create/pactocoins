@@ -8,16 +8,8 @@ import AddToHomeScreen from "@/components/AddToHomeScreen";
 import Icon from "@/components/Icon";
 
 const ITEMS = [
-  { href: "/admin/rewards", label: "Магазин наград", icon: "bag" },
-  {
-    href: "/admin/reward-suggestions",
-    label: "Предложения в магазин",
-    icon: "sparkle",
-    badgeKey: "pendingSuggestions",
-  },
-  { href: "/admin/funds", label: "Копилки", icon: "piggy" },
+  { href: "/admin/wheel", label: "Колесо фортуны", icon: "wheel" },
   { href: "/admin/broadcast", label: "Рассылка", icon: "megaphone" },
-  { href: "/admin/merge-accounts", label: "Слияние аккаунтов", icon: "link" },
   { href: "/messages", label: "Сообщения", icon: "mail", badgeKey: "unreadMessages" },
   {
     href: "/admin/bot-messages",
@@ -33,7 +25,7 @@ export default function AdminSideMenu({
   pendingSuggestions = 0,
 }) {
   const [open, setOpen] = useState(false);
-  const totalUnread = unreadMessages + unreadBotMessages + pendingSuggestions;
+  const totalUnread = unreadMessages + unreadBotMessages;
   const badges = { unreadMessages, unreadBotMessages, pendingSuggestions };
 
   return (

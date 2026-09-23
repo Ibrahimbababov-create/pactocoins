@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
+import AdminSubNav from "@/components/AdminSubNav";
 import AdminSideMenu from "@/components/AdminSideMenu";
 import PageTransition from "@/components/PageTransition";
 
@@ -31,10 +32,47 @@ export default async function AdminLayout({ children }) {
     .select("*", { count: "exact", head: true })
     .is("read_at", null);
 
-  const { count: pendingSuggestions } = await supabase
-    .from("reward_suggestions")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending");
+  const [
+    { count: pendingSuggestions },
+    { count: pendingRevenue },
+    { count: pendingBonus },
+    { count: pendingPurchase },
+    { count: pendingJoin },
+  ] = await Promise.all([
+    supabase
+      .from("reward_suggestions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("revenue_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("bonus_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("purchase_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("join_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+  ]);
+
+  const requestCounts = {
+    revenue: pendingRevenue ?? 0,
+    bonus: pendingBonus ?? 0,
+    purchase: pendingPurchase ?? 0,
+    join: pendingJoin ?? 0,
+    suggestions: pendingSuggestions ?? 0,
+  };
+  const pendingRequests =
+    requestCounts.revenue +
+    requestCounts.bonus +
+    requestCounts.purchase +
+    requestCounts.join;
 
   return (
     <div className="relative min-h-screen bg-dark-900">
@@ -51,9 +89,13 @@ export default async function AdminLayout({ children }) {
             pendingSuggestions={pendingSuggestions ?? 0}
           />
         </div>
-        <AdminNav />
+        <AdminNav
+          pendingRequests={pendingRequests}
+          pendingSuggestions={requestCounts.suggestions}
+        />
       </div>
       <div className="relative max-w-6xl mx-auto px-4 py-6">
+        <AdminSubNav counts={requestCounts} />
         <PageTransition>{children}</PageTransition>
       </div>
     </div>
