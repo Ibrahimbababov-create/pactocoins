@@ -95,7 +95,7 @@ export default function WheelClient({
   return (
     <div className="max-w-md mx-auto space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">🎡 Колесо фортуны</h1>
+        <h1 className="text-2xl font-bold">Колесо фортуны</h1>
         <p className="text-sm text-gray-500 mt-1">
           Крутки капают за полезные действия. Приз начисляется сразу.
         </p>
@@ -244,7 +244,7 @@ export default function WheelClient({
             className="w-full bg-dark-800 border border-dark-600 text-gray-200 rounded-xl py-3 text-sm disabled:opacity-40"
           >
             Купить {buyQty} {buyQty === 1 ? "крутку" : "круток"} за{" "}
-            {buyCost.toLocaleString("ru-RU")} coins
+            {buyCost.toLocaleString("ru-RU")} коинов
           </button>
         </div>
       )}

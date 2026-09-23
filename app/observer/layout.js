@@ -32,7 +32,7 @@ export default async function ObserverLayout({ children }) {
             </span>
           </h1>
           <div className="flex items-center gap-4 text-gray-400 text-sm">
-            <Link href="/funds" className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <Link href="/observer/funds" className="flex items-center gap-1.5 hover:text-white transition-colors">
               <Icon name="piggy" className="w-4 h-4" /> Копилки
             </Link>
             <Link

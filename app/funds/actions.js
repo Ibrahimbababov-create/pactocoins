@@ -67,6 +67,8 @@ export async function createFund(formData) {
   if (error) return { error: error.message };
 
   revalidatePath("/funds");
+  revalidatePath("/mop/funds");
+  revalidatePath("/observer/funds");
   revalidatePath("/admin/funds");
   return { success: true };
 }
@@ -112,6 +114,8 @@ export async function updateFund(fundId, formData) {
   if (error) return { error: error.message };
 
   revalidatePath("/funds");
+  revalidatePath("/mop/funds");
+  revalidatePath("/observer/funds");
   revalidatePath("/admin/funds");
   return { success: true };
 }
@@ -147,6 +151,8 @@ export async function closeFund(fundId) {
   if (error) return { error: error.message };
 
   revalidatePath("/funds");
+  revalidatePath("/mop/funds");
+  revalidatePath("/observer/funds");
   revalidatePath("/admin/funds");
   return { success: true };
 }
@@ -204,6 +210,8 @@ export async function contributeToFund(fundId, amount) {
   if (contribError) return { error: contribError.message };
 
   revalidatePath("/funds");
+  revalidatePath("/mop/funds");
+  revalidatePath("/observer/funds");
   revalidatePath("/mop");
   return { success: true };
 }
@@ -267,6 +275,8 @@ export async function refundContribution(fundId, userId) {
   });
 
   revalidatePath("/funds");
+  revalidatePath("/mop/funds");
+  revalidatePath("/observer/funds");
   revalidatePath("/admin/funds");
   revalidatePath("/mop");
   return { success: true, amount: total };

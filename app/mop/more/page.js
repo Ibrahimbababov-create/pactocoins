@@ -32,7 +32,7 @@ export default async function MorePage() {
       label: "Материалы стажёрам",
       icon: "sparkle",
     },
-    { href: "/funds", label: "Копилки", icon: "piggy" },
+    { href: "/mop/funds", label: "Копилки", icon: "piggy" },
     {
       href: "/messages",
       label: "Сообщения",

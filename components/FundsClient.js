@@ -18,7 +18,7 @@ export default function FundsClient({ funds, contributions, balance }) {
     const amount = Number(amounts[fund.id]);
     if (!amount || amount <= 0) return;
     if (amount > displayBalance) {
-      showMessage("Недостаточно coins", "error");
+      showMessage("Недостаточно коинов", "error");
       return;
     }
 
@@ -40,7 +40,9 @@ export default function FundsClient({ funds, contributions, balance }) {
     <div className="space-y-6">
       <div className="text-right">
         <p className="text-xs text-gray-500">Твой баланс</p>
-        <p className="text-xl font-black text-acid-400">{displayBalance}</p>
+        <p className="text-xl font-black text-acid-400 tabular-nums">
+          {displayBalance.toLocaleString("ru-RU")}
+        </p>
       </div>
 
       {message && (
@@ -109,9 +111,9 @@ export default function FundsClient({ funds, contributions, balance }) {
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 tabular-nums">
                 {current.toLocaleString("ru-RU")} /{" "}
-                {fund.goal_coins.toLocaleString("ru-RU")} coins ({pct}%)
+                {fund.goal_coins.toLocaleString("ru-RU")} коинов ({pct}%)
               </p>
             </div>
 
@@ -123,8 +125,8 @@ export default function FundsClient({ funds, contributions, balance }) {
                     className="flex items-center justify-between text-sm text-gray-300"
                   >
                     <span>{name}</span>
-                    <span className="text-acid-400 font-semibold">
-                      {amount}
+                    <span className="text-acid-400 font-semibold tabular-nums">
+                      {amount.toLocaleString("ru-RU")}
                     </span>
                   </div>
                 ))}
