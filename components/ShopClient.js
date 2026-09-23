@@ -789,12 +789,14 @@ export default function ShopClient({ grouped, balance }) {
         </section>
       ))}
 
-      <SuggestForm
-        onDone={() => {
-          setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
-          setTimeout(() => setMessage(null), 3000);
-        }}
-      />
+      <div id="suggest" className="scroll-mt-16">
+        <SuggestForm
+          onDone={() => {
+            setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
+            setTimeout(() => setMessage(null), 3000);
+          }}
+        />
+      </div>
     </div>
   );
 }
