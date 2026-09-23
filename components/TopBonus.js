@@ -63,7 +63,7 @@ export default function TopBonus({
   }
 
   return (
-    <div className="rounded-2xl border border-acid-400/25 bg-gradient-to-br from-[#18220b] to-dark-800 p-5">
+    <div className="rounded-2xl border border-acid-400/25 bg-gradient-to-br from-acid-400/10 to-dark-800 p-5">
       <div className="flex items-center justify-between gap-2">
         <p className="font-bold">{title}</p>
         <span className="text-xs text-gray-500 shrink-0">{periodLabel}</span>

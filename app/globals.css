@@ -4,8 +4,8 @@
 
 html,
 body {
-  background-color: #07080a;
-  color: #f2f5ef;
+  background-color: rgb(var(--c-bg));
+  color: rgb(var(--c-text));
   overflow-x: hidden;
   overscroll-behavior-x: none;
   max-width: 100vw;
@@ -162,7 +162,7 @@ button:not(:disabled):active {
   }
 }
 .skeleton {
-  background-color: #191919;
+  background-color: rgb(var(--c-line));
   background-image: linear-gradient(
     100deg,
     transparent 30%,

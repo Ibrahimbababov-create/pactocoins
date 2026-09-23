@@ -202,7 +202,7 @@ export default function WheelAdminClient({
   return (
     <div className="space-y-6" key={reloadKey}>
       {/* Экономика */}
-      <div className="rounded-2xl border border-acid-400/25 bg-gradient-to-br from-[#18220b] to-dark-800 p-5">
+      <div className="rounded-2xl border border-acid-400/25 bg-gradient-to-br from-acid-400/10 to-dark-800 p-5">
         <p className="font-bold">Экономика колеса</p>
         <p className="text-sm mt-1">
           В среднем одна крутка стоит компании{" "}

@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import ResetButton from "@/components/ResetButton";
 import MonthPicker from "@/components/MonthPicker";
+import ThemePicker from "@/components/ThemePicker";
+import { themeOrDefault } from "@/lib/themes";
 import AdminQueueNext from "@/components/AdminQueueNext";
 import Icon from "@/components/Icon";
 import {
@@ -20,6 +22,9 @@ const QUEUE_LINKS = [
 
 export default async function AdminOverview({ searchParams }) {
   const supabase = createClient();
+  const {
+    data: { user: me },
+  } = await supabase.auth.getUser();
 
   const months = recentMonthKeysAlmaty(12);
   const selectedMonth = months.some((m) => m.key === searchParams?.month)
@@ -96,6 +101,11 @@ export default async function AdminOverview({ searchParams }) {
       .order("created_at", { ascending: false }),
     supabase.rpc("fund_totals"),
   ]);
+
+  const { data: myProfile } = me
+    ? await supabase.from("users").select("theme").eq("id", me.id).single()
+    : { data: null };
+  const myTheme = themeOrDefault(myProfile?.theme);
 
   const totalBalance = users?.reduce((sum, u) => sum + u.balance, 0) ?? 0;
 
@@ -230,6 +240,8 @@ export default async function AdminOverview({ searchParams }) {
             </p>
           </div>
 
+          <ThemePicker current={myTheme} />
+
           {funds && funds.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm text-gray-500">Копилки — сколько закинули</p>
@@ -251,7 +263,7 @@ export default async function AdminOverview({ searchParams }) {
         <div className="space-y-4">
           <Link
             href="/admin/budget"
-            className="block rounded-2xl p-5 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800"
+            className="block rounded-2xl p-5 border border-acid-400/20 bg-gradient-to-br from-acid-400/10 via-dark-800 to-dark-800"
           >
             <p className="text-gray-400 text-xs">
               Остаток бюджета на закуп

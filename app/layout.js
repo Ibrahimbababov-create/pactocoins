@@ -3,6 +3,28 @@ import { Analytics } from "@vercel/analytics/next";
 import { Unbounded, Onest } from "next/font/google";
 import "./globals.css";
 import TelegramInit from "@/components/TelegramInit";
+import { createClient } from "@/lib/supabase-server";
+import { DEFAULT_THEME, themeOrDefault, themeStyleSheet, themeBgHex } from "@/lib/themes";
+
+// Тему читаем на сервере и ставим атрибутом на <html>: страница сразу
+// приходит в нужном цвете, без мигания «сначала одна тема, потом другая».
+async function currentTheme() {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return DEFAULT_THEME;
+    const { data } = await supabase
+      .from("users")
+      .select("theme")
+      .eq("id", user.id)
+      .single();
+    return themeOrDefault(data?.theme);
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
 
 // Unbounded — цифры, заголовки, логотип. Onest — весь остальной текст.
 const unbounded = Unbounded({
@@ -31,15 +53,24 @@ export const viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const theme = await currentTheme();
+
   return (
-    <html lang="ru" className={`${unbounded.variable} ${onest.variable}`}>
+    <html
+      lang="ru"
+      data-theme={theme}
+      className={`${unbounded.variable} ${onest.variable}`}
+    >
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: themeStyleSheet() }} />
+      </head>
       <body>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
-        <TelegramInit />
+        <TelegramInit bgColor={themeBgHex(theme)} />
         {children}
         <Analytics />
       </body>

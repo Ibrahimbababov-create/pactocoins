@@ -148,7 +148,7 @@ export default function LiveBalance({
           style={{
             inset: STROKE - 1,
             background:
-              "radial-gradient(120% 120% at 32% 20%, #1C2128 0%, #0D1014 58%, #08090C 100%)",
+              "radial-gradient(120% 120% at 32% 20%, rgb(var(--c-coin-1)) 0%, rgb(var(--c-coin-2)) 58%, rgb(var(--c-coin-3)) 100%)",
           }}
         />
 

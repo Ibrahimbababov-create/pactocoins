@@ -6,8 +6,8 @@ import { markLevelCelebrated } from "@/app/mop/actions";
 import { haptic } from "@/lib/haptics";
 
 const CONFETTI_COLORS = [
-  "#a3ff12",
-  "#8cf000",
+  "rgb(var(--c-accent))",
+  "rgb(var(--c-accent-strong))",
   "#ffd21f",
   "#ff5c8a",
   "#4fd1ff",

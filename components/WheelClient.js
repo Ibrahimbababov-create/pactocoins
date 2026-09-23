@@ -142,8 +142,8 @@ export default function WheelClient({
               cx={CX}
               cy={CY}
               r={R + 4}
-              fill="#0a0a0a"
-              stroke="#27272a"
+              fill="rgb(var(--c-bg))"
+              stroke="rgb(var(--c-border))"
               strokeWidth="4"
             />
             {segments.map((seg, i) => {
@@ -156,7 +156,7 @@ export default function WheelClient({
                   <path
                     d={slicePath(start, end)}
                     fill={segmentColor(seg, i)}
-                    stroke="#0a0a0a"
+                    stroke="rgb(var(--c-bg))"
                     strokeWidth="1.5"
                   />
                   <text
@@ -180,8 +180,8 @@ export default function WheelClient({
               cx={CX}
               cy={CY}
               r="26"
-              fill="#0a0a0a"
-              stroke="#a3ff12"
+              fill="rgb(var(--c-bg))"
+              stroke="rgb(var(--c-accent))"
               strokeWidth="3"
             />
           </svg>

@@ -4,43 +4,43 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Цвета живут в CSS-переменных (lib/themes.js) — так одна и та же
+        // разметка перекрашивается целиком при смене темы. Формат "R G B"
+        // нужен, чтобы работали прозрачности вида bg-acid-400/10.
         acid: {
-          400: "#A3FF12",
-          500: "#8cf000",
+          400: "rgb(var(--c-accent) / <alpha-value>)",
+          500: "rgb(var(--c-accent-strong) / <alpha-value>)",
         },
         amber: {
-          300: "#ffc966",
-          400: "#FFB020",
-          500: "#FFB020",
-          600: "#d99418",
+          300: "rgb(var(--c-warn) / <alpha-value>)",
+          400: "rgb(var(--c-warn) / <alpha-value>)",
+          500: "rgb(var(--c-warn) / <alpha-value>)",
+          600: "rgb(var(--c-warn) / <alpha-value>)",
         },
-        // Тёмная тема PactoCoins: dark.900 фон, dark.800 карточка,
-        // dark.700 линия, dark.600 граница (см. блок C редизайна).
         dark: {
-          900: "#07080A",
-          800: "#101318",
-          700: "#1B1F25",
-          600: "#262C34",
-          500: "#3a424d",
+          900: "rgb(var(--c-bg) / <alpha-value>)",
+          800: "rgb(var(--c-card) / <alpha-value>)",
+          700: "rgb(var(--c-line) / <alpha-value>)",
+          600: "rgb(var(--c-border) / <alpha-value>)",
+          500: "rgb(var(--c-dim) / <alpha-value>)",
         },
         ink: {
-          DEFAULT: "#F2F5EF",
-          soft: "#8B929B",
-          dim: "#767D87",
+          DEFAULT: "rgb(var(--c-text) / <alpha-value>)",
+          soft: "rgb(var(--c-muted) / <alpha-value>)",
+          dim: "rgb(var(--c-dim) / <alpha-value>)",
         },
-        // Второстепенный/тусклый текст: остальной код исторически написан
-        // на gray-* — переопределяем саму палитру вместо правки сотен
-        // мест, чтобы весь "серый" текст в приложении стал фирменным.
+        // Исторически по коду разбросан gray-* — переопределяем палитру,
+        // чтобы весь «серый» текст тоже слушался темы.
         gray: {
-          100: "#F2F5EF",
-          200: "#d7dade",
-          300: "#aeb4bc",
-          400: "#8B929B",
-          500: "#8B929B",
-          600: "#767D87",
-          700: "#565d66",
-          800: "#3a4048",
-          900: "#20242a",
+          100: "rgb(var(--c-text) / <alpha-value>)",
+          200: "rgb(var(--c-text) / <alpha-value>)",
+          300: "rgb(var(--c-muted) / <alpha-value>)",
+          400: "rgb(var(--c-muted) / <alpha-value>)",
+          500: "rgb(var(--c-muted) / <alpha-value>)",
+          600: "rgb(var(--c-dim) / <alpha-value>)",
+          700: "rgb(var(--c-border) / <alpha-value>)",
+          800: "rgb(var(--c-line) / <alpha-value>)",
+          900: "rgb(var(--c-card) / <alpha-value>)",
         },
       },
       fontFamily: {

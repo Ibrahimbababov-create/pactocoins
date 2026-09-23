@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-export default function TelegramInit() {
+export default function TelegramInit({ bgColor = "#07080a" }) {
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
     if (!tg) return;
@@ -13,10 +13,10 @@ export default function TelegramInit() {
     }
     if (typeof tg.setHeaderColor === "function") {
       try {
-        tg.setHeaderColor("#0a0a0a");
+        tg.setHeaderColor(bgColor);
       } catch {}
     }
-  }, []);
+  }, [bgColor]);
 
   return null;
 }
