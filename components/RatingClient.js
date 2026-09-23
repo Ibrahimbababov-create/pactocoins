@@ -5,12 +5,6 @@ import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
 import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
 
-const CATEGORY_TABS = [
-  { key: "overall", label: "Общее" },
-  { key: "revenue", label: "Выручка" },
-  { key: "bonus", label: "Бонус" },
-];
-
 const PERIODS = [
   { key: "week", label: "Неделя" },
   { key: "month", label: "Месяц" },
@@ -72,8 +66,8 @@ function formatRange(start, end, mode) {
   return `${start.getDate()} ${MONTHS_RU[start.getMonth()]} – ${end.getDate()} ${MONTHS_RU[end.getMonth()]}`;
 }
 
-export default function RatingClient({ currentUserId, users, showCategories = true }) {
-  const [tab, setTab] = useState("overall");
+export default function RatingClient({ currentUserId, users }) {
+  const tab = "overall";
   const [periodMode, setPeriodMode] = useState("week");
   const [pickedDate, setPickedDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
@@ -171,22 +165,6 @@ export default function RatingClient({ currentUserId, users, showCategories = tr
 
   return (
     <div className="space-y-4 max-w-md mx-auto">
-      {showCategories && (
-        <div className="grid grid-cols-3 gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
-          {CATEGORY_TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`py-2 rounded-lg text-sm font-semibold transition active:scale-95 ${
-                tab === t.key ? "bg-acid-400/15 text-acid-400" : "text-gray-400"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="grid grid-cols-3 gap-1 bg-dark-800 border border-dark-600 rounded-xl p-1">
         {PERIODS.map((p) => (
           <button
