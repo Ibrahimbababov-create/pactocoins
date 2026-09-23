@@ -129,10 +129,16 @@ export default function RatingClient({ currentUserId, users, showCategories = tr
       name: u.name,
       value: totals[u.id]?.[tab] ?? 0,
       totalEarned: u.total_earned ?? 0,
+      isActive: u.is_active !== false,
     }));
     const nonZero = withValues.filter((u) => u.value > 0);
     nonZero.sort((a, b) => b.value - a.value);
-    return { ranked: nonZero, zeroCount: withValues.length - nonZero.length };
+    // "Ещё не начали" — только про тех, кто сейчас реально в строю.
+    // Уволенные с нулём за период это не "не начал", а просто не в счёт;
+    // если у уволенного есть заработок за период (или за всё время), он
+    // всё равно останется виден в списке выше — это не трогаем.
+    const zeroCount = withValues.filter((u) => u.value === 0 && u.isActive).length;
+    return { ranked: nonZero, zeroCount };
   }, [tab, totals, users]);
 
   function shiftPeriod(direction) {

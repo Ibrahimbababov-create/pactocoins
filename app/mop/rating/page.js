@@ -11,7 +11,7 @@ export default async function RatingPage() {
   // сотрудник должен оставаться виден в истории рейтинга — под своим именем.
   const { data: users } = await supabase
     .from("users")
-    .select("id, name, total_earned")
+    .select("id, name, total_earned, is_active")
     .eq("role", "mop")
     .eq("is_guest", false)
     .not("email", "like", "%.test@pactocoins.local");
