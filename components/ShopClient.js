@@ -458,16 +458,15 @@ export default function ShopClient({ grouped, balance }) {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl p-5 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800 shadow-[0_0_40px_-18px_rgba(163,255,18,0.35)]">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        <div className="relative flex items-center justify-between gap-3">
+      <div className="rounded-2xl p-5 border border-dark-600 bg-dark-800">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-xl font-black flex items-center gap-1.5">
               <Icon name="bag" className="w-5 h-5 text-acid-400 shrink-0" />
               Магазин наград
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              Меняй coins на то, что реально хочешь
+              Меняй коины на то, что реально хочешь
             </p>
           </div>
           <div className="text-right shrink-0">

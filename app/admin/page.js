@@ -122,9 +122,8 @@ export default async function AdminOverview({ searchParams }) {
 
       <Link
         href="/admin/budget"
-        className="block relative overflow-hidden rounded-3xl p-6 border border-acid-400/20 bg-gradient-to-br from-[#18220b] via-dark-800 to-dark-800 shadow-[0_0_50px_-16px_rgba(163,255,18,0.3)]"
+        className="block rounded-2xl p-6 border border-dark-600 bg-dark-800"
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         <p className="text-gray-400 text-xs uppercase tracking-widest">
           Остаток бюджета на закуп
         </p>
