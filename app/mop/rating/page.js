@@ -16,22 +16,10 @@ export default async function RatingPage() {
     .eq("is_guest", false)
     .not("email", "like", "%.test@pactocoins.local");
 
-  const userIds = users?.map((u) => u.id) ?? [];
-
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("user_id, amount_coins, description, type, created_at")
-    .in("user_id", userIds)
-    .eq("rating_exempt", false);
-
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Рейтинг</h1>
-      <RatingClient
-        currentUserId={user.id}
-        users={users ?? []}
-        transactions={transactions ?? []}
-      />
+      <RatingClient currentUserId={user.id} users={users ?? []} />
     </div>
   );
 }
