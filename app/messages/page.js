@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
+import Icon from "@/components/Icon";
 
 export default async function MessagesListPage() {
   const supabase = createClient();
@@ -63,9 +64,10 @@ export default async function MessagesListPage() {
 
       <Link
         href="/messages/anonymous"
-        className="block bg-dark-800 border border-dark-600 rounded-xl p-4 text-sm text-gray-300"
+        className="flex items-center gap-2 bg-dark-800 border border-dark-600 rounded-xl p-4 text-sm text-gray-300"
       >
-        📮 Анонимные сообщения
+        <Icon name="mail" className="w-4 h-4 text-gray-500" />
+        Анонимные сообщения
       </Link>
 
       <div className="space-y-2">

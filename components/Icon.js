@@ -45,6 +45,7 @@ const PATHS = {
   fuel: "M6 20V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14M4 20h10M16 9h2a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V9l-2-2",
   book: "M5 4h11a2 2 0 0 1 2 2v14l-6-3-6 3V6a2 2 0 0 1 2-2Z",
   food: "M6 3v7a2 2 0 0 0 4 0V3M8 10v11M17 3c-2 1-3 3-3 6s1 5 3 6M17 3v18",
+  paperclip: "M8 12V6a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V7",
 };
 
 export default function Icon({ name, className = "w-5 h-5", strokeWidth = 1.75 }) {

@@ -269,9 +269,10 @@ function SuggestForm({ onDone }) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="text-xs bg-dark-700 text-gray-300 rounded-lg px-3 py-2"
+          className="flex items-center gap-1.5 text-xs bg-dark-700 text-gray-300 rounded-lg px-3 py-2"
         >
-          {uploading ? "Загрузка…" : photo ? `📎 ${photo.name}` : "📎 Фото"}
+          <Icon name="paperclip" className="w-3.5 h-3.5 shrink-0" />
+          {uploading ? "Загрузка…" : photo ? photo.name : "Фото"}
         </button>
         <input
           ref={inputRef}
