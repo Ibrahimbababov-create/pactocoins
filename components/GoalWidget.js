@@ -125,7 +125,7 @@ export default function GoalWidget({ goal, balance }) {
             </span>
             <span className="text-gray-500">
               {" "}
-              / {goal.target_amount.toLocaleString("ru-RU")} coins
+              / {goal.target_amount.toLocaleString("ru-RU")} коинов
             </span>
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function GoalWidget({ goal, balance }) {
         <p className="text-xs text-gray-500">
           {achieved
             ? "Можно выбрать новую цель"
-            : `Осталось: ${remaining.toLocaleString("ru-RU")} coins`}
+            : `Осталось: ${remaining.toLocaleString("ru-RU")} коинов`}
         </p>
         <Link
           href="/mop/shop"
