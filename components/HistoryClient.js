@@ -92,7 +92,7 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
           hint={
             tab === "purchases"
               ? "Здесь появятся твои покупки в магазине."
-              : "Здесь появятся начисления и списания coins."
+              : "Здесь появятся начисления и списания коинов."
           }
           action={
             <Link
@@ -134,7 +134,7 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
                           )}
                         </p>
                         <p className="text-xs text-gray-500 tabular-nums">
-                          {p.price_coins.toLocaleString("ru-RU")} coins ·{" "}
+                          {p.price_coins.toLocaleString("ru-RU")} коинов ·{" "}
                           {new Date(p.created_at).toLocaleTimeString("ru-RU", {
                             hour: "2-digit",
                             minute: "2-digit",
