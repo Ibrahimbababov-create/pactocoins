@@ -46,6 +46,7 @@ export default async function ProjectsPage() {
         projects={withRops}
         rops={rops}
         peopleByProject={peopleByProject}
+        people={people ?? []}
       />
     </div>
   );

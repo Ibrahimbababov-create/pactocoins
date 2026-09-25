@@ -90,3 +90,21 @@ export async function setProjectRops(projectId, ropIds) {
   revalidatePath("/admin/employees");
   return { success: true };
 }
+
+// Закрепить человека за проектом прямо со страницы проектов — чтобы не
+// лазить в карточку каждого сотрудника.
+export async function setUserProject(userId, projectId) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("users")
+    .update({ project_id: projectId || null })
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/projects");
+  revalidatePath("/admin/employees");
+  return { success: true };
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition, useMemo } from "react";
+import { useRef, useState, useTransition, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   purchaseReward,
@@ -326,6 +327,19 @@ export default function ShopClient({ grouped, balance }) {
   const [confirmingVariable, setConfirmingVariable] = useState(null);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState(null); // null = «Все»
+  const searchParams = useSearchParams();
+  const suggestRef = useRef(null);
+
+  // Из «Ещё» человек приходит сюда ради формы «Предложить награду», а она
+  // в самом низу. Якорь в ссылке не работает: список товаров дорисовывается
+  // уже после загрузки и утягивает страницу обратно наверх.
+  useEffect(() => {
+    if (searchParams.get("suggest") !== "1") return;
+    const t = setTimeout(() => {
+      suggestRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchParams]);
 
   // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер
   const filteredGrouped = useMemo(() => {
@@ -789,7 +803,7 @@ export default function ShopClient({ grouped, balance }) {
         </section>
       ))}
 
-      <div id="suggest" className="scroll-mt-16">
+      <div id="suggest" ref={suggestRef} className="scroll-mt-16">
         <SuggestForm
           onDone={() => {
             setMessage({ type: "success", text: "Отправлено, ждём решения админа" });

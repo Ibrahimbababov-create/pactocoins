@@ -44,7 +44,7 @@ export default async function MorePage() {
         { href: "/mop/history", label: "История и покупки", icon: "history" },
         { href: "/mop/funds", label: "Копилки команды", icon: "piggy" },
         {
-          href: "/mop/shop#suggest",
+          href: "/mop/shop?suggest=1",
           label: "Предложить награду",
           icon: "sparkle",
         },

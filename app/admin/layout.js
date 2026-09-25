@@ -19,7 +19,8 @@ export default async function AdminLayout({ children }) {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") redirect("/mop");
+  const isMentor = profile?.role === "mentor";
+  if (profile?.role !== "admin" && !isMentor) redirect("/mop");
 
   const { count: unreadMessages } = await supabase
     .from("messages")
@@ -92,6 +93,7 @@ export default async function AdminLayout({ children }) {
         <AdminNav
           pendingRequests={pendingRequests}
           pendingSuggestions={requestCounts.suggestions}
+          onlyOnboarding={isMentor}
         />
       </div>
       <div className="relative max-w-6xl mx-auto px-4 py-6">

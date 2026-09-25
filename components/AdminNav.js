@@ -43,14 +43,21 @@ const SECTIONS = [
   { href: "/admin/onboarding", label: "Обучение", owns: ["/admin/onboarding"] },
 ];
 
-export default function AdminNav({ pendingRequests = 0, pendingSuggestions = 0 }) {
+export default function AdminNav({
+  pendingRequests = 0,
+  pendingSuggestions = 0,
+  onlyOnboarding = false,
+}) {
   const pathname = usePathname();
   const badges = { pendingRequests, pendingSuggestions };
+  const sections = onlyOnboarding
+    ? SECTIONS.filter((x) => x.href === "/admin/onboarding")
+    : SECTIONS;
 
   return (
     <div className="max-w-6xl mx-auto px-4 overflow-x-auto no-scrollbar">
       <div className="flex gap-1 pb-2">
-        {SECTIONS.map((item) => {
+        {sections.map((item) => {
           const active = item.exact
             ? pathname === item.href
             : (item.owns ?? []).some((p) => pathname.startsWith(p));

@@ -71,19 +71,25 @@ export async function POST(request) {
 
     const name = displayName.trim().slice(0, 60) || "МОП";
 
-    // Проверяем, что выбранный руководитель — реальный активный РОП.
+    // Выбранный человек может быть как РОПом, так и наставником —
+    // стажёров ведут наставники. Проверяем, что он реальный и активный.
     let cleanRopId = null;
-    let ropName = null;
+    let cleanMentorId = null;
+    let leadName = null;
+    let leadRole = null;
     if (ropId) {
-      const { data: rop } = await admin
+      const { data: lead } = await admin
         .from("users")
-        .select("id, name")
+        .select("id, name, role")
         .eq("id", ropId)
-        .eq("role", "rop")
+        .in("role", ["rop", "mentor"])
         .eq("is_active", true)
         .maybeSingle();
-      cleanRopId = rop?.id ?? null;
-      ropName = rop?.name ?? null;
+
+      if (lead?.role === "mentor") cleanMentorId = lead.id;
+      else if (lead?.role === "rop") cleanRopId = lead.id;
+      leadName = lead?.name ?? null;
+      leadRole = lead?.role ?? null;
     }
 
     const { data: joinRequest, error: insertErr } = await admin
@@ -94,6 +100,7 @@ export async function POST(request) {
         name,
         birthday: cleanBirthday,
         rop_id: cleanRopId,
+        mentor_id: cleanMentorId,
       })
       .select("id")
       .single();
@@ -106,7 +113,7 @@ export async function POST(request) {
       JOIN_REQUEST_CHAT_ID,
       `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${name}</b>\nTelegram: ${
         tgUser.username ? `@${tgUser.username}` : `id ${tgUser.id}`
-      }${ropName ? `\nРуководитель: ${ropName}` : ""}${
+      }${leadName ? `\n${leadRole === "mentor" ? "Наставник" : "Руководитель"}: ${leadName}` : ""}${
         cleanBirthday ? `\nДР: ${cleanBirthday}` : ""
       }`,
       {

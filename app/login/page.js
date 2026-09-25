@@ -30,6 +30,7 @@ export default function LoginPage() {
   const [registerBirthday, setRegisterBirthday] = useState("");
   const [registerRopId, setRegisterRopId] = useState("");
   const [rops, setRops] = useState([]);
+  const [leads, setLeads] = useState([]);
   const [onboardingError, setOnboardingError] = useState("");
   const [onboardingLoading, setOnboardingLoading] = useState(false);
 
@@ -43,12 +44,15 @@ export default function LoginPage() {
 
   // Подтягиваем список РОПов для выбора руководителя при регистрации.
   useEffect(() => {
-    if (onboardingMode !== "register" || rops.length) return;
+    if (onboardingMode !== "register" || leads.length) return;
     fetch("/api/rops")
       .then((r) => r.json())
-      .then((d) => setRops(d.rops ?? []))
+      .then((d) => {
+        setLeads(d.leads ?? d.rops ?? []);
+        setRops(d.rops ?? []);
+      })
       .catch(() => {});
-  }, [onboardingMode, rops.length]);
+  }, [onboardingMode, leads.length]);
 
   function doTelegramLogin(initData, displayName, birthday, ropId) {
     setDebug("initData найден, отправляем на сервер (XHR)...");
@@ -265,7 +269,7 @@ export default function LoginPage() {
       setOnboardingError("Введи имя");
       return;
     }
-    if (rops.length && !registerRopId) {
+    if (leads.length && !registerRopId) {
       setOnboardingError("Выбери своего руководителя");
       return;
     }
@@ -413,10 +417,10 @@ export default function LoginPage() {
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
                 />
               </div>
-              {rops.length > 0 && (
+              {leads.length > 0 && (
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">
-                    Твой руководитель
+                    К кому ты идёшь
                   </label>
                   <select
                     value={registerRopId}
@@ -424,12 +428,16 @@ export default function LoginPage() {
                     className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
                   >
                     <option value="">Выбери из списка…</option>
-                    {rops.map((r) => (
+                    {leads.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name}
+                        {r.role === "mentor" ? " — наставник" : " — РОП"}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Новички обычно идут к наставнику — он ведёт обучение.
+                  </p>
                 </div>
               )}
               <div>

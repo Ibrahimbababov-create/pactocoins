@@ -8,9 +8,10 @@ import {
   renameProject,
   setProjectActive,
   setProjectRops,
+  setUserProject,
 } from "@/app/admin/projectActions";
 
-export default function ProjectsClient({ projects, rops, peopleByProject }) {
+export default function ProjectsClient({ projects, rops, peopleByProject, people }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [newName, setNewName] = useState("");
@@ -69,7 +70,7 @@ export default function ProjectsClient({ projects, rops, peopleByProject }) {
       )}
 
       {projects.map((p) => {
-        const people = peopleByProject[p.id] ?? [];
+        const inProject = peopleByProject[p.id] ?? [];
         const assigned = new Set((p.rops ?? []).map((r) => r.id));
 
         return (
@@ -108,11 +109,9 @@ export default function ProjectsClient({ projects, rops, peopleByProject }) {
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">
-                  {people.length === 0
+                  {inProject.length === 0
                     ? "никого не закреплено"
-                    : `${people.length} чел.: ${people
-                        .map((u) => u.name)
-                        .join(", ")}`}
+                    : `${inProject.length} чел.`}
                 </p>
               </div>
 
@@ -167,6 +166,49 @@ export default function ProjectsClient({ projects, rops, peopleByProject }) {
                     Сначала назначь кому-нибудь роль РОПа
                   </span>
                 )}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 mb-2">Кто в проекте</p>
+              <div className="flex flex-wrap gap-2 items-center">
+                {inProject.map((u) => (
+                  <span
+                    key={u.id}
+                    className="text-xs rounded-full pl-3 pr-1.5 py-1.5 border border-dark-600 flex items-center gap-1.5"
+                  >
+                    {u.name}
+                    <button
+                      type="button"
+                      aria-label={`Убрать ${u.name} из проекта`}
+                      disabled={isPending}
+                      onClick={() => run(() => setUserProject(u.id, null))}
+                      className="text-gray-500 hover:text-red-400 px-1"
+                    >
+                      <Icon name="x" className="w-3 h-3" strokeWidth={2.5} />
+                    </button>
+                  </span>
+                ))}
+
+                <select
+                  value=""
+                  disabled={isPending}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (id) run(() => setUserProject(id, p.id));
+                  }}
+                  className="text-xs bg-dark-700 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300"
+                >
+                  <option value="">+ добавить человека</option>
+                  {people
+                    .filter((u) => u.project_id !== p.id)
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                        {u.project_id ? " (сейчас в другом)" : ""}
+                      </option>
+                    ))}
+                </select>
               </div>
             </div>
           </div>

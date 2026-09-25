@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
+import TraineeProjectPicker from "@/components/TraineeProjectPicker";
 
 // Экран наставника: его стажёры и то, на каком они дне.
 export default async function TraineesPage() {
@@ -10,8 +11,13 @@ export default async function TraineesPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: me }, { data: trainees }, { data: blocks }, { data: progress }] =
-    await Promise.all([
+  const [
+    { data: me },
+    { data: trainees },
+    { data: blocks },
+    { data: progress },
+    { data: projects },
+  ] = await Promise.all([
       supabase.from("users").select("role").eq("id", user.id).single(),
       supabase
         .from("users")
@@ -23,6 +29,11 @@ export default async function TraineesPage() {
         .select("id, day, required")
         .eq("required", true),
       supabase.from("onboarding_progress").select("user_id, block_id"),
+      supabase
+        .from("projects")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name"),
     ]);
 
   const traineeIds = new Set((trainees ?? []).map((t) => t.id));
@@ -104,6 +115,12 @@ export default async function TraineesPage() {
                 );
               })}
             </div>
+
+            <TraineeProjectPicker
+              traineeId={t.id}
+              projectId={t.project_id}
+              projects={projects ?? []}
+            />
 
             <Link
               href={`/messages/${t.id}`}

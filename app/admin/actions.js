@@ -46,6 +46,28 @@ async function requireAdmin() {
   return user;
 }
 
+// Обучение стажёров ведут наставники — им эти действия тоже нужны.
+async function requireAdminOrMentor() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Не авторизован");
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin" && profile?.role !== "mentor") {
+    throw new Error("Доступ запрещён");
+  }
+
+  return user;
+}
+
 // ---------- Сотрудники ----------
 
 export async function createMop(formData) {
@@ -1208,7 +1230,7 @@ export async function bulkRejectBonus(ids) {
 // Админ правит блоки owner='admin' (и дефолты для блоков РОПа).
 
 export async function setAdminOnboardingBlock(blockId, { source, telegraph_url, body_md }) {
-  await requireAdmin();
+  await requireAdminOrMentor();
   const admin = createAdminClient();
 
   const { data: block } = await admin
@@ -1254,7 +1276,7 @@ export async function setAdminOnboardingBlock(blockId, { source, telegraph_url, 
 }
 
 export async function addAdminOnboardingLink(blockId, { title, url, note }) {
-  await requireAdmin();
+  await requireAdminOrMentor();
   const admin = createAdminClient();
   const { data: block } = await admin
     .from("onboarding_blocks")
@@ -1283,7 +1305,7 @@ export async function addAdminOnboardingLink(blockId, { title, url, note }) {
 // ---- Вопросы тестов ----
 
 export async function upsertOnboardingQuestion(day, { id, question, options, correct, sort }) {
-  await requireAdmin();
+  await requireAdminOrMentor();
   const admin = createAdminClient();
 
   const { data: test } = await admin
@@ -1316,7 +1338,7 @@ export async function upsertOnboardingQuestion(day, { id, question, options, cor
 }
 
 export async function deleteOnboardingQuestion(id) {
-  await requireAdmin();
+  await requireAdminOrMentor();
   const admin = createAdminClient();
   const { error } = await admin.from("onboarding_questions").delete().eq("id", id);
   if (error) return { error: error.message };
@@ -1326,7 +1348,7 @@ export async function deleteOnboardingQuestion(id) {
 }
 
 export async function removeAdminOnboardingLink(linkId) {
-  await requireAdmin();
+  await requireAdminOrMentor();
   const admin = createAdminClient();
   const { data: row } = await admin
     .from("onboarding_links")
