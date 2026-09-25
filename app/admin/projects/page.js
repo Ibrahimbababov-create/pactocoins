@@ -12,6 +12,7 @@ export default async function ProjectsPage() {
       .select("id, name, role, project_id, is_active")
       .eq("is_guest", false)
       .eq("is_active", true)
+      .not("email", "like", "%.test@pactocoins.local")
       .order("name"),
   ]);
 
