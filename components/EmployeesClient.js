@@ -34,7 +34,7 @@ function groupOf(u) {
   return "mop";
 }
 
-export default function EmployeesClient({ users }) {
+export default function EmployeesClient({ users, projects = [], mentors = [] }) {
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -300,6 +300,7 @@ export default function EmployeesClient({ users }) {
                   <option value="mop">МОП</option>
                   <option value="rop">РОП</option>
                   <option value="admin">Админ</option>
+                  <option value="mentor">Наставник</option>
                   <option value="observer">Наблюдатель</option>
                 </select>
                 <label className="block space-y-1">
@@ -315,6 +316,39 @@ export default function EmployeesClient({ users }) {
                     {rops.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">Проект</span>
+                  <select
+                    name="project_id"
+                    defaultValue={u.project_id ?? ""}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  >
+                    <option value="">Не выбран</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.is_active ? "" : " (закрыт)"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">
+                    Наставник — для стажёра
+                  </span>
+                  <select
+                    name="mentor_id"
+                    defaultValue={u.mentor_id ?? ""}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  >
+                    <option value="">Не назначен</option>
+                    {mentors.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
                       </option>
                     ))}
                   </select>

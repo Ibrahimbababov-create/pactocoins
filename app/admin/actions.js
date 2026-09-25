@@ -89,6 +89,8 @@ export async function updateMop(userId, formData) {
   const role = formData.get("role");
   const birthday = formData.get("birthday") || null;
   const ropId = formData.get("rop_id") || null;
+  const projectId = formData.get("project_id") || null;
+  const mentorId = formData.get("mentor_id") || null;
   const multiplierRaw = formData.get("coin_rate_multiplier");
   const multiplier = multiplierRaw ? Number(multiplierRaw) : 1;
 
@@ -108,6 +110,9 @@ export async function updateMop(userId, formData) {
     birthday,
     coin_rate_multiplier: multiplier,
     rop_id: role === "mop" || role === "trainee" ? ropId : null,
+    // Проект есть у тех, кто работает в поле; наставник — только у стажёра.
+    project_id: role === "mop" || role === "trainee" || role === "rop" ? projectId : null,
+    mentor_id: role === "trainee" ? mentorId : null,
   };
   // Смена статуса стажёр ↔ обычная роль двигает уровень.
   if (before?.role === "trainee" && role !== "trainee") patch.level = 1;

@@ -22,7 +22,12 @@ const SECTIONS = [
   {
     href: "/admin/employees",
     label: "Люди",
-    owns: ["/admin/employees", "/admin/rating", "/admin/merge-accounts"],
+    owns: [
+      "/admin/employees",
+      "/admin/rating",
+      "/admin/projects",
+      "/admin/merge-accounts",
+    ],
   },
   {
     href: "/admin/rewards",

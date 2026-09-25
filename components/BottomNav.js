@@ -21,6 +21,14 @@ const ROP_ITEMS = [
   { href: "/mop/more", label: "Ещё", icon: "dots" },
 ];
 
+const MENTOR_ITEMS = [
+  { href: "/mop", label: "Баланс", icon: "home", exact: true },
+  { href: "/mop/trainees", label: "Стажёры", icon: "users" },
+  { href: "/mop/rating", label: "Рейтинг", icon: "chart" },
+  { href: "/mop/shop", label: "Магазин", icon: "bag" },
+  { href: "/mop/more", label: "Ещё", icon: "dots" },
+];
+
 const TRAINEE_ITEMS = [
   { href: "/mop", label: "Обучение", icon: "sparkle", exact: true },
   { href: "/mop/materials", label: "Регламенты", icon: "help" },
@@ -30,7 +38,13 @@ const TRAINEE_ITEMS = [
 export default function BottomNav({ role, unreadCount = 0 }) {
   const pathname = usePathname();
   const items =
-    role === "rop" ? ROP_ITEMS : role === "trainee" ? TRAINEE_ITEMS : DEFAULT_ITEMS;
+    role === "rop"
+      ? ROP_ITEMS
+      : role === "mentor"
+      ? MENTOR_ITEMS
+      : role === "trainee"
+      ? TRAINEE_ITEMS
+      : DEFAULT_ITEMS;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-dark-800 border-t border-dark-600 z-50">

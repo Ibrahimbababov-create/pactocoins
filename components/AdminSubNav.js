@@ -22,9 +22,15 @@ const GROUPS = [
     ],
   },
   {
-    match: ["/admin/employees", "/admin/rating", "/admin/merge-accounts"],
+    match: [
+      "/admin/employees",
+      "/admin/rating",
+      "/admin/projects",
+      "/admin/merge-accounts",
+    ],
     items: [
       { href: "/admin/employees", label: "Сотрудники" },
+      { href: "/admin/projects", label: "Проекты" },
       { href: "/admin/rating", label: "Рейтинг" },
       { href: "/admin/merge-accounts", label: "Объединить аккаунты" },
     ],
