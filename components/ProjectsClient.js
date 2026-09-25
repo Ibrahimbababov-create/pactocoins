@@ -3,12 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import PeopleMultiPicker from "@/components/PeopleMultiPicker";
 import {
   createProject,
   renameProject,
   setProjectActive,
   setProjectRops,
   setUserProject,
+  addUsersToProject,
 } from "@/app/admin/projectActions";
 
 export default function ProjectsClient({ projects, rops, peopleByProject, people }) {
@@ -190,25 +192,18 @@ export default function ProjectsClient({ projects, rops, peopleByProject, people
                   </span>
                 ))}
 
-                <select
-                  value=""
+                <PeopleMultiPicker
                   disabled={isPending}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    if (id) run(() => setUserProject(id, p.id));
-                  }}
-                  className="text-xs bg-dark-700 border border-dark-600 rounded-full px-3 py-1.5 text-gray-300"
-                >
-                  <option value="">+ добавить человека</option>
-                  {people
+                  label="добавить людей"
+                  people={people
                     .filter((u) => u.project_id !== p.id)
-                    .map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name}
-                        {u.project_id ? " (сейчас в другом)" : ""}
-                      </option>
-                    ))}
-                </select>
+                    .map((u) => ({
+                      id: u.id,
+                      name: u.name,
+                      hint: u.project_id ? "в другом проекте" : "",
+                    }))}
+                  onAdd={(ids) => run(() => addUsersToProject(ids, p.id))}
+                />
               </div>
             </div>
           </div>

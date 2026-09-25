@@ -108,3 +108,22 @@ export async function setUserProject(userId, projectId) {
   revalidatePath("/admin/employees");
   return { success: true };
 }
+
+// Несколько человек за раз — по одному через выпадашку это пытка.
+export async function addUsersToProject(userIds, projectId) {
+  await requireAdmin();
+  const ids = (userIds ?? []).filter(Boolean);
+  if (ids.length === 0) return { error: "Никого не выбрал" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("users")
+    .update({ project_id: projectId || null })
+    .in("id", ids);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/projects");
+  revalidatePath("/admin/employees");
+  return { success: true };
+}
