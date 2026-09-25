@@ -18,6 +18,7 @@ const GROUPS = [
   { key: "trainee", label: "Стажёры" },
   { key: "mop", label: "МОПы" },
   { key: "rop", label: "РОПы" },
+  { key: "mentor", label: "Наставники" },
   { key: "observer", label: "Наблюдатели" },
   { key: "admin", label: "Админы" },
   { key: "test", label: "🤖 Тестовые (Claude)" },
@@ -28,6 +29,7 @@ function groupOf(u) {
   if (u.email?.endsWith(".test@pactocoins.local")) return "test";
   if (!u.is_active) return "offboarded";
   if (u.role === "rop") return "rop";
+  if (u.role === "mentor") return "mentor";
   if (u.role === "observer") return "observer";
   if (u.role === "admin") return "admin";
   if (u.role === "trainee") return "trainee";
