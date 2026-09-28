@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import CancelWithReason from "@/components/CancelWithReason";
+import { loadRequestHistory } from "@/app/admin/historyActions";
 import EmptyState from "@/components/EmptyState";
 import {
   rejectBonusRequest,
@@ -30,12 +31,14 @@ export default function BonusRequestsClient({
   employees,
   weekVariants = [],
   monthVariants = [],
+  historyTotal = 0,
+  historyPageSize = 20,
 }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
-  // История грузится целиком, но рисуем по 20 — иначе три сотни строк
-  // с полями ввода кладут браузер.
-  const [historyLimit, setHistoryLimit] = useState(20);
+  // История приходит с сервера порциями и копится здесь.
+  const [extraHistory, setExtraHistory] = useState([]);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [exemptMap, setExemptMap] = useState({});
   const [hiddenIds, setHiddenIds] = useState(new Set());
@@ -56,7 +59,17 @@ export default function BonusRequestsClient({
   const pending = requests.filter(
     (r) => r.status === "pending" && !hiddenIds.has(r.id)
   );
-  const processed = requests.filter((r) => r.status !== "pending");
+  const processed = [
+    ...requests.filter((r) => r.status !== "pending"),
+    ...extraHistory,
+  ];
+
+  async function loadMore() {
+    setLoadingMore(true);
+    const res = await loadRequestHistory("bonus", processed.length, historyPageSize);
+    if (res?.rows) setExtraHistory((prev) => [...prev, ...res.rows]);
+    setLoadingMore(false);
+  }
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -473,13 +486,14 @@ export default function BonusRequestsClient({
           );
         })}
 
-        {processed.length > historyLimit && (
+        {processed.length < historyTotal && (
           <button
             type="button"
-            onClick={() => setHistoryLimit((n) => n + 20)}
-            className="w-full border border-dark-600 rounded-xl py-2.5 text-sm text-gray-400 active:opacity-60"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="w-full border border-dark-600 rounded-xl py-2.5 text-sm text-gray-400 active:opacity-60 disabled:opacity-40"
           >
-            Показать ещё 20
+            {loadingMore ? "Гружу…" : `Показать ещё ${historyPageSize}`}
           </button>
         )}
       </div>

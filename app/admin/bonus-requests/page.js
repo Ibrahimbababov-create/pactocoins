@@ -35,10 +35,30 @@ export default async function BonusRequestsPage() {
   const lastMonth = lastMonthRangeAlmaty();
   const thisMonth = monthRangeAlmaty(currentMonthKeyAlmaty());
 
-  const { data: requests } = await supabase
-    .from("bonus_requests")
-    .select("*, users!bonus_requests_user_id_fkey(name, email, is_guest)")
-    .order("created_at", { ascending: false });
+  const withUser = "*, users!bonus_requests_user_id_fkey(name, email, is_guest)";
+  const HISTORY_PAGE = 20;
+
+  // Ожидающие целиком, история — порциями по 20.
+  const [{ data: pendingReq }, { data: historyReq }, { count: historyCount }] =
+    await Promise.all([
+      supabase
+        .from("bonus_requests")
+        .select(withUser)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("bonus_requests")
+        .select(withUser)
+        .neq("status", "pending")
+        .order("created_at", { ascending: false })
+        .range(0, HISTORY_PAGE - 1),
+      supabase
+        .from("bonus_requests")
+        .select("*", { count: "exact", head: true })
+        .neq("status", "pending"),
+    ]);
+
+  const requests = [...(pendingReq ?? []), ...(historyReq ?? [])];
 
   const { data: employees } = await supabase
     .from("users")
@@ -74,9 +94,11 @@ export default async function BonusRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Бонусы</h1>
+      <h1 className="text-2xl font-display font-bold">Бонусы</h1>
       <BonusRequestsClient
-        requests={requests ?? []}
+        requests={requests}
+        historyTotal={historyCount ?? 0}
+        historyPageSize={HISTORY_PAGE}
         employees={employees ?? []}
         weekVariants={[
           {

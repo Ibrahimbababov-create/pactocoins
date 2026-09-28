@@ -1,18 +1,41 @@
 import { createClient } from "@/lib/supabase-server";
 import RevenueRequestsClient from "@/components/RevenueRequestsClient";
 
+const HISTORY_PAGE = 20;
+
 export default async function RevenueRequestsPage() {
   const supabase = createClient();
+  const withUser = "*, users!revenue_requests_user_id_fkey(name, email, is_guest)";
 
-  const { data: requests } = await supabase
-    .from("revenue_requests")
-    .select("*, users!revenue_requests_user_id_fkey(name, email, is_guest)")
-    .order("created_at", { ascending: false });
+  // Ожидающие нужны все — это работа на сегодня. История приезжает
+  // порциями по 20: раньше страница тянула все 329 записей разом.
+  const [{ data: pending }, { data: history }, { count: historyCount }] =
+    await Promise.all([
+      supabase
+        .from("revenue_requests")
+        .select(withUser)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("revenue_requests")
+        .select(withUser)
+        .neq("status", "pending")
+        .order("created_at", { ascending: false })
+        .range(0, HISTORY_PAGE - 1),
+      supabase
+        .from("revenue_requests")
+        .select("*", { count: "exact", head: true })
+        .neq("status", "pending"),
+    ]);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Заявки на выручку</h1>
-      <RevenueRequestsClient requests={requests ?? []} />
+      <h1 className="text-2xl font-display font-bold">Заявки на выручку</h1>
+      <RevenueRequestsClient
+        requests={[...(pending ?? []), ...(history ?? [])]}
+        historyTotal={historyCount ?? 0}
+        historyPageSize={HISTORY_PAGE}
+      />
     </div>
   );
 }

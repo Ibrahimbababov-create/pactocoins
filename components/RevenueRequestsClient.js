@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import CancelWithReason from "@/components/CancelWithReason";
+import { loadRequestHistory } from "@/app/admin/historyActions";
 import EmptyState from "@/components/EmptyState";
 import {
   approveRevenueRequest,
@@ -17,13 +18,17 @@ const statusLabels = {
   rejected: { label: "Отклонено", color: "bg-red-500/10 text-red-400" },
 };
 
-export default function RevenueRequestsClient({ requests }) {
+export default function RevenueRequestsClient({
+  requests,
+  historyTotal = 0,
+  historyPageSize = 20,
+}) {
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState([]);
   const [message, setMessage] = useState(null);
-  // История грузится целиком, но рисуем по 20 — иначе три сотни строк
-  // с полями ввода кладут браузер.
-  const [historyLimit, setHistoryLimit] = useState(20);
+  // История приходит с сервера порциями и копится здесь.
+  const [extraHistory, setExtraHistory] = useState([]);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const [dateOverrides, setDateOverrides] = useState({});
   const [dateEditingId, setDateEditingId] = useState(null);
@@ -32,7 +37,17 @@ export default function RevenueRequestsClient({ requests }) {
   const pending = requests.filter(
     (r) => r.status === "pending" && !hiddenIds.has(r.id)
   );
-  const processed = requests.filter((r) => r.status !== "pending");
+  const processed = [
+    ...requests.filter((r) => r.status !== "pending"),
+    ...extraHistory,
+  ];
+
+  async function loadMore() {
+    setLoadingMore(true);
+    const res = await loadRequestHistory("revenue", processed.length, historyPageSize);
+    if (res?.rows) setExtraHistory((prev) => [...prev, ...res.rows]);
+    setLoadingMore(false);
+  }
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -294,9 +309,11 @@ export default function RevenueRequestsClient({ requests }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">История</p>
-          <p className="text-xs text-gray-600">{processed.length} записей</p>
+          <p className="text-xs text-gray-600">
+            {processed.length} из {historyTotal}
+          </p>
         </div>
-        {processed.slice(0, historyLimit).map((r) => {
+        {processed.map((r) => {
           const meta = statusLabels[r.status];
           return (
             <div
@@ -335,13 +352,14 @@ export default function RevenueRequestsClient({ requests }) {
           );
         })}
 
-        {processed.length > historyLimit && (
+        {processed.length < historyTotal && (
           <button
             type="button"
-            onClick={() => setHistoryLimit((n) => n + 20)}
-            className="w-full border border-dark-600 rounded-xl py-2.5 text-sm text-gray-400 active:opacity-60"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="w-full border border-dark-600 rounded-xl py-2.5 text-sm text-gray-400 active:opacity-60 disabled:opacity-40"
           >
-            Показать ещё 20
+            {loadingMore ? "Гружу…" : `Показать ещё ${historyPageSize}`}
           </button>
         )}
       </div>
