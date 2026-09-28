@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import CancelWithReason from "@/components/CancelWithReason";
 import EmptyState from "@/components/EmptyState";
 import {
   approveRevenueRequest,
@@ -20,11 +21,13 @@ export default function RevenueRequestsClient({ requests }) {
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState([]);
   const [message, setMessage] = useState(null);
+  // История грузится целиком, но рисуем по 20 — иначе три сотни строк
+  // с полями ввода кладут браузер.
+  const [historyLimit, setHistoryLimit] = useState(20);
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const [dateOverrides, setDateOverrides] = useState({});
   const [dateEditingId, setDateEditingId] = useState(null);
   const [comments, setComments] = useState({});
-  const [cancelComments, setCancelComments] = useState({});
 
   const pending = requests.filter(
     (r) => r.status === "pending" && !hiddenIds.has(r.id)
@@ -87,9 +90,9 @@ export default function RevenueRequestsClient({ requests }) {
     });
   }
 
-  function handleCancelApproved(id) {
+  function handleCancelApproved(id, comment) {
     if (!window.confirm("Отменить одобренную заявку? Coins спишутся обратно.")) return;
-    const comment = cancelComments[id] || undefined;
+
     startTransition(async () => {
       const res = await cancelApprovedRevenueRequest(id, comment);
       if (res?.error) showMessage(res.error, "error");
@@ -289,8 +292,11 @@ export default function RevenueRequestsClient({ requests }) {
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm text-gray-500">История</p>
-        {processed.map((r) => {
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">История</p>
+          <p className="text-xs text-gray-600">{processed.length} записей</p>
+        </div>
+        {processed.slice(0, historyLimit).map((r) => {
           const meta = statusLabels[r.status];
           return (
             <div
@@ -320,27 +326,24 @@ export default function RevenueRequestsClient({ requests }) {
                 </span>
               </div>
               {r.status === "approved" && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    value={cancelComments[r.id] || ""}
-                    onChange={(e) =>
-                      setCancelComments((prev) => ({ ...prev, [r.id]: e.target.value }))
-                    }
-                    placeholder="💬 Причина отмены сотруднику (необязательно)"
-                    className="flex-1 min-w-[160px] bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
-                  />
-                  <button
-                    onClick={() => handleCancelApproved(r.id)}
+                <CancelWithReason
                     disabled={isPending}
-                    className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5 shrink-0 disabled:opacity-50"
-                  >
-                    Отменить одобрение
-                  </button>
-                </div>
+                    onCancel={(reason) => handleCancelApproved(r.id, reason || undefined)}
+                  />
               )}
             </div>
           );
         })}
+
+        {processed.length > historyLimit && (
+          <button
+            type="button"
+            onClick={() => setHistoryLimit((n) => n + 20)}
+            className="w-full border border-dark-600 rounded-xl py-2.5 text-sm text-gray-400 active:opacity-60"
+          >
+            Показать ещё 20
+          </button>
+        )}
       </div>
     </div>
   );

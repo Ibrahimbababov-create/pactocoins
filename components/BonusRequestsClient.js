@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import CancelWithReason from "@/components/CancelWithReason";
 import EmptyState from "@/components/EmptyState";
 import {
   rejectBonusRequest,
@@ -32,11 +33,13 @@ export default function BonusRequestsClient({
 }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
+  // История грузится целиком, но рисуем по 20 — иначе три сотни строк
+  // с полями ввода кладут браузер.
+  const [historyLimit, setHistoryLimit] = useState(20);
   const [selectedIds, setSelectedIds] = useState([]);
   const [exemptMap, setExemptMap] = useState({});
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const [comments, setComments] = useState({});
-  const [cancelComments, setCancelComments] = useState({});
 
   // Одному участнику
   const [singleUserId, setSingleUserId] = useState(employees[0]?.id ?? "");
@@ -97,9 +100,9 @@ export default function BonusRequestsClient({
     });
   }
 
-  function handleCancelApproved(id) {
+  function handleCancelApproved(id, comment) {
     if (!window.confirm("Отменить одобренную заявку? Coins (или крутка) спишутся обратно.")) return;
-    const comment = cancelComments[id] || undefined;
+
     startTransition(async () => {
       const res = await cancelApprovedBonusRequest(id, comment);
       if (res?.error) showMessage(res.error, "error");
@@ -461,27 +464,24 @@ export default function BonusRequestsClient({
                 </span>
               </div>
               {r.status === "approved" && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    value={cancelComments[r.id] || ""}
-                    onChange={(e) =>
-                      setCancelComments((prev) => ({ ...prev, [r.id]: e.target.value }))
-                    }
-                    placeholder="💬 Причина отмены сотруднику (необязательно)"
-                    className="flex-1 min-w-[160px] bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
-                  />
-                  <button
-                    onClick={() => handleCancelApproved(r.id)}
+                <CancelWithReason
                     disabled={isPending}
-                    className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5 shrink-0 disabled:opacity-50"
-                  >
-                    Отменить одобрение
-                  </button>
-                </div>
+                    onCancel={(reason) => handleCancelApproved(r.id, reason || undefined)}
+                  />
               )}
             </div>
           );
         })}
+
+        {processed.length > historyLimit && (
+          <button
+            type="button"
+            onClick={() => setHistoryLimit((n) => n + 20)}
+            className="w-full border border-dark-600 rounded-xl py-2.5 text-sm text-gray-400 active:opacity-60"
+          >
+            Показать ещё 20
+          </button>
+        )}
       </div>
     </div>
   );
