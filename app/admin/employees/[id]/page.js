@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import Link from "next/link";
 import { getMonthEarned } from "@/lib/earnings";
 
@@ -67,7 +68,7 @@ export default async function EmployeeHistoryPage({ params }) {
               <div>
                 <p className="font-semibold">{t.description || t.type}</p>
                 <p className="text-xs text-gray-600">
-                  {new Date(t.created_at).toLocaleString("ru-RU")}
+                  {formatDateTimeAlmaty(t.created_at)}
                 </p>
               </div>
               <span

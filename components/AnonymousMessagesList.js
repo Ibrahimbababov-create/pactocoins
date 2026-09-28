@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { deleteAnonymousMessage } from "@/app/messages/anonymousActions";
 
 export default function AnonymousMessagesList({ messages, canDelete }) {
@@ -44,7 +45,7 @@ export default function AnonymousMessagesList({ messages, canDelete }) {
             )}
           </div>
           <p className="text-xs text-gray-600 mt-2">
-            {new Date(m.created_at).toLocaleString("ru-RU")}
+            {formatDateTimeAlmaty(m.created_at)}
           </p>
         </div>
       ))}

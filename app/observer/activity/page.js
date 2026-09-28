@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
 
 const typeLabels = {
@@ -48,7 +49,7 @@ export default async function ObserverActivity() {
                   <p className="text-xs text-gray-500">{t.description}</p>
                 )}
                 <p className="text-xs text-gray-600">
-                  {new Date(t.created_at).toLocaleString("ru-RU")}
+                  {formatDateTimeAlmaty(t.created_at)}
                 </p>
               </div>
               <span className={`font-bold ${meta.color}`}>

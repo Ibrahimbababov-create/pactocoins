@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import CancelWithReason from "@/components/CancelWithReason";
 import { loadRequestHistory } from "@/app/admin/historyActions";
 import EmptyState from "@/components/EmptyState";
@@ -333,9 +334,7 @@ export default function RevenueRequestsClient({
                     {r.calculated_coins.toLocaleString("ru-RU")} коинов
                   </p>
                   <p className="text-xs text-gray-600">
-                    {new Date(
-                      r.reviewed_at || r.created_at
-                    ).toLocaleString("ru-RU")}
+                    {formatDateTimeAlmaty(r.reviewed_at || r.created_at)}
                   </p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>

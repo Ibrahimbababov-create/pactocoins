@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
 import { updatePurchaseStatus } from "@/app/admin/actions";
 import { updatePurchaseActualSpend } from "@/app/admin/budgetActions";
@@ -90,7 +91,7 @@ export default function PurchaseRequestsClient({ purchases }) {
                   {p.kzt_amount ? ` · ${p.kzt_amount.toLocaleString("ru-RU")} ₸` : ""}
                 </p>
                 <p className="text-xs text-gray-600">
-                  {new Date(p.created_at).toLocaleString("ru-RU")}
+                  {formatDateTimeAlmaty(p.created_at)}
                   {p.reviewer?.name && currentStatus !== "pending" && (
                     <>
                       {" · "}

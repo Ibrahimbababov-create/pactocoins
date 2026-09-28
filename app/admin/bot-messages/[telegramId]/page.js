@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import Link from "next/link";
 
 export default async function BotMessageThreadPage({ params }) {
@@ -45,7 +46,7 @@ export default async function BotMessageThreadPage({ params }) {
           >
             <p className="text-sm whitespace-pre-wrap">{m.text}</p>
             <p className="text-xs text-gray-500 mt-1">
-              {new Date(m.created_at).toLocaleString("ru-RU")}
+              {formatDateTimeAlmaty(m.created_at)}
             </p>
           </div>
         ))}

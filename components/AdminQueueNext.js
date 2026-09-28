@@ -55,6 +55,7 @@ export default function AdminQueueNext({ item }) {
         </span>
         <span className="text-xs text-gray-500">
           {new Date(item.created_at).toLocaleString("ru-RU", {
+            timeZone: "Asia/Almaty",
             day: "numeric",
             month: "short",
             hour: "2-digit",

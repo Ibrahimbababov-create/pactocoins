@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import {
   saveWheelSegment,
   deleteWheelSegment,
@@ -380,7 +381,7 @@ export default function WheelAdminClient({
               </span>
             </span>
             <span className="text-xs text-gray-600">
-              {new Date(sp.created_at).toLocaleString("ru-RU")}
+              {formatDateTimeAlmaty(sp.created_at)}
             </span>
           </div>
         ))}

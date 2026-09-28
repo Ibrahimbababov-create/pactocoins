@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { approveJoinRequest, rejectJoinRequest } from "@/app/admin/joinRequestActions";
 import EmptyState from "@/components/EmptyState";
 
@@ -87,7 +88,7 @@ export default function JoinRequestsClient({ requests }) {
                   </p>
                 )}
                 <p className="text-xs text-gray-600">
-                  {new Date(r.created_at).toLocaleString("ru-RU")}
+                  {formatDateTimeAlmaty(r.created_at)}
                 </p>
               </div>
               {status === "pending" ? (
