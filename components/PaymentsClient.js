@@ -164,7 +164,7 @@ export default function PaymentsClient({ employees, initialRows }) {
                 {money(r.amount_kzt)} ₸
                 <span className="text-sm text-gray-500 font-sans">
                   {" "}
-                  · {r.credited_coins ?? 0} коинов
+                  · {r.credited_coins ?? r.calculated_coins ?? 0} коинов
                 </span>
               </p>
               <p className="text-xs text-gray-600">
