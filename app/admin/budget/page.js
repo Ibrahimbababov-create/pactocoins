@@ -11,7 +11,7 @@ export default async function BudgetPage() {
       .order("given_at", { ascending: false }),
     supabase
       .from("purchase_requests")
-      .select("*, users(name), rewards(title)")
+      .select("*, users!purchase_requests_user_id_fkey(name), rewards(title)")
       .not("actual_kzt_amount", "is", null)
       .order("updated_at", { ascending: false }),
   ]);

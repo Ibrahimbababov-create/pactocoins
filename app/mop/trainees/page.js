@@ -19,9 +19,14 @@ export default async function TraineesPage() {
     { data: projects },
   ] = await Promise.all([
       supabase.from("users").select("role").eq("id", user.id).single(),
+      // Связь с проектом указываем через конкретный внешний ключ: у
+      // users с projects их две (свой проект и project_rops у РОПа),
+      // и без уточнения запрос падает, а список стажёров уходит в ноль.
       supabase
         .from("users")
-        .select("id, name, created_at, project_id, is_active, projects(name)")
+        .select(
+          "id, name, created_at, project_id, is_active, projects!users_project_id_fkey(name)"
+        )
         .eq("mentor_id", user.id)
         .order("created_at", { ascending: false }),
       supabase

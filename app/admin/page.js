@@ -70,19 +70,19 @@ export default async function AdminOverview({ searchParams }) {
     // очередь и показать самую старую целиком, без похода на подстраницу.
     supabase
       .from("revenue_requests")
-      .select("id, created_at, amount_kzt, calculated_coins, comment, users(name)")
+      .select("id, created_at, amount_kzt, calculated_coins, comment, users!revenue_requests_user_id_fkey(name)")
       .eq("status", "pending")
       .order("created_at", { ascending: true })
       .limit(1),
     supabase
       .from("bonus_requests")
-      .select("id, created_at, category, amount_coins, comment, users(name)")
+      .select("id, created_at, category, amount_coins, comment, users!bonus_requests_user_id_fkey(name)")
       .eq("status", "pending")
       .order("created_at", { ascending: true })
       .limit(1),
     supabase
       .from("purchase_requests")
-      .select("id, created_at, price_coins, variant_label, comment, users(name), rewards(title)")
+      .select("id, created_at, price_coins, variant_label, comment, users!purchase_requests_user_id_fkey(name), rewards(title)")
       .eq("status", "pending")
       .order("created_at", { ascending: true })
       .limit(1),

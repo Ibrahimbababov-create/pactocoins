@@ -14,7 +14,7 @@ export default async function ObserverActivity() {
 
   const { data: transactions } = await supabase
     .from("transactions")
-    .select("*, users(name)")
+    .select("*, users!transactions_user_id_fkey(name)")
     .order("created_at", { ascending: false })
     .limit(200);
 
