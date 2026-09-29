@@ -71,7 +71,8 @@ export async function cancelPayment(requestId, reason) {
     return { error: "Оплата не найдена или уже отменена" };
   }
 
-  const coins = request.credited_coins ?? 0;
+  // У старых заявок credited_coins не заполнялся — берём расчётное.
+  const coins = request.credited_coins ?? request.calculated_coins ?? 0;
 
   const { data: profile } = await admin
     .from("users")
@@ -143,7 +144,7 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
     .single();
 
   const newCoins = calculateRevenueCoins(newAmount, profile?.coin_rate_multiplier);
-  const oldCoins = request.credited_coins ?? 0;
+  const oldCoins = request.credited_coins ?? request.calculated_coins ?? 0;
   const diff = newCoins - oldCoins;
 
   const patch = {
