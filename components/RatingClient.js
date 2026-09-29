@@ -275,7 +275,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                       <span className="text-sm font-black tabular-nums">{fmt(u.value)}</span>
                       {prize != null && (
                         <span className="text-[11px] font-semibold text-gray-400 tabular-nums">
-                          +{fmt(prize)}
+                          +{Number(prize).toLocaleString("ru-RU")} коинов
                         </span>
                       )}
                       <div
