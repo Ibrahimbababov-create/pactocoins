@@ -13,12 +13,14 @@ const GROUPS = [
       "/admin/bonus-requests",
       "/admin/purchase-requests",
       "/admin/join-requests",
+      "/admin/payments",
     ],
     items: [
       { href: "/admin/revenue-requests", label: "Выручка", badgeKey: "revenue" },
       { href: "/admin/bonus-requests", label: "Бонусы", badgeKey: "bonus" },
       { href: "/admin/purchase-requests", label: "Покупки", badgeKey: "purchase" },
       { href: "/admin/join-requests", label: "Новые люди", badgeKey: "join" },
+      { href: "/admin/payments", label: "Оплаты" },
     ],
   },
   {

@@ -16,6 +16,7 @@ const SECTIONS = [
       "/admin/bonus-requests",
       "/admin/purchase-requests",
       "/admin/join-requests",
+      "/admin/payments",
     ],
     badgeKey: "pendingRequests",
   },

@@ -659,6 +659,8 @@ export async function approveBonusRequest(requestId, comment) {
       type: "earn",
       amount_coins: coins,
       description: `Бонус: ${request.category}`,
+      // Бонусы в рейтинг не идут: рейтинг — это выручка.
+      rating_exempt: true,
       created_by: admin_user.id,
     });
 

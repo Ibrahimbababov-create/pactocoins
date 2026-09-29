@@ -407,19 +407,6 @@ export default function BonusRequestsClient({
                 {r.comment && (
                   <p className="text-xs text-gray-500">{r.comment}</p>
                 )}
-                <label className="flex items-center gap-2 text-xs text-gray-500 mt-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!exemptMap[r.id]}
-                    onChange={(e) =>
-                      setExemptMap((prev) => ({
-                        ...prev,
-                        [r.id]: e.target.checked,
-                      }))
-                    }
-                  />
-                  Не в рейтинг (ДР и т.п.)
-                </label>
                 <input
                   value={comments[r.id] || ""}
                   onChange={(e) =>

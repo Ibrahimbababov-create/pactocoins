@@ -95,10 +95,16 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
       ? "all"
       : `${periodMode}:${range.start.toISOString()}`;
   const firstRangeKey = useRef(rangeKey);
+  // Серверные данные первой недели используем ровно один раз. Иначе при
+  // возврате на текущую неделю экран оставался с числами прошлой.
+  const initialUsed = useRef(false);
 
   useEffect(() => {
     // Первый показ — данные уже пришли с сервера, второй раз не ходим.
-    if (hasInitial && rangeKey === firstRangeKey.current) return;
+    if (hasInitial && !initialUsed.current && rangeKey === firstRangeKey.current) {
+      initialUsed.current = true;
+      return;
+    }
 
     let alive = true;
     setLoading(true);
@@ -108,7 +114,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
     const p_end = periodMode === "all" ? null : range.end.toISOString();
 
     supabase
-      .rpc("rating_totals", { p_start, p_end })
+      .rpc("rating_revenue", { p_start, p_end })
       .then(({ data, error }) => {
         if (!alive) return;
         if (error) {
@@ -118,7 +124,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
         }
         const map = {};
         for (const row of data ?? []) {
-          map[row.user_id] = (map[row.user_id] ?? 0) + row.total;
+          map[row.user_id] = Number(row.total) || 0;
         }
         setTotals(map);
         setLoading(false);
@@ -165,7 +171,17 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
     setPickedDate(new Date().toISOString().slice(0, 10));
   }
 
-  const fmt = (n) => Number(n).toLocaleString("ru-RU");
+  // В рейтинге показываем выручку в тенге. Миллионы пишем коротко,
+  // иначе строка не влезает на телефоне.
+  const fmt = (n) => {
+    const v = Number(n) || 0;
+    if (v >= 1000000) {
+      const mln = v / 1000000;
+      return `${mln.toFixed(mln < 10 ? 1 : 0).replace(".", ",")} млн ₸`;
+    }
+    if (v >= 1000) return `${Math.round(v / 1000)} тыс ₸`;
+    return `${v.toLocaleString("ru-RU")} ₸`;
+  };
   const myIndex = ranked.findIndex((u) => u.id === currentUserId);
   const podium = ranked.length >= 3;
   const listStart = podium ? 3 : 0;
@@ -274,7 +290,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
 
               {prizeCfg && (
                 <p className="mt-2 text-xs text-gray-500 text-center">
-                  Приз {prizeCfg.label} — тем, кто набрал от {fmt(prizeCfg.min)} коинов.
+                  Приз {prizeCfg.label} — тем, кто сдал от {prizeCfg.minLabel} выручки.
                 </p>
               )}
             </div>

@@ -250,7 +250,8 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       amount_coins: coins,
       description: `Бонус: ${request.category}`,
       created_by: admin_user.id,
-      rating_exempt: !!ratingExempt,
+      // Бонусы в рейтинг не идут никогда — ни поштучно, ни пачкой.
+      rating_exempt: true,
     });
 
     await checkAndApplyLevelUp(request.user_id, admin);
