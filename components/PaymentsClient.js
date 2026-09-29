@@ -24,6 +24,7 @@ export default function PaymentsClient({ employees, initialRows }) {
   const [rows, setRows] = useState(initialRows ?? []);
   const [filters, setFilters] = useState({ userId: "", from: "", to: "", query: "" });
   const [editingId, setEditingId] = useState(null);
+  const [cancelingId, setCancelingId] = useState(null);
   const [message, setMessage] = useState(null);
 
   function say(text, type = "success") {
@@ -39,17 +40,12 @@ export default function PaymentsClient({ employees, initialRows }) {
     });
   }
 
-  function onCancel(row) {
-    const reason = window.prompt(
-      `Отменить оплату ${money(row.amount_kzt)} ₸ у ${row.users?.name}?\n\nНапиши причину — она уйдёт сотруднику:`,
-      "Возврат оплаты"
-    );
-    if (reason === null) return;
-
+  function onCancel(row, reason) {
     startTransition(async () => {
       const res = await cancelPayment(row.id, reason);
       if (res?.error) return say(res.error, "error");
       say("Оплата отменена, коины списаны");
+      setCancelingId(null);
       setRows((prev) => prev.filter((r) => r.id !== row.id));
       router.refresh();
     });
@@ -182,14 +178,20 @@ export default function PaymentsClient({ employees, initialRows }) {
             <div className="flex gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => setEditingId(editingId === r.id ? null : r.id)}
+                onClick={() => {
+                  setEditingId(editingId === r.id ? null : r.id);
+                  setCancelingId(null);
+                }}
                 className="text-xs border border-dark-600 rounded-lg px-3 py-1.5 text-gray-300"
               >
                 Изменить
               </button>
               <button
                 type="button"
-                onClick={() => onCancel(r)}
+                onClick={() => {
+                  setCancelingId(cancelingId === r.id ? null : r.id);
+                  setEditingId(null);
+                }}
                 disabled={isPending}
                 className="text-xs bg-red-500/20 text-red-400 rounded-lg px-3 py-1.5 disabled:opacity-40"
               >
@@ -197,6 +199,35 @@ export default function PaymentsClient({ employees, initialRows }) {
               </button>
             </div>
           </div>
+
+          {cancelingId === r.id && (
+            <form
+              action={(fd) => onCancel(r, String(fd.get("reason") || ""))}
+              className="border-t border-dark-700 pt-3 flex flex-wrap gap-2"
+            >
+              <input
+                name="reason"
+                autoFocus
+                defaultValue="Возврат оплаты"
+                placeholder="Причина — уйдёт сотруднику"
+                className="flex-1 min-w-[200px] bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={isPending}
+                className="bg-red-500/20 text-red-400 font-semibold rounded-lg px-4 py-2 text-sm disabled:opacity-40"
+              >
+                Точно отменить
+              </button>
+              <button
+                type="button"
+                onClick={() => setCancelingId(null)}
+                className="border border-dark-600 rounded-lg px-4 py-2 text-sm text-gray-400"
+              >
+                Назад
+              </button>
+            </form>
+          )}
 
           {editingId === r.id && (
             <form
