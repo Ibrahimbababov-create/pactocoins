@@ -24,6 +24,14 @@ export default async function MopDashboard({ searchParams }) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Всё, что нужно для первого экрана, спрашиваем у базы одним залпом.
+  // Раньше часть запросов шла следом, по очереди, и каждый ждал
+  // предыдущего — на этом терялось примерно по пол-секунды на открытие.
+  const chartDays = recentDaysAlmaty(10);
+  const chartStartIso = new Date(
+    `${chartDays[0].key}T00:00:00+05:00`
+  ).toISOString();
+
   const [
     { data: profile },
     { data: pendingRevenue },
@@ -31,6 +39,8 @@ export default async function MopDashboard({ searchParams }) {
     { data: fetchedGoal },
     { data: flashSaleRewards },
     { data: teamEvents },
+    monthEarned,
+    { data: chartInflows },
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
     supabase
@@ -65,21 +75,18 @@ export default async function MopDashboard({ searchParams }) {
       .not("user_name", "like", "🤖%")
       .order("created_at", { ascending: false })
       .limit(8),
+    getMonthEarned(supabase, user.id),
+    supabase
+      .from("transactions")
+      .select("amount_coins, created_at")
+      .eq("user_id", user.id)
+      .gt("amount_coins", 0)
+      .gte("created_at", chartStartIso),
   ]);
 
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
 
-  const monthEarned = await getMonthEarned(supabase, user.id);
-
-  const chartDays = recentDaysAlmaty(10);
-  const chartStartIso = new Date(`${chartDays[0].key}T00:00:00+05:00`).toISOString();
-  const { data: chartInflows } = await supabase
-    .from("transactions")
-    .select("amount_coins, created_at")
-    .eq("user_id", user.id)
-    .gt("amount_coins", 0)
-    .gte("created_at", chartStartIso);
   const chartByDay = Object.fromEntries(chartDays.map((d) => [d.key, 0]));
   for (const t of chartInflows ?? []) {
     const k = almatyDayKey(t.created_at);
@@ -94,19 +101,18 @@ export default async function MopDashboard({ searchParams }) {
   let ropName = null;
   let onboardingDays = null;
   if (isTrainee) {
-    if (profile?.rop_id) {
-      const { data: rop } = await supabase
-        .from("users")
-        .select("name")
-        .eq("id", profile.rop_id)
-        .single();
-      ropName = rop?.name ?? null;
-    }
-    onboardingDays = await getTraineeOnboarding(
-      createAdminClient(),
-      user.id,
-      profile?.rop_id ?? null
-    );
+    const [{ data: rop }, days] = await Promise.all([
+      profile?.rop_id
+        ? supabase.from("users").select("name").eq("id", profile.rop_id).single()
+        : Promise.resolve({ data: null }),
+      getTraineeOnboarding(
+        createAdminClient(),
+        user.id,
+        profile?.rop_id ?? null
+      ),
+    ]);
+    ropName = rop?.name ?? null;
+    onboardingDays = days;
   }
 
   let currentGoal = fetchedGoal;

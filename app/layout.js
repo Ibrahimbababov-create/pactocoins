@@ -1,4 +1,6 @@
 import Script from "next/script";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Analytics } from "@vercel/analytics/next";
 import { Unbounded, Onest } from "next/font/google";
 import "./globals.css";
@@ -8,21 +10,27 @@ import { DEFAULT_THEME, themeOrDefault, themeStyleSheet, themeBgHex } from "@/li
 
 // Тему читаем на сервере и ставим атрибутом на <html>: страница сразу
 // приходит в нужном цвете, без мигания «сначала одна тема, потом другая».
-async function currentTheme() {
+// Заодно отсюда же проверяем, не уволен ли человек: профиль всё равно
+// читается, а этот сервер стоит рядом с базой — в отличие от проверки
+// доступа перед страницей, которая живёт на другом конце света.
+async function currentProfile() {
   try {
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return DEFAULT_THEME;
+    if (!user) return { theme: DEFAULT_THEME, deactivated: false };
     const { data } = await supabase
       .from("users")
-      .select("theme")
+      .select("theme, is_active")
       .eq("id", user.id)
       .single();
-    return themeOrDefault(data?.theme);
+    return {
+      theme: themeOrDefault(data?.theme),
+      deactivated: data?.is_active === false,
+    };
   } catch {
-    return DEFAULT_THEME;
+    return { theme: DEFAULT_THEME, deactivated: false };
   }
 }
 
@@ -54,7 +62,13 @@ export const viewport = {
 };
 
 export default async function RootLayout({ children }) {
-  const theme = await currentTheme();
+  const { theme, deactivated } = await currentProfile();
+
+  // На самом /login разворачивать некуда — иначе получится круг.
+  const path = headers().get("x-pathname") ?? "";
+  if (deactivated && path !== "/login") {
+    redirect("/login?deactivated=1");
+  }
 
   return (
     <html

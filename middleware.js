@@ -8,7 +8,15 @@ function homeForRole(role) {
 }
 
 export async function middleware(request) {
-  let response = NextResponse.next({ request });
+  const path = request.nextUrl.pathname;
+
+  // Адрес страницы прокидываем в приложение заголовком: корневой layout
+  // по нему понимает, что он уже на /login, и не отправляет туда же по
+  // второму кругу.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", path);
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -20,12 +28,12 @@ export async function middleware(request) {
         },
         set(name, value, options) {
           request.cookies.set({ name, value, ...options });
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           response.cookies.set({ name, value, ...options });
         },
         remove(name, options) {
           request.cookies.set({ name, value: "", ...options });
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           response.cookies.set({ name, value: "", ...options });
         },
       },
@@ -36,7 +44,6 @@ export async function middleware(request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   const isLoginPage = path === "/login";
   const isAdminPage = path.startsWith("/admin");
   // Наставник ведёт обучение стажёров, поэтому ему открыт раздел
@@ -52,7 +59,16 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (user) {
+  // За ролью ходим только там, где доступ зависит от самого адреса:
+  // админка, кабинет наблюдателя и вход. На всех остальных страницах
+  // этот запрос не делаем — проверка живёт на ближайшем к человеку
+  // сервере (для Казахстана это Франкфурт), а база стоит в Токио, и
+  // каждое такое обращение стоило примерно полсекунды на открытие.
+  // Уволенных отсекает корневой layout: он и так читает профиль, но
+  // работает рядом с базой, где это почти бесплатно.
+  const needsProfile = isLoginPage || isAdminPage || isObserverPage;
+
+  if (user && needsProfile) {
     const { data: profile } = await supabase
       .from("users")
       .select("role, is_active")
@@ -60,8 +76,7 @@ export async function middleware(request) {
       .single();
 
     // Уволенный сотрудник (is_active = false) не должен пользоваться
-    // приложением, даже если сессия входа технически ещё жива —
-    // проверяем это на каждом защищённом переходе, не только на входе.
+    // приложением, даже если сессия входа технически ещё жива.
     if (profile?.is_active === false && !isLoginPage) {
       return NextResponse.redirect(new URL("/login?deactivated=1", request.url));
     }
