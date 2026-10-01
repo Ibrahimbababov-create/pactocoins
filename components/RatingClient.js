@@ -18,6 +18,16 @@ const PODIUM_TIERS = [
   { h: "h-14", bar: "from-white/10 to-white/[0.02] border-white/15", num: "text-gray-400", name: "text-gray-400" },
 ];
 
+// Календарная дата строкой, по местному времени. Через toISOString()
+// этого делать нельзя: он переводит в UTC, и в Алматы (+5) дата
+// съезжает на сутки назад — шаг «на месяц раньше» из октября уводил
+// в август, а в понедельник «прошлая неделя» показывала позапрошлую.
+function ymd(date) {
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${m}-${d}`;
+}
+
 function startOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
@@ -69,9 +79,7 @@ function formatRange(start, end, mode) {
 export default function RatingClient({ currentUserId, users, initialTotals = {} }) {
   const tab = "overall";
   const [periodMode, setPeriodMode] = useState("week");
-  const [pickedDate, setPickedDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [pickedDate, setPickedDate] = useState(() => ymd(new Date()));
   // { [userId]: сумма коинов за период }. Текущая неделя приходит уже
   // посчитанной с сервера — первый экран рисуется сразу, без пустоты.
   const [totals, setTotals] = useState(initialTotals);
@@ -164,11 +172,11 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
     } else {
       d.setMonth(d.getMonth() + direction);
     }
-    setPickedDate(d.toISOString().slice(0, 10));
+    setPickedDate(ymd(d));
   }
 
   function goToday() {
-    setPickedDate(new Date().toISOString().slice(0, 10));
+    setPickedDate(ymd(new Date()));
   }
 
   // Выручка в тенге, точной суммой: «2,0 млн» не даёт понять, кто сколько
