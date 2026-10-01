@@ -171,17 +171,10 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
     setPickedDate(new Date().toISOString().slice(0, 10));
   }
 
-  // В рейтинге показываем выручку в тенге. Миллионы пишем коротко,
-  // иначе строка не влезает на телефоне.
-  const fmt = (n) => {
-    const v = Number(n) || 0;
-    if (v >= 1000000) {
-      const mln = v / 1000000;
-      return `${mln.toFixed(mln < 10 ? 1 : 0).replace(".", ",")} млн ₸`;
-    }
-    if (v >= 1000) return `${Math.round(v / 1000)} тыс ₸`;
-    return `${v.toLocaleString("ru-RU")} ₸`;
-  };
+  // Выручка в тенге, точной суммой: «2,0 млн» не даёт понять, кто сколько
+  // реально занёс, а разница между 2,0 и 2,4 млн — это почти полмиллиона.
+  // Разряды делим неразрывным пробелом, чтобы число не переносилось.
+  const fmt = (n) => `${(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
   const myIndex = ranked.findIndex((u) => u.id === currentUserId);
   const podium = ranked.length >= 3;
   const listStart = podium ? 3 : 0;
@@ -272,7 +265,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                           </span>
                         )}
                       </span>
-                      <span className="text-sm font-black tabular-nums">{fmt(u.value)}</span>
+                      <span className="text-[13px] font-black tabular-nums whitespace-nowrap">{fmt(u.value)}</span>
                       {prize != null && (
                         <span className="text-[11px] font-semibold text-gray-400 tabular-nums">
                           +{Number(prize).toLocaleString("ru-RU")} коинов
@@ -334,7 +327,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                       )}
                     </span>
                   </div>
-                  <span className="font-bold tabular-nums">{fmt(u.value)}</span>
+                  <span className="font-bold tabular-nums whitespace-nowrap shrink-0">{fmt(u.value)}</span>
                 </div>
               );
             })}

@@ -226,6 +226,16 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   if (updateUserError) return { error: updateUserError.message };
 
+  // Дата оплаты. Админ может поставить свою — деньги пришли в субботу,
+  // а подтверждают их в понедельник. Рейтинг считается по заявкам, а не
+  // по транзакциям, поэтому дату пишем в саму заявку (earned_at): раньше
+  // она уезжала только в транзакцию и на рейтинг уже не влияла.
+  let earnedAtIso = request.earned_at ?? request.created_at;
+  if (earnedAtDate) {
+    const parsed = new Date(`${earnedAtDate}T12:00:00+05:00`);
+    if (!isNaN(parsed)) earnedAtIso = parsed.toISOString();
+  }
+
   await admin
     .from("revenue_requests")
     .update({
@@ -233,6 +243,7 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
       reviewed_at: new Date().toISOString(),
       reviewed_by: admin_user.id,
       credited_coins: coins,
+      earned_at: earnedAtIso,
     })
     .eq("id", requestId);
 
@@ -246,15 +257,10 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     created_by: admin_user.id,
   };
 
-  // Если админ вручную указал дату оплаты (например, деньги пришли
-  // в выходные, а подтверждают только в понедельник) — датируем
-  // транзакцию этим днём, чтобы она попала в правильную неделю/месяц
-  // в рейтинге, а не в текущую.
+  // Начисление коинов датируем тем же днём, что и саму оплату, —
+  // чтобы история в балансе сходилась с тем, что показывает рейтинг.
   if (earnedAtDate) {
-    const parsed = new Date(`${earnedAtDate}T12:00:00`);
-    if (!isNaN(parsed)) {
-      transactionPayload.created_at = parsed.toISOString();
-    }
+    transactionPayload.created_at = earnedAtIso;
   }
 
   await admin.from("transactions").insert(transactionPayload);
@@ -1200,9 +1206,11 @@ export async function reorderCategories(orderedIds) {
 
 // ---------- Массовое подтверждение/отклонение ----------
 
-export async function bulkApproveRevenue(ids) {
+// dates — {[id]: "2026-09-30"}: проставленные вручную даты оплат не
+// должны теряться от того, что заявки подтвердили пачкой.
+export async function bulkApproveRevenue(ids, dates) {
   for (const id of ids) {
-    await approveRevenueRequest(id);
+    await approveRevenueRequest(id, dates?.[id]);
   }
   return { success: true, count: ids.length };
 }

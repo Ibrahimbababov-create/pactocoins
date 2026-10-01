@@ -152,6 +152,16 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
     calculated_coins: newCoins,
     credited_coins: newCoins,
   };
+
+  // Помечаем правку прямо в заявке: через месяц никто не вспомнит,
+  // почему у оплаты «неправильная» сумма. Рейтинг считается по сумме
+  // заявки, так что уменьшили её — ушло и из рейтинга.
+  if (newAmount < request.amount_kzt) {
+    const note = `возврат ${money(request.amount_kzt - newAmount)} ₸ из ${money(
+      request.amount_kzt
+    )} ₸`;
+    patch.comment = [request.comment?.trim(), note].filter(Boolean).join("\n");
+  }
   if (earnedAt) {
     const parsed = new Date(`${earnedAt}T12:00:00+05:00`);
     if (!isNaN(parsed)) patch.earned_at = parsed.toISOString();

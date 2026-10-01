@@ -121,7 +121,7 @@ export default function RevenueRequestsClient({
     hide(ids);
     setSelectedIds([]);
     startTransition(async () => {
-      const res = await bulkApproveRevenue(ids);
+      const res = await bulkApproveRevenue(ids, dateOverrides);
       if (res?.error) {
         unhide(ids);
         showMessage(res.error, "error");
