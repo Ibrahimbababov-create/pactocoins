@@ -15,6 +15,8 @@ const ADD = [
   { command: "all", description: "Тегнуть всех в чате" },
   { command: "rating", description: "Рейтинг за неделю (картинка)" },
   { command: "rating_month", description: "Рейтинг за месяц (картинка)" },
+  { command: "report", description: "Отчёт за прошлую неделю (PDF)" },
+  { command: "report_month", description: "Отчёт за прошлый месяц (PDF)" },
   { command: "top5", description: "Топ-5 менеджеров по продажам" },
   { command: "topall", description: "Топ всех менеджеров" },
   { command: "topteam", description: "Топ по командам" },

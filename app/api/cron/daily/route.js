@@ -40,9 +40,16 @@ export async function GET(request) {
     console.error("[cron] guest reset failed:", err);
   }
 
-  const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+  // Отчёты шлём туда же, где команда видит объявления бота, и обязательно
+  // с номером темы: без него файл уходит в «General», и его никто не
+  // читает — поэтому отчётов «давно не было».
+  const reportChatId =
+    process.env.TELEGRAM_ANNOUNCE_CHAT_ID ?? process.env.TELEGRAM_GROUP_CHAT_ID;
+  const reportThreadId = process.env.TELEGRAM_ANNOUNCE_THREAD_ID
+    ? Number(process.env.TELEGRAM_ANNOUNCE_THREAD_ID)
+    : undefined;
 
-  if (groupChatId && isMondayInAlmaty()) {
+  if (reportChatId && isMondayInAlmaty()) {
     try {
       const { start, end, label } = lastWeekRangeAlmaty();
       const rows = await getEarningsForRange({ start, end });
@@ -51,11 +58,12 @@ export async function GET(request) {
         rows,
       });
       await sendTelegramDocument(
-        groupChatId,
+        reportChatId,
         pdf,
         `pactocoins-week-${label}.pdf`,
         `📊 Отчёт за неделю ${label}`,
-        "application/pdf"
+        "application/pdf",
+        reportThreadId
       );
       summary.weeklyReportSent = true;
     } catch (err) {
@@ -63,7 +71,7 @@ export async function GET(request) {
     }
   }
 
-  if (groupChatId && isFirstOfMonthInAlmaty()) {
+  if (reportChatId && isFirstOfMonthInAlmaty()) {
     try {
       const { start, end, label } = lastMonthRangeAlmaty();
       const rows = await getEarningsForRange({ start, end });
@@ -72,11 +80,12 @@ export async function GET(request) {
         rows,
       });
       await sendTelegramDocument(
-        groupChatId,
+        reportChatId,
         pdf,
         `pactocoins-${label.replace(" ", "-")}.pdf`,
         `📊 Отчёт за ${label}`,
-        "application/pdf"
+        "application/pdf",
+        reportThreadId
       );
       summary.monthlyReportSent = true;
     } catch (err) {

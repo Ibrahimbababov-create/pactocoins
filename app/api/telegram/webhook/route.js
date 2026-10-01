@@ -14,9 +14,13 @@ import {
   answerCallbackQuery,
   sendTelegramMessage,
   sendTelegramPhoto,
+  sendTelegramDocument,
 } from "@/lib/telegramBot";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { renderRatingImage } from "@/lib/ratingImage";
+import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
+import { buildEarningsReportPdf } from "@/lib/pdfReport";
+import { lastWeekRangeAlmaty, lastMonthRangeAlmaty } from "@/lib/timezone";
 import {
   loadTodayData,
   renderToday,
@@ -28,6 +32,7 @@ export const maxDuration = 30;
 
 const RATING_CMDS = new Set(["/rating", "/rating_week", "/rating_month"]);
 const TODAY_CMDS = new Set(["/today", "/todayteam"]);
+const REPORT_CMDS = new Set(["/report", "/report_month"]);
 
 // /all может стоять где угодно в сообщении (обычно в конце анонса).
 const ALL_RE = /(^|\s)\/all(@[a-z0-9_]+)?(\s|$)/i;
@@ -223,6 +228,56 @@ async function handleRatingCommand(msg, cmd) {
   }
 }
 
+// Тот же отчёт, что бот присылает по понедельникам, но по команде —
+// чтобы не ждать неделю, если нужно свериться прямо сейчас.
+async function handleReportCommand(msg, cmd) {
+  const admin = createAdminClient();
+  const { data: caller } = await admin
+    .from("users")
+    .select("role")
+    .eq("telegram_id", msg.from?.id)
+    .maybeSingle();
+
+  if (caller?.role !== "admin") {
+    await sendTelegramMessage(
+      msg.chat.id,
+      "Команда доступна только админам.",
+      undefined,
+      msg.message_thread_id
+    );
+    return;
+  }
+
+  const isMonth = cmd === "/report_month";
+  try {
+    const { start, end, label } = isMonth
+      ? lastMonthRangeAlmaty()
+      : lastWeekRangeAlmaty();
+    const period = isMonth ? label : `неделю ${label}`;
+    const rows = await getEarningsForRange({ start, end });
+    const pdf = await buildEarningsReportPdf({
+      title: `Отчёт PactoCoins — ${isMonth ? label : `неделя ${label}`}`,
+      rows,
+    });
+    await sendTelegramDocument(
+      msg.chat.id,
+      pdf,
+      `pactocoins-${label.replace(/\s/g, "-")}.pdf`,
+      `📊 Отчёт за ${period}`,
+      "application/pdf",
+      msg.message_thread_id
+    );
+  } catch (err) {
+    console.error("[report cmd] failed:", err);
+    await sendTelegramMessage(
+      msg.chat.id,
+      "Не получилось собрать отчёт.",
+      undefined,
+      msg.message_thread_id
+    );
+  }
+}
+
 async function handleTodayCommand(msg, cmd) {
   const admin = createAdminClient();
   const { data: caller } = await admin
@@ -403,6 +458,10 @@ export async function POST(request) {
     }
     if (TODAY_CMDS.has(cmd)) {
       await handleTodayCommand(msg, cmd);
+      return NextResponse.json({ ok: true });
+    }
+    if (REPORT_CMDS.has(cmd)) {
+      await handleReportCommand(msg, cmd);
       return NextResponse.json({ ok: true });
     }
     if (cmd === "/app" || cmd === "/open") {
