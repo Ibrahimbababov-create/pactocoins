@@ -97,7 +97,7 @@ export default function TopBonus({
           onChange={(e) => setMinInput(e.target.value)}
           className="w-24 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1 text-sm text-white"
         />
-        <span>coins за период</span>
+        <span>₸ выручки за период</span>
       </div>
 
       <p className="text-xs text-gray-500 mt-2">
@@ -122,7 +122,7 @@ export default function TopBonus({
         </p>
       ) : winners.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          Порог {effectiveMin.toLocaleString("ru-RU")} коинов никто не прошёл —
+          Порог {effectiveMin.toLocaleString("ru-RU")} ₸ никто не прошёл —
           бонусов нет. Можно снизить порог выше.
         </p>
       ) : collapsed ? (
@@ -147,7 +147,7 @@ export default function TopBonus({
                   {w.name}
                   <span className="text-gray-500 font-normal tabular-nums">
                     {" "}
-                    · {w.total.toLocaleString("ru-RU")}
+                    · {w.total.toLocaleString("ru-RU")} ₸
                   </span>
                 </span>
                 <input

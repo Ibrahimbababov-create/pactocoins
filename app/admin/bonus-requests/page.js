@@ -8,23 +8,26 @@ import {
   currentMonthKeyAlmaty,
 } from "@/lib/timezone";
 
+// Топ-3 считаем по той же выручке в тенге, что и рейтинг: призы выдаются
+// за места в нём, поэтому списки обязаны совпадать. Раньше здесь
+// складывались коины — после перевода рейтинга на выручку порог в тенге
+// сравнивался с коинами, и выходило «порог никто не прошёл».
 async function rankingFor(supabase, empIds, nameById, start, end) {
   if (!empIds.length) return [];
-  const { data: tx } = await supabase
-    .from("transactions")
-    .select("user_id, amount_coins")
-    .in("user_id", empIds)
-    .eq("rating_exempt", false)
-    .gt("amount_coins", 0)
-    .gte("created_at", start)
-    .lt("created_at", end);
+  const allowed = new Set(empIds);
 
-  const totals = {};
-  for (const t of tx ?? []) {
-    totals[t.user_id] = (totals[t.user_id] ?? 0) + t.amount_coins;
-  }
-  return Object.entries(totals)
-    .map(([id, total]) => ({ id, name: nameById[id] ?? "—", total }))
+  const { data: rows } = await supabase.rpc("rating_revenue", {
+    p_start: start,
+    p_end: end,
+  });
+
+  return (rows ?? [])
+    .filter((r) => allowed.has(r.user_id) && Number(r.total) > 0)
+    .map((r) => ({
+      id: r.user_id,
+      name: nameById[r.user_id] ?? "—",
+      total: Number(r.total),
+    }))
     .sort((a, b) => b.total - a.total);
 }
 
@@ -75,7 +78,7 @@ export default async function BonusRequestsPage() {
   const { data: historyEmployees } = await supabase
     .from("users")
     .select("id, name")
-    .in("role", ["mop", "rop"])
+    .in("role", ["mop", "observer"])
     .eq("is_guest", false)
     .not("email", "like", "%.test@pactocoins.local");
 
