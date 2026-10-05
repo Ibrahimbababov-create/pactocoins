@@ -17,7 +17,7 @@ import {
   sendTelegramDocument,
 } from "@/lib/telegramBot";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { welcomeNewMembers, sendWelcome } from "@/lib/groupWelcome";
+import { welcomeNewMembers, sendWelcomePreview } from "@/lib/groupWelcome";
 import { renderRatingImage } from "@/lib/ratingImage";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
@@ -482,7 +482,7 @@ export async function POST(request) {
         .eq("telegram_id", msg.from?.id)
         .maybeSingle();
       if (caller?.role === "admin" && msg.chat?.type !== "private") {
-        const res = await sendWelcome(
+        const res = await sendWelcomePreview(
           msg.chat.id,
           msg.is_topic_message ? msg.message_thread_id : undefined,
           msg.from
@@ -494,6 +494,24 @@ export async function POST(request) {
           );
         }
       }
+      return NextResponse.json({ ok: true });
+    }
+    if (cmd === "/start" && msg.chat?.type === "private") {
+      await sendTelegramMessage(
+        msg.chat.id,
+        "Привет! Это бот Pacto.\n\n" +
+          "Здесь живёт PactoCoins, наше приложение: в нём ты учишься, записываешь оплаты и получаешь за них коины, " +
+          "а коины меняешь на награды в магазине.\n\n" +
+          "Если ты новенький, нажми «Открыть PactoCoins» и зарегистрируйся. " +
+          "Как всё устроено, написано в инструкции.\n\n" +
+          "Приложение всегда можно открыть кнопкой слева от поля ввода.",
+        {
+          inline_keyboard: [
+            [{ text: "🚀 Открыть PactoCoins", web_app: { url: "https://pactocoins.vercel.app" } }],
+            [{ text: "📖 Инструкция", web_app: { url: "https://pactocoins.vercel.app/login?next=help" } }],
+          ],
+        }
+      );
       return NextResponse.json({ ok: true });
     }
     if (cmd === "/app" || cmd === "/open") {

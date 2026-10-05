@@ -85,6 +85,10 @@ export async function middleware(request) {
       if (profile?.is_active === false || forceWelcome) {
         return response;
       }
+      // Кнопка «Инструкция» из лички с ботом: /login?next=help
+      if (request.nextUrl.searchParams.get("next") === "help") {
+        return NextResponse.redirect(new URL("/mop/help", request.url));
+      }
       return NextResponse.redirect(
         new URL(homeForRole(profile?.role), request.url)
       );

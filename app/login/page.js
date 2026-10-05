@@ -8,6 +8,15 @@ import BirthdayInput from "@/components/BirthdayInput";
 const API_URL = "https://pactocoins.vercel.app/api/auth/telegram";
 const GUEST_API_URL = "https://pactocoins.vercel.app/api/auth/guest";
 
+// Кнопка «Инструкция» в Telegram открывает приложение со start_param=help
+// (из группы) или с ?next=help (из лички) — сразу ведём на инструкцию.
+function wantsHelp() {
+  if (typeof window === "undefined") return false;
+  const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+  const next = new URLSearchParams(window.location.search).get("next");
+  return startParam === "help" || next === "help";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -92,7 +101,7 @@ export default function LoginPage() {
 
         if (data.redirect) {
           setDebug(`Успех, редирект на ${data.redirect}`);
-          router.push(data.redirect);
+          router.push(wantsHelp() ? "/mop/help" : data.redirect);
           router.refresh();
         } else {
           setDebug(`Сервер вернул ошибку: ${data.error ?? "неизвестно"}`);

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { markOnboardingBlockDone, submitOnboardingTest } from "@/app/mop/actions";
 import { openExternal } from "@/lib/openExternal";
 import { BLOCK_KIND } from "@/lib/onboardingDays";
@@ -370,13 +371,12 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
       <div className="bg-gradient-to-br from-sky-500/10 to-dark-800 border border-sky-500/30 rounded-2xl p-5 space-y-2">
         <p className="text-lg font-bold text-sky-300">🎓 Обучение стажёра</p>
         <p className="text-sm text-gray-400">
-          Три дня. Каждый блок нужно пройти по порядку — следующий откроется
-          только после предыдущего. День закрыт, пока не пройден предыдущий.
+          Учимся три дня. Блоки идут по порядку: прошёл один, открылся
+          следующий.
         </p>
         <p className="text-sm text-gray-400">
-          Стажировка закрывается автоматически после{" "}
-          <b className="text-white">первой одобренной оплаты</b> — тогда ты
-          становишься МОПом 1 уровня.
+          Как только закроешь <b className="text-white">первую оплату</b>,
+          станешь МОПом.
         </p>
         <p className="text-xs text-gray-500 pt-1">
           {ropName
@@ -385,6 +385,19 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
           · Пройдено дней: {totalDays}/3
         </p>
       </div>
+
+      <Link
+        href="/mop/help"
+        className="flex items-center justify-between bg-dark-800 border border-dark-600 rounded-2xl px-5 py-4 active:scale-[0.98] transition"
+      >
+        <span>
+          <span className="block font-bold">📖 Как тут всё устроено</span>
+          <span className="block text-sm text-gray-400">
+            Инструкция: оплаты, коины, рейтинг, магазин
+          </span>
+        </span>
+        <span className="text-gray-500 text-xl">›</span>
+      </Link>
 
       {err && (
         <div className="rounded-xl bg-red-500/10 text-red-400 text-sm px-3 py-2 text-center">

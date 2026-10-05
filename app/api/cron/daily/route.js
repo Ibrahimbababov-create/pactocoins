@@ -4,6 +4,7 @@ import { resetGuestAccount } from "@/lib/guestAccount";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { sendTelegramDocument } from "@/lib/telegramBot";
+import { cleanupOldWelcomes } from "@/lib/groupWelcome";
 import {
   isMondayInAlmaty,
   isFirstOfMonthInAlmaty,
@@ -31,6 +32,14 @@ export async function GET(request) {
     summary.birthdays = await processBirthdaysToday();
   } catch (err) {
     console.error("[cron] birthday check failed:", err);
+  }
+
+  // Приветствия новичкам в группе живут около суток — крон добирает
+  // те, что не убрались при следующем входе в группу.
+  try {
+    summary.welcomesDeleted = await cleanupOldWelcomes(20);
+  } catch (err) {
+    console.error("[cron] welcome cleanup failed:", err);
   }
 
   try {
