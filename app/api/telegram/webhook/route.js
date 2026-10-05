@@ -100,6 +100,18 @@ async function handleAllCommand(msg) {
     .eq("telegram_id", msg.from?.id)
     .maybeSingle();
 
+  console.log(
+    "[all] from",
+    msg.from?.id,
+    msg.from?.username ?? "",
+    "sender_chat",
+    msg.sender_chat?.id ?? "-",
+    "role",
+    caller?.role ?? "нет в базе",
+    "chat",
+    msg.chat?.id
+  );
+
   // Тихо игнорируем, если пишет не админ/РОП — чтобы не спамить в группе.
   if (!["admin", "rop"].includes(caller?.role)) return;
 
@@ -161,13 +173,22 @@ async function handleAllCommand(msg) {
     .map((id) => `<a href="tg://user?id=${id}">⁣</a>`)
     .join("");
 
-  await sendTelegramMessage(
+  const res = await sendTelegramMessage(
     msg.chat.id,
     `📣 Всем${mentions}`,
     undefined,
     msg.message_thread_id,
     msg.message_id
   );
+  console.log("[all] tagged", byId.size, "ok", res?.ok, res?.description ?? "");
+
+  if (!res?.ok) {
+    // Не прошло — говорим автору в личку, почему, а не молчим.
+    await sendTelegramMessage(
+      msg.from.id,
+      `/all не сработал: ${escapeHtml(res?.description || "Telegram не ответил")}`
+    );
+  }
 }
 
 function parseCommand(text) {
