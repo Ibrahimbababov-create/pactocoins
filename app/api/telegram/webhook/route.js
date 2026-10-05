@@ -17,6 +17,7 @@ import {
   sendTelegramDocument,
 } from "@/lib/telegramBot";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { welcomeNewMembers } from "@/lib/groupWelcome";
 import { renderRatingImage } from "@/lib/ratingImage";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
@@ -433,6 +434,13 @@ export async function POST(request) {
       await recordChatMembers(msg);
     } catch (err) {
       console.error("[roster] failed:", err);
+    }
+    if (msg.new_chat_members?.length) {
+      try {
+        await welcomeNewMembers(msg);
+      } catch (err) {
+        console.error("[welcome] failed:", err);
+      }
     }
   }
 
