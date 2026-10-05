@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
 import Icon from "@/components/Icon";
 
 export default function RulesAccordion() {
@@ -28,57 +29,56 @@ export default function RulesAccordion() {
           <div className="space-y-2">
             <p className="font-bold text-acid-400 flex items-center gap-1.5">
               <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
-              Идёт в рейтинг
+              Рейтинг считается только по выручке
             </p>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-gray-300">
-                <span>Подтверждённая выручка</span>
-                <span className="text-gray-500 text-xs">1000 ₸ = 1 коин</span>
-              </div>
-              {Object.values(BONUS_CATEGORIES).map((meta) => (
-                <div
-                  key={meta.label}
-                  className="flex items-center justify-between text-gray-300"
-                >
-                  <span>{meta.label}</span>
-                  <span className="text-gray-500 text-xs">
-                    {meta.amount === null
-                      ? "по ситуации"
-                      : `${meta.amount} коинов`}
-                  </span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between text-gray-300">
-                <span>Призовые ТОП недели / месяца</span>
-                <span className="text-gray-500 text-xs">
-                  по решению админа
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-gray-600">
-              Засчитывается только после подтверждения администратором.
+            <p className="text-gray-400 text-xs">
+              Место в рейтинге зависит от суммы подтверждённых оплат в тенге.
+              Бонусы, колесо и подарки на него не влияют.
+            </p>
+            <p className="text-gray-400 text-xs">
+              Лучшие трое получают призы в коинах, если набрали от{" "}
+              {WEEKLY_TOP.minLabel} за неделю ({WEEKLY_TOP.prizes
+                .map((p) => p.toLocaleString("ru-RU"))
+                .join(" / ")}{" "}
+              коинов) или от {MONTHLY_TOP.minLabel} за месяц ({MONTHLY_TOP.prizes
+                .map((p) => p.toLocaleString("ru-RU"))
+                .join(" / ")}{" "}
+              коинов).
             </p>
           </div>
 
           <div className="space-y-2 pt-3 border-t border-dark-600">
-            <p className="font-bold text-gray-400 flex items-center gap-1.5">
-              <Icon name="x" className="w-4 h-4" />
-              Даёт монеты, но НЕ идёт в рейтинг
-            </p>
-            <p className="text-gray-400 text-xs">
-              Разовые подарки от админа (день рождения и подобные поводы, не
-              связанные с работой), а также любое начисление, которое админ
-              явно отметил как "не учитывать в рейтинге".
-            </p>
+            <p className="font-bold text-gray-300">За что дают коины</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-gray-300">
+                <span>Подтверждённая оплата</span>
+                <span className="text-gray-500 text-xs shrink-0">1 коин за 1000 ₸</span>
+              </div>
+              {Object.values(BONUS_CATEGORIES).map((meta) => (
+                <div
+                  key={meta.label}
+                  className="flex items-center justify-between gap-3 text-gray-300"
+                >
+                  <span>{meta.label}</span>
+                  <span className="text-gray-500 text-xs shrink-0">
+                    {meta.spin
+                      ? "крутка колеса"
+                      : meta.amount === null
+                      ? "по ситуации"
+                      : `${meta.amount.toLocaleString("ru-RU")} коинов`}
+                  </span>
+                </div>
+              ))}
+            </div>
             <p className="text-xs text-gray-600">
-              Монеты всё равно попадают на баланс и их можно тратить в
-              магазине — просто они не влияют на место в рейтинге.
+              Коины приходят, когда админ подтвердит заявку. Бонусы идут на
+              баланс, но на рейтинг не влияют.
             </p>
           </div>
 
           <p className="text-xs text-gray-600 pt-3 border-t border-dark-600">
-            Покупки в магазине списывают коины и никак не влияют на
-            рейтинг — рейтинг считает только заработанное, а не потраченное.
+            Покупки в магазине просто списывают коины с баланса, на рейтинг
+            они тоже не влияют.
           </p>
         </div>
       )}
