@@ -7,7 +7,9 @@ import {
   rejectJoinRequestInternal,
 } from "@/lib/telegramApprovals";
 
-async function requireAdmin() {
+// Принимать новичков может админ и наставник: наставник ведёт их с
+// первого дня, логично чтобы он же их и заводил.
+async function requireAdminOrMentor() {
   const supabase = createClient();
   const {
     data: { user },
@@ -21,13 +23,15 @@ async function requireAdmin() {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") throw new Error("Доступ запрещён");
+  if (profile?.role !== "admin" && profile?.role !== "mentor") {
+    throw new Error("Доступ запрещён");
+  }
 
   return user;
 }
 
 export async function approveJoinRequest(requestId, comment) {
-  await requireAdmin();
+  await requireAdminOrMentor();
   const result = await approveJoinRequestInternal(requestId, comment);
 
   revalidatePath("/admin/join-requests");
@@ -36,7 +40,7 @@ export async function approveJoinRequest(requestId, comment) {
 }
 
 export async function rejectJoinRequest(requestId, comment) {
-  await requireAdmin();
+  await requireAdminOrMentor();
   const result = await rejectJoinRequestInternal(requestId, comment);
 
   revalidatePath("/admin/join-requests");

@@ -44,6 +44,18 @@ const SECTIONS = [
   { href: "/admin/onboarding", label: "Обучение", owns: ["/admin/onboarding"] },
 ];
 
+// Наставнику открыты ровно два раздела, и ведут они прямо на нужные
+// страницы — общий «Заявки» ему не подходит, там всё остальное закрыто.
+const MENTOR_SECTIONS = [
+  {
+    href: "/admin/join-requests",
+    label: "Новые люди",
+    owns: ["/admin/join-requests"],
+    badgeKey: "pendingRequests",
+  },
+  { href: "/admin/onboarding", label: "Обучение", owns: ["/admin/onboarding"] },
+];
+
 export default function AdminNav({
   pendingRequests = 0,
   pendingSuggestions = 0,
@@ -51,9 +63,7 @@ export default function AdminNav({
 }) {
   const pathname = usePathname();
   const badges = { pendingRequests, pendingSuggestions };
-  const sections = onlyOnboarding
-    ? SECTIONS.filter((x) => x.href === "/admin/onboarding")
-    : SECTIONS;
+  const sections = onlyOnboarding ? MENTOR_SECTIONS : SECTIONS;
 
   return (
     <div className="max-w-6xl mx-auto px-4 overflow-x-auto no-scrollbar">

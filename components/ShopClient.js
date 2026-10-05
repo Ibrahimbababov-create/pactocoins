@@ -73,6 +73,13 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
 
   const variant = reward.variants.find((v) => v.id === selected) ?? reward.variants[0];
   const canAfford = variant ? displayBalance >= variant.price_coins : false;
+  // У варианта может быть своя картинка — выбрал IQOS, видишь IQOS.
+  const shownImage = variant?.image_url || reward.image_url;
+  // Длинный список вариантов превращал карточку в простыню, поэтому
+  // с трёх штук показываем только выбранный, а остальные — по тапу.
+  const collapsible = reward.variants.length > 2;
+  const [open, setOpen] = useState(false);
+  const listVisible = !collapsible || open;
 
   return (
     <div
@@ -86,15 +93,16 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
       }
     >
       <div>
-        {reward.image_url && (
-          <div className="relative w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
+        {shownImage && (
+          <div className="relative w-full h-28 rounded-lg mb-2 overflow-hidden bg-dark-700">
             <Image
-              src={reward.image_url}
+              key={shownImage}
+              src={shownImage}
               alt=""
               fill
-              unoptimized={isRawImage(reward.image_url)}
+              unoptimized={isRawImage(shownImage)}
               sizes="(max-width: 500px) 45vw, 200px"
-              className="object-cover"
+              className="object-contain"
             />
           </div>
         )}
@@ -104,7 +112,26 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
         )}
       </div>
 
-      <div className="mt-3 space-y-1">
+      {collapsible && !open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="mt-3 w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs border border-acid-400 bg-acid-400/15 text-acid-400 font-bold"
+        >
+          <span className="truncate">{variant?.label}</span>
+          <span className="flex items-center gap-1 shrink-0">
+            <span className="tabular-nums font-display">{fmtCoins(variant?.price_coins)}</span>
+            <Icon name="chevronDown" className="w-3.5 h-3.5" />
+          </span>
+        </button>
+      )}
+
+      {collapsible && !open && (
+        <p className="mt-1 text-[11px] text-gray-600 text-center">
+          ещё {reward.variants.length - 1} на выбор
+        </p>
+      )}
+
+      <div className={`mt-3 space-y-1 ${listVisible ? "" : "hidden"}`}>
         {reward.variants.map((v) => {
           const active = v.id === (variant?.id);
           return (
@@ -113,6 +140,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
               onClick={() => {
                 setSelected(v.id);
                 setConfirming(false);
+                if (collapsible) setOpen(false);
               }}
               className={`w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs border transition ${
                 active
@@ -638,14 +666,14 @@ export default function ShopClient({ grouped, balance }) {
                 >
                   <div>
                     {reward.image_url && (
-                      <div className="relative w-full h-24 rounded-lg mb-2 overflow-hidden bg-dark-700">
+                      <div className="relative w-full h-28 rounded-lg mb-2 overflow-hidden bg-dark-700">
                         <Image
                           src={reward.image_url}
                           alt=""
                           fill
                           unoptimized={isRawImage(reward.image_url)}
                           sizes="(max-width: 500px) 45vw, 200px"
-                          className="object-cover"
+                          className="object-contain"
                         />
                       </div>
                     )}

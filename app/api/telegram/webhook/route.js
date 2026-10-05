@@ -348,8 +348,8 @@ const COIN_ACTIONS = new Set([
 // Проверяем, что нажал именно админ, а не кто угодно, кто дотянулся до
 // этого адреса. Одной проверки секретного токена мало: она говорит только
 // «запрос пришёл от Telegram», но не «нажал тот, кому можно».
-async function isTelegramAdmin(fromId) {
-  if (!fromId) return false;
+async function telegramRole(fromId) {
+  if (!fromId) return null;
   const admin = createAdminClient();
   const { data } = await admin
     .from("users")
@@ -357,7 +357,20 @@ async function isTelegramAdmin(fromId) {
     .eq("telegram_id", fromId)
     .eq("is_active", true)
     .maybeSingle();
-  return data?.role === "admin";
+  return data?.role ?? null;
+}
+
+async function isTelegramAdmin(fromId) {
+  return (await telegramRole(fromId)) === "admin";
+}
+
+// Заявки на регистрацию принимает ещё и наставник — он ведёт новичков
+// с первого дня. Коинов эти кнопки не двигают, только заводят аккаунт.
+const JOIN_ACTIONS = new Set(["approve_join", "reject_join"]);
+async function canPressButton(fromId, action) {
+  const role = await telegramRole(fromId);
+  if (role === "admin") return true;
+  return role === "mentor" && JOIN_ACTIONS.has(action);
 }
 
 const REPLY_COMMENT_TABLES = [
@@ -577,9 +590,10 @@ export async function POST(request) {
   const chatId = callback.message.chat.id;
   const messageId = callback.message.message_id;
 
-  // Дальше идут только кнопки, двигающие коины и аккаунты. Пускаем админов.
-  if (!(await isTelegramAdmin(callback.from?.id))) {
-    console.warn("[webhook] не-админ нажал", action, callback.from?.id);
+  // Дальше идут кнопки, двигающие коины и аккаунты. Пускаем админов, а на
+  // приём новичков — ещё и наставника.
+  if (!(await canPressButton(callback.from?.id, action))) {
+    console.warn("[webhook] нет прав на", action, callback.from?.id);
     // Сообщение подсказывает и настоящую причину отказа, и частый случай:
     // человек реально админ, но его Telegram не привязан к аккаунту.
     await answerCallbackQuery(

@@ -91,13 +91,13 @@ export default async function AdminLayout({ children }) {
           />
         </div>
         <AdminNav
-          pendingRequests={pendingRequests}
+          pendingRequests={isMentor ? requestCounts.join : pendingRequests}
           pendingSuggestions={requestCounts.suggestions}
           onlyOnboarding={isMentor}
         />
       </div>
       <div className="relative max-w-6xl mx-auto px-4 py-6">
-        <AdminSubNav counts={requestCounts} />
+        {!isMentor && <AdminSubNav counts={requestCounts} />}
         <PageTransition>{children}</PageTransition>
       </div>
     </div>

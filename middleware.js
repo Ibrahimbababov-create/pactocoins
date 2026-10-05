@@ -48,7 +48,9 @@ export async function middleware(request) {
   const isAdminPage = path.startsWith("/admin");
   // Наставник ведёт обучение стажёров, поэтому ему открыт раздел
   // «Обучение» в админке — и только он.
-  const isOnboardingAdminPage = path.startsWith("/admin/onboarding");
+  // Наставнику открыты два раздела админки: обучение и приём новичков.
+  const isMentorAdminPage =
+    path.startsWith("/admin/onboarding") || path.startsWith("/admin/join-requests");
   const isObserverPage = path.startsWith("/observer");
   // Гость нажал «выйти» — ему нужен экран выбора, даже если сессия
   // технически ещё не успела очиститься. Не редиректим его с /login.
@@ -97,7 +99,7 @@ export async function middleware(request) {
     if (
       isAdminPage &&
       profile?.role !== "admin" &&
-      !(isOnboardingAdminPage && profile?.role === "mentor")
+      !(isMentorAdminPage && profile?.role === "mentor")
     ) {
       return NextResponse.redirect(
         new URL(homeForRole(profile?.role), request.url)
