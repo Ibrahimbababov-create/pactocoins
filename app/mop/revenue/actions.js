@@ -5,8 +5,9 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { calculateRevenueCoins } from "@/lib/coinRate";
+import { paymentDateToIso, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 
-export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed) {
+export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed, paymentDay) {
   const supabase = createClient();
   const {
     data: { user },
@@ -21,6 +22,14 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
   if (!receiptConfirmed) {
     return { error: "Подтверди, что отправил чек в группу" };
   }
+
+  // Дату оплаты МОП выбирает сам (забыл отправить вчера — ставит вчера).
+  // Не выбрал — сегодня. Дальше 14 дней назад и в будущее нельзя.
+  const earnedAt = paymentDateToIso(paymentDay);
+  if (!earnedAt) {
+    return { error: "Дату оплаты можно выбрать только за последние 14 дней" };
+  }
+  const isBackdated = almatyDayKey(earnedAt) !== almatyDayKey(new Date());
 
   const { data: profile } = await supabase
     .from("users")
@@ -42,6 +51,7 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
       comment,
       receipt_confirmed: true,
       status: "pending",
+      earned_at: earnedAt,
     })
     .select()
     .single();
@@ -56,6 +66,9 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed)
       `От: <b>${profile?.name ?? "МОП"}</b>\n` +
       `Сумма: ${amountKzt.toLocaleString("ru-RU")} ₸\n` +
       `Коинов: ${coins}\n` +
+      `Дата оплаты: ${formatPaymentDay(earnedAt)}` +
+      (isBackdated ? " ⚠️ задним числом" : "") +
+      `\n` +
       (comment ? `Комментарий: ${comment}\n` : "");
 
     const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID

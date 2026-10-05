@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import { formatDateTimeAlmaty } from "@/lib/timezone";
+import { formatDateTimeAlmaty, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 import CancelWithReason from "@/components/CancelWithReason";
 import { loadRequestHistory } from "@/app/admin/historyActions";
 import EmptyState from "@/components/EmptyState";
@@ -233,6 +233,12 @@ export default function RevenueRequestsClient({
                 {r.comment && (
                   <p className="text-xs text-gray-500">{r.comment}</p>
                 )}
+                {r.earned_at &&
+                  almatyDayKey(r.earned_at) !== almatyDayKey(r.created_at) && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      Дата оплаты: {formatPaymentDay(r.earned_at)} — задним числом
+                    </p>
+                  )}
                 {r.receipt_confirmed && (
                   <p className="text-xs text-acid-400 mt-1">
                     ✅ Чек отправлен в группу
@@ -291,7 +297,9 @@ export default function RevenueRequestsClient({
                     ? `Засчитать датой: ${new Date(
                         dateOverrides[r.id]
                       ).toLocaleDateString("ru-RU")}`
-                    : "Задать другую дату (для рейтинга)"}
+                    : `Дата оплаты: ${formatPaymentDay(
+                        r.earned_at || r.created_at
+                      )} · изменить`}
                 </button>
               )}
               <input
@@ -334,7 +342,8 @@ export default function RevenueRequestsClient({
                     {r.calculated_coins.toLocaleString("ru-RU")} коинов
                   </p>
                   <p className="text-xs text-gray-600">
-                    {formatDateTimeAlmaty(r.reviewed_at || r.created_at)}
+                    оплата {formatPaymentDay(r.earned_at || r.created_at)} ·
+                    обработано {formatDateTimeAlmaty(r.reviewed_at || r.created_at)}
                   </p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>

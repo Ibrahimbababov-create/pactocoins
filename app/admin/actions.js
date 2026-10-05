@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
-import { almatyDatetimeToUtcIso } from "@/lib/timezone";
+import { almatyDatetimeToUtcIso, almatyDayKey } from "@/lib/timezone";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
@@ -259,7 +259,8 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   // Начисление коинов датируем тем же днём, что и саму оплату, —
   // чтобы история в балансе сходилась с тем, что показывает рейтинг.
-  if (earnedAtDate) {
+  // Дату мог поставить админ при подтверждении или МОП при подаче.
+  if (almatyDayKey(earnedAtIso) !== almatyDayKey(new Date())) {
     transactionPayload.created_at = earnedAtIso;
   }
 

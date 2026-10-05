@@ -4,6 +4,18 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
 import { haptic } from "@/lib/haptics";
+import { recentDaysAlmaty, PAYMENT_DATE_MAX_DAYS_BACK } from "@/lib/timezone";
+
+// Сегодня первым, дальше назад по дням: «Сегодня, 05.10», «Вчера, 04.10», «сб, 03.10»…
+function paymentDayOptions() {
+  return recentDaysAlmaty(PAYMENT_DATE_MAX_DAYS_BACK + 1)
+    .reverse()
+    .map((d, i) => ({
+      key: d.key,
+      label:
+        i === 0 ? `Сегодня, ${d.label}` : i === 1 ? `Вчера, ${d.label}` : `${d.weekday}, ${d.label}`,
+    }));
+}
 
 export default function RevenueRequestForm({ open, onOpenChange }) {
   const router = useRouter();
@@ -14,6 +26,10 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
   const [comment, setComment] = useState("");
   const [receiptConfirmed, setReceiptConfirmed] = useState(false);
   const [error, setError] = useState("");
+  // Пусто = сегодня. Список дат строим при открытии формы, а не при
+  // рендере сервера, — чтобы «сегодня» было по часам на момент заявки.
+  const [paymentDay, setPaymentDay] = useState("");
+  const [dayOptions, setDayOptions] = useState([]);
 
   const coins = amount ? Math.floor(Number(amount) / 1000) : 0;
 
@@ -35,7 +51,12 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
     }
 
     startTransition(async () => {
-      const res = await submitRevenueRequest(amountNum, comment, receiptConfirmed);
+      const res = await submitRevenueRequest(
+        amountNum,
+        comment,
+        receiptConfirmed,
+        paymentDay || undefined
+      );
 
       if (res.error) {
         setError(res.error);
@@ -48,6 +69,7 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
       setAmount("");
       setComment("");
       setReceiptConfirmed(false);
+      setPaymentDay("");
       setOpen(false);
       router.refresh();
     });
@@ -58,6 +80,7 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
       <button
         onClick={() => {
           haptic.light();
+          setDayOptions(paymentDayOptions());
           setOpen(true);
         }}
         className="flex-1 bg-acid-400 text-black font-bold rounded-2xl py-4 active:scale-[0.98] transition"
@@ -99,6 +122,28 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
         {amount > 0 && (
           <p className="text-xs text-acid-400 mt-1">
             = {coins} коинов (1000 ₸ = 1 коин)
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">
+          Дата оплаты
+        </label>
+        <select
+          value={paymentDay}
+          onChange={(e) => setPaymentDay(e.target.value)}
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
+        >
+          {dayOptions.map((d, i) => (
+            <option key={d.key} value={i === 0 ? "" : d.key}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+        {paymentDay && (
+          <p className="text-xs text-gray-500 mt-1">
+            В рейтинге оплата встанет на этот день
           </p>
         )}
       </div>
