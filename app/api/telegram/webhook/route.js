@@ -17,7 +17,7 @@ import {
   sendTelegramDocument,
 } from "@/lib/telegramBot";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { welcomeNewMembers } from "@/lib/groupWelcome";
+import { welcomeNewMembers, sendWelcome } from "@/lib/groupWelcome";
 import { renderRatingImage } from "@/lib/ratingImage";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
@@ -470,6 +470,30 @@ export async function POST(request) {
     }
     if (REPORT_CMDS.has(cmd)) {
       await handleReportCommand(msg, cmd);
+      return NextResponse.json({ ok: true });
+    }
+    // Админ проверяет, как выглядит приветствие новичка: бот шлёт его
+    // самому админу, остальные в группе ничего не видят.
+    if (cmd === "/welcometest") {
+      const admin = createAdminClient();
+      const { data: caller } = await admin
+        .from("users")
+        .select("role")
+        .eq("telegram_id", msg.from?.id)
+        .maybeSingle();
+      if (caller?.role === "admin" && msg.chat?.type !== "private") {
+        const res = await sendWelcome(
+          msg.chat.id,
+          msg.is_topic_message ? msg.message_thread_id : undefined,
+          msg.from
+        );
+        if (!res?.ok) {
+          await sendTelegramMessage(
+            msg.from.id,
+            `Приветствие не отправилось: ${escapeHtml(res?.description || "нет ответа")}`
+          );
+        }
+      }
       return NextResponse.json({ ok: true });
     }
     if (cmd === "/app" || cmd === "/open") {
