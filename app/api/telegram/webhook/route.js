@@ -186,9 +186,28 @@ async function handleAllCommand(msg) {
     // Не прошло — говорим автору в личку, почему, а не молчим.
     await sendTelegramMessage(
       msg.from.id,
-      `/all не сработал: ${escapeHtml(res?.description || "Telegram не ответил")}`
+      `📣 /all не сработал — ${escapeHtml(explainTelegramError(res?.description))}`
     );
   }
+}
+
+// Телеграм объясняет отказы по-английски и очень сухо. Переводим в
+// понятное «что случилось и что с этим делать».
+function explainTelegramError(desc) {
+  const d = String(desc || "");
+  if (/TOPIC_CLOSED/i.test(d)) {
+    return "тема закрыта, в неё нельзя писать. Открой её (меню темы → «Открыть тему») либо дай боту право «Управление темами» в настройках группы — тогда он сможет писать и в закрытые.";
+  }
+  if (/TOPIC_DELETED/i.test(d)) return "тему удалили.";
+  if (/not enough rights|CHAT_WRITE_FORBIDDEN|have no rights/i.test(d)) {
+    return "боту запрещено писать в этот чат. Проверь его права в настройках группы.";
+  }
+  if (/message to be replied not found|replied message not found/i.test(d)) {
+    return "сообщение, на которое он отвечал, уже удалено.";
+  }
+  if (/bot was kicked|bot is not a member/i.test(d)) return "бота нет в этом чате.";
+  if (/too many requests|retry after/i.test(d)) return "слишком часто, Телеграм попросил подождать.";
+  return d || "Telegram не ответил";
 }
 
 function parseCommand(text) {
