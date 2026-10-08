@@ -39,6 +39,7 @@ export default function SalesDashboard({
   lead,
   meName,
   notice,
+  issues = [],
 }) {
   const router = useRouter();
   const [tab, setTab] = useState("summary");
@@ -117,6 +118,7 @@ export default function SalesDashboard({
               </button>
             ))}
           </div>
+          {issues.length > 0 && <Issues issues={issues} />}
           {tab === "summary" ? (
             <Summary view={view} meName={meName} onOpen={setMgr} />
           ) : (
@@ -125,6 +127,31 @@ export default function SalesDashboard({
         </>
       )}
     </div>
+  );
+}
+
+// Оплаты, которые не попали в цифры: дата в таблице не читается
+function Issues({ issues }) {
+  const total = issues.reduce((a, i) => a + i.s, 0);
+  return (
+    <details className="bg-amber-400/[0.06] border border-amber-400/30 rounded-2xl px-4 py-3 text-sm">
+      <summary className="cursor-pointer">
+        <span className="font-semibold text-amber-400">
+          Не попали в расчёт: {issues.length} {plural(issues.length, "оплата", "оплаты", "оплат")} на {mln(total)}
+        </span>
+        <span className="block text-xs text-gray-500 mt-0.5">В таблице не читается дата продажи. Поправьте — и через пару минут цифры обновятся.</span>
+      </summary>
+      <ul className="mt-3 space-y-1.5">
+        {issues.slice(0, 30).map((i, k) => (
+          <li key={k} className="flex justify-between gap-3 text-xs">
+            <span className="text-gray-400 min-w-0 truncate">
+              {i.file} · {i.sheet} · строка {i.row} · дата «{i.date || "пусто"}»
+            </span>
+            <span className="tabular-nums shrink-0">{money(i.s)}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

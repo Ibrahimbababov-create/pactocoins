@@ -68,6 +68,12 @@ export default async function SalesPage({ searchParams = {}, basePath }) {
   }
 
   const months = monthList(data.months);
+  if (!months.length && !data.fileCount) {
+    return shell({
+      title: "Таблицы отдела не найдены",
+      hint: "Сервисному аккаунту ещё не открыли доступ к таблицам оплат (Поделиться → Читатель).",
+    });
+  }
   if (!months.length && data.failed?.length) {
     return shell({
       title: "Нет доступа к таблицам отдела",
@@ -98,6 +104,7 @@ export default async function SalesPage({ searchParams = {}, basePath }) {
       lead={lead}
       meName={me?.name ?? null}
       notice={null}
+      issues={lead ? data.issues ?? [] : []}
     />
   );
 }
