@@ -36,6 +36,7 @@ const SECTIONS = [
     owns: ["/admin/rewards", "/admin/reward-suggestions"],
     badgeKey: "pendingSuggestions",
   },
+  { href: "/admin/sales", label: "Аналитика", owns: ["/admin/sales"] },
   {
     href: "/admin/budget",
     label: "Деньги",
