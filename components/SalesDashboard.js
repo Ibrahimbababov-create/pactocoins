@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
 import { money, mln, plural } from "@/lib/sales/format";
-import { Card, CardTitle, Stat, Bars } from "@/components/SalesUi";
+import { Card, CardTitle, Stat, Bars, CumChart, Donut, StackBar, STATUS, colorFor } from "@/components/SalesUi";
 import {
   PayScreen,
   SourcesScreen,
@@ -13,6 +13,9 @@ import {
   DynamicsScreen,
   QuotaScreen,
   DealsScreen,
+  AdsCard,
+  PrepayCard,
+  ManagersCharts,
 } from "@/components/SalesScreens";
 
 // Экраны раздела «Аналитика»: Сводка, Менеджеры, страница менеджера.
@@ -152,7 +155,7 @@ export default function SalesDashboard({
           {tab === "pay" && <PayScreen view={view} />}
           {tab === "sources" && <SourcesScreen view={view} />}
           {tab === "ints" && <IntensivesScreen view={view} />}
-          {tab === "dyn" && <DynamicsScreen view={view} CumChart={CumChart} />}
+          {tab === "dyn" && <DynamicsScreen view={view} />}
           {tab === "quota" && <QuotaScreen view={view} />}
           {tab === "deals" && <DealsScreen view={view} />}
         </>
@@ -207,52 +210,6 @@ function Select({ id, label, value, onChange, options }) {
         className="w-4 h-4 text-gray-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
       />
     </label>
-  );
-}
-
-// Накопительная выручка по дням + пунктир «темп плана»
-function CumChart({ cum, dim, plan, label }) {
-  const W = 320;
-  const H = 120;
-  const top = 8;
-  const last = cum[cum.length - 1] || 0;
-  if (!last && !plan) return <p className="text-sm text-gray-500 py-6 text-center">Оплат пока нет.</p>;
-  const max = Math.max(plan || 0, last, 1);
-  const x = (i) => (dim > 1 ? (i / (dim - 1)) * W : 0);
-  const y = (v) => H - (v / max) * (H - top);
-  const line = cum.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-  const lx = x(cum.length - 1);
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto overflow-visible" role="img" aria-label={label}>
-        {[0.5, 1].map((g) => (
-          <line key={g} x1="0" x2={W} y1={y(max * g)} y2={y(max * g)} style={{ stroke: "rgb(var(--c-line))" }} strokeWidth="1" />
-        ))}
-        {plan > 0 && (
-          <line
-            x1="0"
-            y1={y(plan / dim)}
-            x2={W}
-            y2={y(plan)}
-            style={{ stroke: "rgb(var(--c-muted))" }}
-            strokeWidth="1.2"
-            strokeDasharray="4 4"
-          />
-        )}
-        {cum.length > 0 && (
-          <>
-            <path d={`${line}L${lx},${H}L0,${H}Z`} style={{ fill: "rgb(var(--c-accent) / 0.12)" }} />
-            <path d={line} fill="none" style={{ stroke: "rgb(var(--c-accent))" }} strokeWidth="2.2" strokeLinejoin="round" />
-            <circle cx={lx} cy={y(last)} r="3.5" style={{ fill: "rgb(var(--c-accent))" }} />
-          </>
-        )}
-      </svg>
-      <div className="flex justify-between text-[11px] text-gray-500 mt-1">
-        <span className="tabular-nums">1</span>
-        {plan > 0 && <span>пунктир — темп плана</span>}
-        <span className="tabular-nums">{dim}</span>
-      </div>
-    </div>
   );
 }
 
@@ -321,7 +278,7 @@ function Summary({ view, meName, onOpen }) {
           <p className="text-xs text-amber-400 mt-1">План за этот месяц ещё не внесён — взят план прошлого месяца.</p>
         )}
         <div className="mt-4">
-          <CumChart
+          <CumChart monthGen={view.monthGen}
             cum={cur.cum}
             dim={fr.dim}
             plan={f === "int" ? 0 : view.plan}
@@ -366,6 +323,11 @@ function Summary({ view, meName, onOpen }) {
           </ul>
         </Card>
       )}
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <AdsCard ads={view.ads} />
+        <PrepayCard prepay={view.prepay} leads={view.leads} />
+      </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
         <Card>
@@ -457,6 +419,9 @@ function ManagerRulers({ view, meName, onOpen }) {
 function Managers({ view, meName, onOpen }) {
   if (!view.managers.length) return <Card><p className="text-sm text-gray-500">Оплат пока нет.</p></Card>;
   return (
+    <div className="space-y-4">
+      <ManagersCharts view={view} />
+
     <div className="grid gap-3 sm:grid-cols-2">
       {view.managers.map((m, i) => (
         <Card key={m.name} className="!p-0">
@@ -489,6 +454,7 @@ function Managers({ view, meName, onOpen }) {
         среднем от заявки до оплаты.
       </p>
     </div>
+    </div>
   );
 }
 
@@ -517,7 +483,7 @@ function ManagerPage({ view, name, lead, meName, onBack }) {
           ) : null}
         </p>
         <div className="mt-4">
-          <CumChart cum={p.cum} dim={view.frac.dim} plan={m.plan} label={`Выручка ${name} по дням`} />
+          <CumChart monthGen={view.monthGen} cum={p.cum} dim={view.frac.dim} plan={m.plan} label={`Выручка ${name} по дням`} />
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 mt-4 pt-4 border-t border-dark-700">
           <Stat label="Продаж курса" value={m.n} sub={`с ПО ${m.po} · без ${m.nopo}`} />

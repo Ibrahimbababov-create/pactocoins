@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import { money, mln, plural } from "@/lib/sales/format";
-import { Card, CardTitle, Stat, Empty, Bars, Legend, Chips, colorFor } from "@/components/SalesUi";
+import { Card, CardTitle, Stat, Empty, Bars, Legend, Chips, colorFor, Donut, StackBar, STATUS, sourceColor, CumChart } from "@/components/SalesUi";
 
 // Экраны «Оплаты», «Источники», «Интенсивы», «Динамика», «Квота», «Сделки».
 // Цифры посчитаны на сервере (lib/sales/metrics.js → extraScreens).
 
 const pct1 = (v) => `${String(Math.round(v * 1000) / 10).replace(".", ",")}%`;
+// цвета для списков без закреплённых людей (формы оплаты): по порядку, девятый и дальше серые
+const SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+const seriesColor = (i) => (i < SERIES.length ? SERIES[i] : "rgb(var(--c-dim))");
+const poColor = (l) =>
+  /продал/i.test(l) ? STATUS.good : /возврат|отказ|неодоб/i.test(l) ? STATUS.bad : /некст/i.test(l) ? STATUS.warn : STATUS.info;
 const share = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 function commissionTone(k) {
@@ -21,31 +26,62 @@ export function PayScreen({ view }) {
   const { forms, total } = view.pay;
   if (!total.cnt) return <Card><Empty /></Card>;
   const lostShare = total.s ? total.lost / total.s : 0;
+  const tariffItems = view.tariffs.map((t, i) => ({ label: t.label, v: t.n, color: i ? "#c98500" : "#3987e5" }));
   return (
     <div className="space-y-4">
-      <Card>
-        <CardTitle>Куда ушли деньги</CardTitle>
-        <p className="font-display font-bold text-2xl tabular-nums">{mln(total.net)}</p>
-        <p className="text-sm text-gray-400">
-          чистыми отделу из {mln(total.s)} · комиссии банков и рассрочек {mln(total.lost)} ({pct1(lostShare)})
-        </p>
-        <div className="flex h-2.5 rounded-full overflow-hidden bg-dark-700 mt-3 gap-0.5">
-          <span className="bg-acid-400" style={{ width: `${(1 - lostShare) * 100}%` }} title="Чистыми отделу" />
-          {lostShare > 0 && <span className="bg-red-400" style={{ width: `${lostShare * 100}%` }} title="Комиссии" />}
-        </div>
-        <div className="flex gap-4 mt-2 text-xs text-gray-400">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-acid-400" />чистыми</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" />комиссии</span>
-        </div>
-      </Card>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card>
+          <CardTitle>Формы оплаты</CardTitle>
+          <Donut
+            items={forms.map((p, i) => ({ label: p.k, v: p.cnt, color: seriesColor(i) }))}
+            center={[total.cnt, "оплат"]}
+            fmt={(v) => `${v} шт`}
+            label="Оплаты по формам оплаты"
+          />
+        </Card>
+        <Card>
+          <CardTitle>Куда ушли деньги</CardTitle>
+          <Donut
+            items={[
+              { label: "Чистыми отделу", v: total.net, color: STATUS.good },
+              { label: "Комиссии банков и рассрочек", v: total.lost, color: STATUS.bad },
+            ]}
+            center={[`${Math.round(lostShare * 100)}%`, "на комиссии"]}
+            fmt={mln}
+            label="Чистыми и комиссии"
+          />
+        </Card>
+        <Card>
+          <CardTitle hint="сколько съела комиссия">Потери на комиссии</CardTitle>
+          <Bars
+            items={[...forms]
+              .filter((p) => p.lost > 0)
+              .sort((a, b) => b.lost - a.lost)
+              .map((p) => ({
+                k: p.k,
+                s: p.lost,
+                rate: p.rate,
+                color: p.rate >= 0.25 ? STATUS.bad : p.rate >= 0.1 ? STATUS.warn : STATUS.good,
+              }))}
+            value={(it) => `${mln(it.s)} · ${pct1(it.rate)}`}
+          />
+        </Card>
+        <Card>
+          <CardTitle>Тарифы</CardTitle>
+          <Donut items={tariffItems} center={[view.sales, "продаж"]} fmt={(v) => `${v} шт`} label="Продажи по тарифам" />
+        </Card>
+      </div>
 
       <Card>
-        <CardTitle hint={`${total.cnt} ${plural(total.cnt, "оплата", "оплаты", "оплат")}`}>Формы оплаты</CardTitle>
+        <CardTitle hint={`${total.cnt} ${plural(total.cnt, "оплата", "оплаты", "оплат")}`}>Все формы оплаты</CardTitle>
         <ul className="divide-y divide-dark-700 -my-1">
-          {forms.map((p) => (
+          {forms.map((p, i) => (
             <li key={p.k} className="py-3">
               <div className="flex justify-between gap-3">
-                <span className="font-medium min-w-0 truncate">{p.k}</span>
+                <span className="font-medium min-w-0 truncate flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: seriesColor(i) }} />
+                  {p.k}
+                </span>
                 <span className="tabular-nums shrink-0">{mln(p.s)}</span>
               </div>
               <div className="flex justify-between gap-3 text-xs mt-1">
@@ -59,6 +95,12 @@ export function PayScreen({ view }) {
               </div>
             </li>
           ))}
+          <li className="py-3 flex justify-between gap-3 font-semibold">
+            <span>Итого</span>
+            <span className="tabular-nums">
+              {mln(total.s)} · чистыми {mln(total.net)}
+            </span>
+          </li>
         </ul>
         <p className="text-xs text-gray-500 mt-3">Красным — комиссия 25% и выше, жёлтым — от 10%.</p>
       </Card>
@@ -71,8 +113,29 @@ export function SourcesScreen({ view }) {
   const { rows, roas, creatives, matrix } = view.sources;
   if (!rows.length) return <Card><Empty /></Card>;
   const total = rows.reduce((a, r) => a + r.s, 0);
+  const cnt = rows.reduce((a, r) => a + r.n, 0);
   return (
     <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card>
+          <CardTitle hint="число продаж">По источникам</CardTitle>
+          <Donut
+            items={rows.map((r, i) => ({ label: r.name, v: r.n, color: sourceColor(r.name, i) }))}
+            center={[cnt, "продаж"]}
+            fmt={(v) => `${v} шт`}
+            label="Продажи по источникам"
+          />
+        </Card>
+        <Card>
+          <CardTitle hint="выручка">По источникам</CardTitle>
+          <Donut
+            items={rows.map((r, i) => ({ label: r.name, v: r.s, color: sourceColor(r.name, i) }))}
+            center={[mln(total).replace(" ₸", ""), "выручка"]}
+            fmt={mln}
+            label="Выручка по источникам"
+          />
+        </Card>
+      </div>
       <Card>
         <CardTitle hint="utm_source">Продажи по источникам</CardTitle>
         <ul className="divide-y divide-dark-700 -my-1">
@@ -214,22 +277,33 @@ export function IntensivesScreen({ view }) {
       <div className="grid sm:grid-cols-2 gap-4">
         <Card>
           <CardTitle>По менеджерам</CardTitle>
-          <Bars
-            items={I.byManager.map((x) => ({ k: x.k, n: x.v, color: colorFor(x.k, people) }))}
-            measure={(it) => it.n}
-            value={(it) => `${it.n} шт`}
+          <Donut
+            items={I.byManager.map((x) => ({ label: x.k, v: x.v, color: colorFor(x.k, people) }))}
+            center={[I.count, "интенсивов"]}
+            fmt={(v) => `${v} шт`}
+            label="Интенсивы по менеджерам"
           />
         </Card>
         <Card>
           <CardTitle>По источникам</CardTitle>
-          <Bars items={I.bySource.map((x) => ({ k: x.k, n: x.v }))} measure={(it) => it.n} value={(it) => `${it.n} шт`} />
+          <Donut
+            items={I.bySource.map((x, i) => ({ label: x.k, v: x.v, color: sourceColor(x.k, i) }))}
+            center={[I.count, "продаж"]}
+            fmt={(v) => `${v} шт`}
+            label="Интенсивы по источникам"
+          />
         </Card>
       </div>
 
       {I.bzStatus.length > 0 && (
         <Card>
           <CardTitle>Предоплаты с бизнес-завтрака</CardTitle>
-          <Bars items={I.bzStatus.map((x) => ({ k: x.k, n: x.v }))} measure={(it) => it.n} value={(it) => `${it.n} шт`} />
+          <Donut
+            items={I.bzStatus.map((x) => ({ label: x.k, v: x.v, color: poColor(x.k) }))}
+            center={[I.bz, "предоплат"]}
+            fmt={(v) => `${v} шт`}
+            label="Предоплаты с бизнес-завтрака по статусам"
+          />
         </Card>
       )}
 
@@ -295,7 +369,7 @@ function DailyBars({ days, lastDay, people }) {
   );
 }
 
-export function DynamicsScreen({ view, CumChart }) {
+export function DynamicsScreen({ view }) {
   const D = view.dynamics;
   const people = view.people;
   const sellers = view.sources.matrix.people;
@@ -305,7 +379,7 @@ export function DynamicsScreen({ view, CumChart }) {
     <div className="space-y-4">
       <Card>
         <CardTitle hint={view.plan ? `план ${mln(view.plan)}` : null}>Накопительно к плану</CardTitle>
-        <CumChart cum={view.filters.course.cum} dim={view.frac.dim} plan={view.plan} label="Выручка курса с начала месяца" />
+        <CumChart monthGen={view.monthGen} cum={view.filters.course.cum} dim={view.frac.dim} plan={view.plan} label="Выручка курса с начала месяца" />
       </Card>
 
       <Card>
@@ -493,6 +567,193 @@ export function DealsScreen({ view }) {
           <Empty>Под эти фильтры сделок нет.</Empty>
         )}
       </Card>
+    </div>
+  );
+}
+
+/* ---------- Сводка: реклама и предоплаты ---------- */
+export function AdsCard({ ads }) {
+  return (
+    <Card>
+      <CardTitle hint="с начала месяца">Реклама</CardTitle>
+      {ads ? (
+        <>
+          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
+            <Stat
+              label="Потрачено"
+              value={mln(ads.spend)}
+              sub={ads.spendUsd ? `$${String(Math.round(ads.spendUsd)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}` : null}
+            />
+            <Stat label="Касса месяца" value={mln(ads.cash)} />
+            <div className="min-w-0">
+              <dt className="text-xs text-gray-500">ROAS</dt>
+              <dd className="font-display font-semibold text-[15px] tabular-nums" style={{ color: ads.roas >= 3 ? STATUS.good : STATUS.bad }}>
+                1 : {Math.round(ads.roas)}
+              </dd>
+            </div>
+            <Stat label="ROMI" value={`${String(ads.romi).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}%`} />
+            <Stat label="Цена лида" value={ads.leadCost != null ? money(ads.leadCost) : "—"} />
+            <Stat label="Стоимость оплаты" value={ads.payCost != null ? money(ads.payCost) : "—"} />
+          </dl>
+          {ads.usdRate > 0 && (
+            <p className="text-xs text-gray-500 mt-3">Курс $1 = {String(ads.usdRate.toFixed(1)).replace(".", ",")} ₸ (из таблицы)</p>
+          )}
+        </>
+      ) : (
+        <Empty>В таблице «Оплаты» этого месяца нет блока «Сумма затрат».</Empty>
+      )}
+    </Card>
+  );
+}
+
+
+function PoWarn({ title, list }) {
+  if (Array.isArray(list) ? !list.length : !list) return null;
+  if (!Array.isArray(list))
+    return (
+      <p className="text-xs text-amber-400 mt-2">
+        {title}: {list}
+      </p>
+    );
+  return (
+    <details className="mt-2 text-sm">
+      <summary className="cursor-pointer text-amber-400 text-xs">
+        {title}: {list.length}
+      </summary>
+      <ul className="mt-2 space-y-1">
+        {list.map((d, i) => (
+          <li key={i} className="flex justify-between gap-3 text-xs">
+            <span className="truncate">
+              {d.client} · {d.m}
+            </span>
+            <span className="text-gray-500 shrink-0">
+              {d.day}
+              {d.st ? ` · ${d.st}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+export function PrepayCard({ prepay, leads }) {
+  return (
+    <Card>
+      <CardTitle hint="с начала месяца">Предоплаты</CardTitle>
+      {prepay ? (
+        <>
+          <p className="font-display font-bold text-2xl tabular-nums">
+            {prepay.total}
+            <span className="text-sm text-gray-400 font-sans font-normal ml-2">
+              {plural(prepay.total, "предоплата", "предоплаты", "предоплат")} · закрыто{" "}
+              {share(prepay.total - prepay.open, prepay.total)}%
+            </span>
+          </p>
+          <div className="mt-3">
+            <StackBar items={prepay.rows.map((r) => ({ label: r.k, v: r.v, color: poColor(r.k) }))} total={prepay.total} />
+          </div>
+          {leads > 0 && (
+            <p className="text-xs text-gray-500 mt-3">
+              Лидов за месяц: {leads} · ПО → продажа {share(prepay.sold, prepay.total)}%
+            </p>
+          )}
+          <PoWarn title="Оплатили, но в ПО не «Продал»" list={prepay.paidNotSold} />
+          <PoWarn title="«ПО = да» в оплатах, но нет в списке ПО" list={prepay.notInList} />
+        </>
+      ) : (
+        <Empty>В списке «ПО» этого месяца пока нет предоплат.</Empty>
+      )}
+    </Card>
+  );
+}
+
+/* ---------- Менеджеры: графики над карточками ---------- */
+function FactPlanColumns({ rows, people }) {
+  const W = 320;
+  const H = 150;
+  const n = Math.max(rows.length, 1);
+  const slot = W / n;
+  const bw = Math.min(40, slot * 0.6);
+  const mx = Math.max(1, ...rows.map((r) => Math.max(r.s, r.plan)));
+  const y = (v) => H - (v / mx) * (H - 22);
+  return (
+    <svg viewBox={`0 0 ${W} ${H + 34}`} className="w-full h-auto" role="img" aria-label="Факт против плана по менеджерам">
+      {rows.map((r, i) => {
+        const x = i * slot + (slot - bw) / 2;
+        const c = colorFor(r.name, people);
+        return (
+          <g key={r.name}>
+            <rect x={x} y={y(r.s)} width={bw} height={Math.max(H - y(r.s), 1)} rx="4" style={{ fill: c }}>
+              <title>{`${r.name}: ${mln(r.s)}${r.plan ? ` из ${mln(r.plan)}` : ""}`}</title>
+            </rect>
+            {r.plan > 0 && (
+              <line x1={x - 5} x2={x + bw + 5} y1={y(r.plan)} y2={y(r.plan)} strokeWidth="2" strokeDasharray="4 3" style={{ stroke: "rgb(var(--c-text))" }} />
+            )}
+            <text x={x + bw / 2} y={Math.min(y(r.s), r.plan ? y(r.plan) : H) - 6} textAnchor="middle" fontSize="10" fontWeight="600" style={{ fill: "rgb(var(--c-text))" }}>
+              {(r.s / 1e6).toFixed(1).replace(".", ",")}
+            </text>
+            <text x={x + bw / 2} y={H + 14} textAnchor="middle" fontSize="10" style={{ fill: "rgb(var(--c-text))" }}>
+              {r.name.length > 9 ? r.name.slice(0, 8) + "…" : r.name}
+            </text>
+            {r.pct != null && (
+              <text x={x + bw / 2} y={H + 28} textAnchor="middle" fontSize="10" style={{ fill: "rgb(var(--c-muted))" }}>
+                {r.pct}%
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export function ManagersCharts({ view }) {
+  const rows = view.managers.filter((m) => m.s > 0 || m.plan > 0);
+  if (!rows.length) return null;
+  const people = view.people;
+  const mxN = Math.max(1, ...rows.map((m) => m.n));
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardTitle hint="млн ₸ · пунктир — план">Факт против плана</CardTitle>
+        <FactPlanColumns rows={rows} people={people} />
+      </Card>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card>
+          <CardTitle>Количество продаж</CardTitle>
+          <Donut
+            items={rows.map((m) => ({ label: m.name, v: m.n, color: colorFor(m.name, people) }))}
+            center={[rows.reduce((a, m) => a + m.n, 0), "продаж"]}
+            fmt={(v) => `${v} шт`}
+            label="Продажи по менеджерам"
+          />
+        </Card>
+        <Card>
+          <CardTitle hint="бледное — с ПО, яркое — без">С предоплатой и без</CardTitle>
+          <ul className="space-y-3">
+            {rows
+              .filter((m) => m.n)
+              .map((m) => {
+                const c = colorFor(m.name, people);
+                return (
+                  <li key={m.name} className="text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="truncate">{m.name}</span>
+                      <span className="text-gray-400 shrink-0 tabular-nums">
+                        {m.po} + {m.nopo}
+                      </span>
+                    </div>
+                    <div className="flex h-2 mt-1 rounded-full overflow-hidden bg-dark-700 gap-0.5" style={{ width: `${(m.n / mxN) * 100}%` }}>
+                      {m.po > 0 && <span style={{ width: `${(m.po / m.n) * 100}%`, background: c, opacity: 0.4 }} />}
+                      {m.nopo > 0 && <span style={{ width: `${(m.nopo / m.n) * 100}%`, background: c }} />}
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
+        </Card>
+      </div>
     </div>
   );
 }
