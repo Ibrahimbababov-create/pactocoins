@@ -68,6 +68,12 @@ export default async function SalesPage({ searchParams = {}, basePath }) {
   }
 
   const months = monthList(data.months);
+  if (!months.length && data.failed?.length) {
+    return shell({
+      title: "Нет доступа к таблицам отдела",
+      hint: `Не открылось таблиц: ${data.failed.length} из ${data.fileCount}. РОП открывает их сервисному аккаунту (Поделиться → Читатель).`,
+    });
+  }
   if (!months.length) {
     return shell({
       title: "В таблицах пока нет оплат",
