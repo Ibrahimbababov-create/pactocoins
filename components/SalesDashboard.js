@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
 import { money, mln, plural } from "@/lib/sales/format";
+import { Card, CardTitle, Stat, Bars } from "@/components/SalesUi";
+import {
+  PayScreen,
+  SourcesScreen,
+  IntensivesScreen,
+  DynamicsScreen,
+  QuotaScreen,
+  DealsScreen,
+} from "@/components/SalesScreens";
 
 // Экраны раздела «Аналитика»: Сводка, Менеджеры, страница менеджера.
 // Все цифры уже посчитаны на сервере (lib/sales/metrics.js) — тут только вид.
@@ -22,6 +31,17 @@ const BIG_LABEL = {
 
 const firstWord = (s) => String(s || "").trim().split(/\s+/)[0].toLowerCase().replace(/ё/g, "е");
 const isMe = (name, meName) => !!meName && firstWord(name) === firstWord(meName);
+
+const TABS = [
+  ["summary", "Сводка"],
+  ["managers", "Менеджеры"],
+  ["pay", "Оплаты"],
+  ["sources", "Источники"],
+  ["ints", "Интенсивы"],
+  ["dyn", "Динамика"],
+  ["quota", "Квота"],
+  ["deals", "Сделки"],
+];
 
 function tone(pct, need) {
   if (pct == null) return "text-gray-500";
@@ -101,17 +121,15 @@ export default function SalesDashboard({
         />
       ) : (
         <>
-          <div className="flex gap-1 bg-dark-800 border border-dark-700 rounded-xl p-1 w-fit" role="tablist">
-            {[
-              ["summary", "Сводка"],
-              ["managers", "Менеджеры"],
-            ].map(([k, l]) => (
+          <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
+          <div className="flex gap-1 bg-dark-800 border border-dark-700 rounded-xl p-1 w-max" role="tablist">
+            {TABS.filter(([k]) => k !== "deals" || (lead && view.deals)).map(([k, l]) => (
               <button
                 key={k}
                 role="tab"
                 aria-selected={tab === k}
                 onClick={() => setTab(k)}
-                className={`px-3.5 py-1.5 rounded-lg text-sm transition ${
+                className={`whitespace-nowrap px-3.5 py-1.5 rounded-lg text-sm transition ${
                   tab === k ? "bg-acid-400/15 text-acid-400 font-semibold" : "text-gray-400"
                 }`}
               >
@@ -119,7 +137,8 @@ export default function SalesDashboard({
               </button>
             ))}
           </div>
-          {unassigned.length > 0 && (
+          </div>
+          {tab === "summary" && unassigned.length > 0 && (
             <p className="bg-amber-400/[0.06] border border-amber-400/30 rounded-2xl px-4 py-3 text-sm">
               <span className="font-semibold text-amber-400">Без отдела: {unassigned.join(", ")}.</span>{" "}
               <span className="text-gray-400">
@@ -127,12 +146,15 @@ export default function SalesDashboard({
               </span>
             </p>
           )}
-          {issues.length > 0 && <Issues issues={issues} />}
-          {tab === "summary" ? (
-            <Summary view={view} meName={meName} onOpen={setMgr} />
-          ) : (
-            <Managers view={view} meName={meName} onOpen={setMgr} />
-          )}
+          {tab === "summary" && issues.length > 0 && <Issues issues={issues} />}
+          {tab === "summary" && <Summary view={view} meName={meName} onOpen={setMgr} />}
+          {tab === "managers" && <Managers view={view} meName={meName} onOpen={setMgr} />}
+          {tab === "pay" && <PayScreen view={view} />}
+          {tab === "sources" && <SourcesScreen view={view} />}
+          {tab === "ints" && <IntensivesScreen view={view} />}
+          {tab === "dyn" && <DynamicsScreen view={view} CumChart={CumChart} />}
+          {tab === "quota" && <QuotaScreen view={view} />}
+          {tab === "deals" && <DealsScreen view={view} />}
         </>
       )}
     </div>
@@ -188,19 +210,6 @@ function Select({ id, label, value, onChange, options }) {
   );
 }
 
-function Card({ children, className = "" }) {
-  return <section className={`bg-dark-800 border border-dark-700 rounded-2xl p-4 ${className}`}>{children}</section>;
-}
-
-function CardTitle({ children, hint }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 mb-3">
-      <h2 className="font-semibold">{children}</h2>
-      {hint && <span className="text-xs text-gray-500 text-right">{hint}</span>}
-    </div>
-  );
-}
-
 // Накопительная выручка по дням + пунктир «темп плана»
 function CumChart({ cum, dim, plan, label }) {
   const W = 320;
@@ -243,16 +252,6 @@ function CumChart({ cum, dim, plan, label }) {
         {plan > 0 && <span>пунктир — темп плана</span>}
         <span className="tabular-nums">{dim}</span>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, sub }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs text-gray-500">{label}</dt>
-      <dd className="font-display font-semibold text-[15px] tabular-nums truncate">{value}</dd>
-      {sub && <dd className="text-xs text-gray-500">{sub}</dd>}
     </div>
   );
 }
@@ -490,27 +489,6 @@ function Managers({ view, meName, onOpen }) {
         среднем от заявки до оплаты.
       </p>
     </div>
-  );
-}
-
-function Bars({ items }) {
-  const mx = Math.max(1, ...items.map((i) => i.s));
-  return (
-    <ul className="space-y-2.5">
-      {items.map((it) => (
-        <li key={it.k} className="text-sm">
-          <div className="flex justify-between gap-3">
-            <span className="truncate">{it.k}</span>
-            <span className="tabular-nums text-gray-400 shrink-0">
-              {it.n} · {mln(it.s)}
-            </span>
-          </div>
-          <div className="h-1.5 rounded-full bg-dark-700 mt-1 overflow-hidden">
-            <span className="block h-full bg-acid-400/70 rounded-full" style={{ width: `${(it.s / mx) * 100}%` }} />
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }
 
