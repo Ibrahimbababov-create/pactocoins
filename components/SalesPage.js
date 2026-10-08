@@ -105,6 +105,7 @@ export default async function SalesPage({ searchParams = {}, basePath }) {
       meName={me?.name ?? null}
       notice={null}
       issues={lead ? data.issues ?? [] : []}
+      unassigned={lead ? data.unassigned ?? [] : []}
     />
   );
 }

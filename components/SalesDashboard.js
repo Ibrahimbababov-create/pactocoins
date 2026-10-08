@@ -40,6 +40,7 @@ export default function SalesDashboard({
   meName,
   notice,
   issues = [],
+  unassigned = [],
 }) {
   const router = useRouter();
   const [tab, setTab] = useState("summary");
@@ -118,6 +119,14 @@ export default function SalesDashboard({
               </button>
             ))}
           </div>
+          {unassigned.length > 0 && (
+            <p className="bg-amber-400/[0.06] border border-amber-400/30 rounded-2xl px-4 py-3 text-sm">
+              <span className="font-semibold text-amber-400">Без отдела: {unassigned.join(", ")}.</span>{" "}
+              <span className="text-gray-400">
+                У них нет ни одной продажи с колонкой «Отдел», поэтому их оплаты и план не попали ни в один отдел.
+              </span>
+            </p>
+          )}
           {issues.length > 0 && <Issues issues={issues} />}
           {tab === "summary" ? (
             <Summary view={view} meName={meName} onOpen={setMgr} />
