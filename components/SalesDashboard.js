@@ -265,11 +265,22 @@ function Summary({ view, meName, onOpen }) {
   if (cur.delta != null)
     deltas.push(
       <span key="d">
-        <b className={cur.delta >= 0 ? "text-acid-400" : "text-red-400"}>
-          {cur.delta >= 0 ? "+" : ""}
-          {cur.delta}%
-        </b>{" "}
-        к {fr.isCur ? "тому же дню прошлого месяца" : "прошлому месяцу"}
+        {cur.delta >= 200 ? (
+          <>
+            <b className="text-acid-400">
+              в {String(Math.round((cur.delta / 100 + 1) * 10) / 10).replace(".", ",")} раза больше
+            </b>
+            , чем {fr.isCur ? "на тот же день прошлого месяца" : "в прошлом месяце"}
+          </>
+        ) : (
+          <>
+            <b className={cur.delta >= 0 ? "text-acid-400" : "text-red-400"}>
+              {cur.delta >= 0 ? "+" : ""}
+              {cur.delta}%
+            </b>{" "}
+            к {fr.isCur ? "тому же дню прошлого месяца" : "прошлому месяцу"}
+          </>
+        )}
       </span>
     );
   if (f !== "int" && view.plan)
