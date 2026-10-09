@@ -33,7 +33,7 @@ const TRAINEE_ITEMS = [
   { href: "/mop", label: "Обучение", icon: "sparkle", exact: true },
   { href: "/mop/rating", label: "Рейтинг", icon: "chart" },
   { href: "/mop/shop", label: "Магазин", icon: "bag" },
-  { href: "/mop/materials", label: "Регламенты", icon: "help" },
+  { href: "/mop/materials", label: "Материалы", icon: "help" },
   { href: "/mop/more", label: "Ещё", icon: "dots" },
 ];
 

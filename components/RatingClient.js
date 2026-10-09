@@ -266,7 +266,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                           isMe ? "text-acid-400" : tier.name
                         }`}
                       >
-                        {u.name}
+                        {u.name.trim().split(/\s+/)[0]}
                         {isMe && (
                           <span className="px-1 rounded bg-acid-400 text-black text-[9px] font-black leading-tight">
                             ВЫ
