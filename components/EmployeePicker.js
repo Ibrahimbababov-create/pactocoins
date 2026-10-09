@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { normalizeForSearch } from "@/lib/translit";
+import { matchesName } from "@/lib/translit";
+import { ROLE_LABELS } from "@/lib/roles";
 
-const ROLE_LABEL = { admin: "админ", observer: "наблюдатель", rop: "РОП" };
+const ROLE_LABEL = ROLE_LABELS;
 
 function groupEmployees(employees) {
   const rops = employees.filter((e) => e.role === "rop");
@@ -58,13 +59,13 @@ export default function EmployeePicker({
 
   const grouped = useMemo(() => groupEmployees(employees), [employees]);
 
-  const normalizedQuery = normalizeForSearch(query);
+  const trimmedQuery = query.trim();
   const flatMatches = useMemo(() => {
-    if (!normalizedQuery) return null;
+    if (!trimmedQuery) return null;
     return employees
-      .filter((e) => normalizeForSearch(e.name).includes(normalizedQuery))
+      .filter((e) => matchesName(e.name, trimmedQuery))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [employees, normalizedQuery]);
+  }, [employees, trimmedQuery]);
 
   function toggleGroup(key) {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -81,8 +82,10 @@ export default function EmployeePicker({
   }
 
   function subLabelFor(emp) {
-    if (emp.role === "admin" || emp.role === "observer") return ROLE_LABEL[emp.role];
-    if (emp.role === "rop") return "РОП";
+    if (emp.role && emp.role !== "mop" && emp.role !== "trainee") {
+      return ROLE_LABEL[emp.role] ?? emp.role;
+    }
+    if (emp.role === "trainee") return "стажёр";
     const team = grouped.teams.find((t) => t.rop.id === emp.rop_id);
     return team ? team.rop.name : "без команды";
   }

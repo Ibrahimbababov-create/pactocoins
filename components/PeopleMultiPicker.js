@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Icon from "@/components/Icon";
+import { matchesName } from "@/lib/translit";
 
 // Выпадающий список на 25 имён — это пытка. Здесь поиск и галочки:
 // отметил сколько нужно, нажал «Добавить» — все ушли одним действием.
@@ -15,10 +16,11 @@ export default function PeopleMultiPicker({
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState(() => new Set());
 
+  // Ищем и кириллицей, и латиницей: «Azamat» должен находить Азамата.
   const found = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return people;
-    return people.filter((u) => u.name.toLowerCase().includes(q));
+    return people.filter((u) => matchesName(u.name, q));
   }, [people, query]);
 
   function toggle(id) {
@@ -85,12 +87,19 @@ export default function PeopleMultiPicker({
             <button
               key={u.id}
               type="button"
+              disabled={u.already}
               onClick={() => toggle(u.id)}
-              className="w-full flex items-center gap-3 py-2.5 text-left"
+              className={`w-full flex items-center gap-3 py-2.5 text-left ${
+                u.already ? "opacity-45" : ""
+              }`}
             >
               <span
                 className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
-                  on ? "bg-acid-400 border-acid-400" : "border-dark-500"
+                  u.already
+                    ? "border-dark-600"
+                    : on
+                    ? "bg-acid-400 border-acid-400"
+                    : "border-dark-500"
                 }`}
               >
                 {on && (

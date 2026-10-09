@@ -3,11 +3,16 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LogoutButton from "@/components/LogoutButton";
+import { effectiveRole } from "@/lib/viewAs";
 
+// Длинные подписи — только для этого экрана, короткие живут в lib/roles.js
 const ROLE_LABELS = {
   mop: "Менеджер отдела продаж",
   rop: "Руководитель отдела продаж",
+  mentor: "Наставник",
   trainee: "Стажёр",
+  observer: "Наблюдатель",
+  admin: "Админ",
 };
 
 export default async function MorePage() {
@@ -29,7 +34,7 @@ export default async function MorePage() {
       .is("read_at", null),
   ]);
 
-  const role = profile?.role;
+  const role = effectiveRole(profile?.role);
 
   const { data: rop } = profile?.rop_id
     ? await supabase.from("users").select("name").eq("id", profile.rop_id).single()

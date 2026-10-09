@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import PeopleMultiPicker from "@/components/PeopleMultiPicker";
+import { worksInProject } from "@/lib/roles";
 import {
   createProject,
   renameProject,
@@ -195,12 +196,22 @@ export default function ProjectsClient({ projects, rops, peopleByProject, people
                 <PeopleMultiPicker
                   disabled={isPending}
                   label="добавить людей"
+                  // В проекте работают РОПы, менеджеры и стажёры. Наблюдатель
+                  // смотрит со стороны, наставник ведёт стажёров любых
+                  // проектов — им тут делать нечего. Кто уже в этом проекте,
+                  // виден в поиске с пометкой, чтобы его не искали зря.
                   people={people
-                    .filter((u) => u.project_id !== p.id)
+                    .filter((u) => worksInProject(u.role))
                     .map((u) => ({
                       id: u.id,
                       name: u.name,
-                      hint: u.project_id ? "в другом проекте" : "",
+                      already: u.project_id === p.id,
+                      hint:
+                        u.project_id === p.id
+                          ? "уже здесь"
+                          : u.project_id
+                          ? "в другом проекте"
+                          : "",
                     }))}
                   onAdd={(ids) => run(() => addUsersToProject(ids, p.id))}
                 />

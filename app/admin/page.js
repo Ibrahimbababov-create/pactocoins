@@ -12,6 +12,8 @@ import {
   recentMonthKeysAlmaty,
 } from "@/lib/timezone";
 import { getEarnedMap } from "@/lib/earnings";
+import ViewAsSwitch from "@/components/ViewAsSwitch";
+import { viewAsRole, isViewableRole } from "@/lib/viewAs";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 
 const QUEUE_LINKS = [
@@ -45,6 +47,7 @@ export default async function AdminOverview({ searchParams }) {
     { data: budgetExpenses },
     { data: funds },
     { data: fundTotalsRows },
+    { data: roleRows },
   ] = await Promise.all([
     supabase
       .from("users")
@@ -100,7 +103,20 @@ export default async function AdminOverview({ searchParams }) {
       .select("id, title, status")
       .order("created_at", { ascending: false }),
     supabase.rpc("fund_totals"),
+    // Какие роли вообще есть у живых людей — из них собираем кнопки
+    // просмотра. Заведём завтра новую роль — кнопка появится сама.
+    supabase
+      .from("users")
+      .select("role")
+      .eq("is_active", true)
+      .eq("is_guest", false)
+      .not("email", "like", "%.test@pactocoins.local"),
   ]);
+
+  const viewRoles = [...new Set((roleRows ?? []).map((r) => r.role))].filter(
+    isViewableRole
+  );
+  const viewingAs = viewAsRole();
 
   const { data: myProfile } = me
     ? await supabase.from("users").select("theme").eq("id", me.id).single()
@@ -185,19 +201,11 @@ export default async function AdminOverview({ searchParams }) {
           <p className="text-gray-500 text-sm">Ждёт вас</p>
           <h1 className="text-3xl font-black tabular-nums">{totalPending}</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/mop" className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-xs">
-            МОП
-          </Link>
-          <Link href="/mop/team" className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs">
-            РОП
-          </Link>
-          <Link href="/observer" className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs">
-            Наблюдатель
-          </Link>
-          <Link href="/mop?as=trainee" className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs">
-            Стажёр
-          </Link>
+        <div>
+          <p className="text-[11px] text-gray-500 mb-1.5">
+            Посмотреть кабинет глазами
+          </p>
+          <ViewAsSwitch roles={viewRoles} current={viewingAs} />
         </div>
       </div>
 

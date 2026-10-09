@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import { roleLabel } from "@/lib/roles";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import {
@@ -238,6 +239,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
             <option value="mop">МОП</option>
             <option value="trainee">Стажёр</option>
             <option value="rop">РОП</option>
+            <option value="mentor">Наставник</option>
             <option value="admin">Админ</option>
             <option value="observer">Наблюдатель</option>
           </select>
@@ -401,7 +403,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                   <p className="font-semibold">
                     {u.name}{" "}
                     <span className="text-xs text-gray-500">
-                      ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : u.role === "rop" ? "РОП" : u.role === "trainee" ? "стажёр" : "МОП"})
+                      ({roleLabel(u.role)})
                       {Number(u.coin_rate_multiplier) !== 1 && (
                         <span className="text-acid-400"> · x{u.coin_rate_multiplier}</span>
                       )}

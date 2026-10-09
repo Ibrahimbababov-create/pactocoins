@@ -17,8 +17,9 @@ import { getMonthEarned } from "@/lib/earnings";
 import EarningsMiniChart from "@/components/EarningsMiniChart";
 import { recentDaysAlmaty, almatyDayKey } from "@/lib/timezone";
 import Icon from "@/components/Icon";
+import { effectiveRole } from "@/lib/viewAs";
 
-export default async function MopDashboard({ searchParams }) {
+export default async function MopDashboard() {
   const supabase = createClient();
   const {
     data: { user },
@@ -94,22 +95,32 @@ export default async function MopDashboard({ searchParams }) {
   }
   const chartSeries = chartDays.map((d) => ({ ...d, value: chartByDay[d.key] }));
 
-  // Админ может заглянуть в стажёрский экран (?as=trainee) — только чтобы
-  // проверить, как он выглядит, роль в базе при этом не меняется.
-  const previewTrainee = profile?.role === "admin" && searchParams?.as === "trainee";
-  const isTrainee = profile?.role === "trainee" || previewTrainee;
+  // Для админа роль может быть подменена режимом просмотра: он смотрит
+  // кабинет глазами стажёра или РОПа. В базе роль при этом не меняется.
+  const role = effectiveRole(profile?.role);
+  const isTrainee = role === "trainee";
   let ropName = null;
   let onboardingDays = null;
   if (isTrainee) {
+    // У админа своего проекта нет, а смотреть пустое обучение бессмысленно —
+    // показываем материалы первого проекта, чтобы экран был как у стажёра.
+    let projectId = profile?.project_id ?? null;
+    if (!projectId && profile?.role === "admin") {
+      const { data: anyProject } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("is_active", true)
+        .order("name")
+        .limit(1)
+        .maybeSingle();
+      projectId = anyProject?.id ?? null;
+    }
+
     const [{ data: rop }, days] = await Promise.all([
       profile?.rop_id
         ? supabase.from("users").select("name").eq("id", profile.rop_id).single()
         : Promise.resolve({ data: null }),
-      getTraineeOnboarding(
-        createAdminClient(),
-        user.id,
-        profile?.project_id ?? null
-      ),
+      getTraineeOnboarding(createAdminClient(), user.id, projectId),
     ]);
     ropName = rop?.name ?? null;
     onboardingDays = days;
@@ -160,7 +171,7 @@ export default async function MopDashboard({ searchParams }) {
         <BirthdayProfile birthday={profile?.birthday} variant="prompt" />
       )}
 
-      {profile?.role === "rop" && (
+      {role === "rop" && (
         <div className="bg-gradient-to-br from-purple-500/10 to-dark-800 border border-purple-500/30 rounded-2xl p-4">
           <p className="font-bold text-purple-300 flex items-center gap-2">
             <Icon name="sparkle" className="w-4 h-4" />

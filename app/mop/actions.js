@@ -256,10 +256,15 @@ export async function unassignMop(mopId) {
 
 // ---------- Обучение новичков (v2, блоки) ----------
 
-// Стажёр отмечает блок как изученный.
+// Стажёр отмечает блок как изученный. Админ тоже: он проходит обучение,
+// когда смотрит кабинет глазами стажёра, иначе не проверить, работают ли
+// кнопки и тесты. На рейтинг обучение не влияет — рейтинг считается по
+// подтверждённой выручке.
 export async function markOnboardingBlockDone(blockId) {
   const p = await me();
-  if (p.role !== "trainee") return { error: "Только для стажёров" };
+  if (p.role !== "trainee" && p.role !== "admin") {
+    return { error: "Только для стажёров" };
+  }
   const admin = createAdminClient();
   const { error } = await admin
     .from("onboarding_progress")
@@ -270,9 +275,12 @@ export async function markOnboardingBlockDone(blockId) {
 }
 
 // Стажёр сдаёт тест дня. answers — массив индексов ответов по порядку sort.
+// Админу тоже разрешено: пусть проходит и проверяет вопросы сам.
 export async function submitOnboardingTest(blockId, day, answers) {
   const p = await me();
-  if (p.role !== "trainee") return { error: "Только для стажёров" };
+  if (p.role !== "trainee" && p.role !== "admin") {
+    return { error: "Только для стажёров" };
+  }
   const admin = createAdminClient();
 
   const { data: test } = await admin

@@ -18,11 +18,21 @@ export default async function MaterialsPage() {
     .single();
 
   // Материалы показываем по проекту: у менеджера и стажёра один и тот же
-  // набор, если они в одном направлении.
-  const blocks = await getOnboardingLibrary(
-    createAdminClient(),
-    profile?.project_id ?? null
-  );
+  // набор, если они в одном направлении. У админа проекта нет — чтобы он
+  // видел не пустой экран, берём первый проект.
+  let projectId = profile?.project_id ?? null;
+  if (!projectId && profile?.role === "admin") {
+    const { data: anyProject } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("is_active", true)
+      .order("name")
+      .limit(1)
+      .maybeSingle();
+    projectId = anyProject?.id ?? null;
+  }
+
+  const blocks = await getOnboardingLibrary(createAdminClient(), projectId);
 
   return (
     <div className="space-y-4">
