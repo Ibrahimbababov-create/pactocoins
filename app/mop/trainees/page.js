@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
@@ -45,6 +46,11 @@ export default async function TraineesPage() {
 
   // Кто ещё учится, а кто уже вышел в менеджеры. Выпустившиеся не должны
   // висеть в списке стажёров вечно — но и пропадать бесследно тоже.
+  // Экран наставника. Раньше чужие стажёры сюда не попадали в принципе,
+  // теперь попадают — значит нужна явная проверка роли, иначе список
+  // новичков увидит любой, кто наберёт адрес руками.
+  if (me?.role !== "mentor" && me?.role !== "admin") redirect("/mop");
+
   const all = trainees ?? [];
   const learning = all.filter((t) => t.role === "trainee" && t.mentor_id === user.id);
   const graduated = all.filter((t) => t.role !== "trainee" && t.mentor_id === user.id);
