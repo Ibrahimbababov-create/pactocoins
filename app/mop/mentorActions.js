@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
-import { notifyUser } from "@/lib/notifyUser";
 
 // Просто «он наставник» — без привязки к конкретному стажёру. Нужно там,
 // где наставник распоряжается ещё не своими: берёт под себя новичка.
@@ -109,7 +108,9 @@ export async function releaseTrainee(traineeId) {
 
 // Не справился — наставник закрывает ему доступ сам, не дёргая Ибрагима.
 // Увольнение мягкое: запись остаётся, просто человек больше не входит.
-export async function dismissTrainee(traineeId, reason) {
+// Сообщение уволенному не шлём: узнать об этом он должен от человека, а
+// не от бота.
+export async function dismissTrainee(traineeId) {
   await requireMentorOf(traineeId);
   const admin = createAdminClient();
 
@@ -119,11 +120,6 @@ export async function dismissTrainee(traineeId, reason) {
     .eq("id", traineeId);
 
   if (error) return { error: error.message };
-
-  const text = reason?.trim()
-    ? `Доступ к PactoCoins закрыт.\n\n💬 ${reason.trim()}`
-    : "Доступ к PactoCoins закрыт.";
-  await notifyUser(admin, traineeId, text, "notify_requests");
 
   revalidatePath("/mop/trainees");
   return { success: true };

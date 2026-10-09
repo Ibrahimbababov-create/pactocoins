@@ -10,8 +10,8 @@ import {
 } from "@/app/mop/mentorActions";
 
 // Кнопки наставника под карточкой стажёра. Чужого можно забрать себе,
-// своего — отпустить или закрыть доступ. Увольнение спрашивает причину:
-// человек получит её в сообщении и будет знать, что произошло.
+// своего — отпустить или закрыть доступ. Увольнение переспрашивает, потому
+// что отменить его из этого экрана уже нельзя.
 export default function TraineeControls({ traineeId, mine }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -46,26 +46,19 @@ export default function TraineeControls({ traineeId, mine }) {
 
   if (asking) {
     return (
-      <form
-        action={(fd) => run(dismissTrainee, traineeId, String(fd.get("reason") || ""))}
-        className="space-y-2"
-      >
-        <input
-          name="reason"
-          autoFocus
-          placeholder="Что написать человеку"
-          className="w-full bg-dark-700 border border-dark-600 rounded-xl px-3 py-2 text-sm"
-        />
+      <div className="space-y-2">
+        <p className="text-xs text-gray-400">
+          Закрыть доступ в PactoCoins? Сообщение ему не придёт — скажи сам.
+        </p>
         <div className="flex gap-2">
           <button
-            type="submit"
+            onClick={() => run(dismissTrainee, traineeId)}
             disabled={isPending}
             className="flex-1 rounded-xl py-2 text-sm font-semibold bg-red-500/20 text-red-400 disabled:opacity-40"
           >
             Закрыть доступ
           </button>
           <button
-            type="button"
             onClick={() => setAsking(false)}
             className="flex-1 rounded-xl py-2 text-sm text-gray-400 border border-dark-600"
           >
@@ -73,7 +66,7 @@ export default function TraineeControls({ traineeId, mine }) {
           </button>
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
-      </form>
+      </div>
     );
   }
 
