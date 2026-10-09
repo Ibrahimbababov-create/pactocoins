@@ -171,7 +171,7 @@ async function me() {
   if (!user) throw new Error("Не авторизован");
   const { data: profile } = await supabase
     .from("users")
-    .select("id, role")
+    .select("id, role, project_id")
     .eq("id", user.id)
     .single();
   return profile;
@@ -320,6 +320,26 @@ async function requireRopOrAdmin() {
   return p;
 }
 
+// Материалы теперь принадлежат проекту. Админ и наставник правят любой
+// проект, РОП — только те, за которыми он закреплён.
+async function requireProjectEditor(projectId) {
+  const p = await me();
+  if (!projectId) throw new Error("Не выбран проект");
+  if (p.role === "admin" || p.role === "mentor") return p;
+  if (p.role !== "rop") throw new Error("Нет прав");
+
+  const admin = createAdminClient();
+  const { data: link } = await admin
+    .from("project_rops")
+    .select("project_id")
+    .eq("rop_id", p.id)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (link) return p;
+  if (p.project_id === projectId) return p;
+  throw new Error("Это не твой проект");
+}
+
 // РОП/админ вручную допускает стажёра после аттестации → МОП 1 уровня.
 export async function graduateTrainee(traineeId) {
   const p = await requireRopOrAdmin();
@@ -375,8 +395,8 @@ async function buildBlockContent(source, telegraphUrl, bodyMd) {
 }
 
 // РОП заполняет свой блок (owner='rop'): текст или telegra.ph.
-export async function setMyOnboardingBlock(blockId, { source, telegraph_url, body_md }) {
-  const p = await requireRopOrAdmin();
+export async function setMyOnboardingBlock(blockId, projectId, { source, telegraph_url, body_md }) {
+  await requireProjectEditor(projectId);
   const admin = createAdminClient();
 
   const { data: block } = await admin
@@ -394,8 +414,8 @@ export async function setMyOnboardingBlock(blockId, { source, telegraph_url, bod
   const { error } = await admin
     .from("onboarding_rop_blocks")
     .upsert(
-      { block_id: blockId, rop_id: p.id, ...built.fields },
-      { onConflict: "block_id,rop_id" }
+      { block_id: blockId, project_id: projectId, ...built.fields },
+      { onConflict: "block_id,project_id" }
     );
   if (error) return { error: error.message };
   revalidatePath("/mop/onboarding-materials");
@@ -404,21 +424,21 @@ export async function setMyOnboardingBlock(blockId, { source, telegraph_url, bod
 }
 
 // РОП сбрасывает свой блок к общему дефолту.
-export async function resetMyOnboardingBlock(blockId) {
-  const p = await requireRopOrAdmin();
+export async function resetMyOnboardingBlock(blockId, projectId) {
+  await requireProjectEditor(projectId);
   const admin = createAdminClient();
   const { error } = await admin
     .from("onboarding_rop_blocks")
     .delete()
     .eq("block_id", blockId)
-    .eq("rop_id", p.id);
+    .eq("project_id", projectId);
   if (error) return { error: error.message };
   revalidatePath("/mop/onboarding-materials");
   return { success: true };
 }
 
-export async function addMyOnboardingLink(blockId, { title, url, note }) {
-  const p = await requireRopOrAdmin();
+export async function addMyOnboardingLink(blockId, projectId, { title, url, note }) {
+  await requireProjectEditor(projectId);
   const admin = createAdminClient();
   const { data: block } = await admin
     .from("onboarding_blocks")
@@ -433,7 +453,7 @@ export async function addMyOnboardingLink(blockId, { title, url, note }) {
   const href = /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
   const { error } = await admin.from("onboarding_links").insert({
     block_id: blockId,
-    rop_id: p.id,
+    project_id: projectId,
     title: title.trim(),
     url: href,
     note: note?.trim() || null,
@@ -454,19 +474,18 @@ async function deleteOnboardingStorageFile(admin, url) {
 }
 
 export async function removeMyOnboardingLink(linkId) {
-  const p = await requireRopOrAdmin();
   const admin = createAdminClient();
   const { data: row } = await admin
     .from("onboarding_links")
-    .select("url")
+    .select("url, project_id")
     .eq("id", linkId)
-    .eq("rop_id", p.id)
     .maybeSingle();
+  if (!row) return { error: "Ссылка не найдена" };
+  await requireProjectEditor(row.project_id);
   const { error } = await admin
     .from("onboarding_links")
     .delete()
-    .eq("id", linkId)
-    .eq("rop_id", p.id);
+    .eq("id", linkId);
   if (error) return { error: error.message };
   if (row?.url) await deleteOnboardingStorageFile(admin, row.url);
   revalidatePath("/mop/onboarding-materials");

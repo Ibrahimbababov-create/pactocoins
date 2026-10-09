@@ -41,7 +41,7 @@ function FileUploadButton({ uploading, onPick }) {
   );
 }
 
-function ArticleForm({ block }) {
+function ArticleForm({ block, projectId }) {
   const [pending, start] = useTransition();
   const hasOwn = !!block.rop;
   const cur = block.rop ?? {};
@@ -53,7 +53,7 @@ function ArticleForm({ block }) {
   function save() {
     setMsg(null);
     start(async () => {
-      const res = await setMyOnboardingBlock(block.id, {
+      const res = await setMyOnboardingBlock(block.id, projectId, {
         source,
         telegraph_url: tg,
         body_md: md,
@@ -109,7 +109,7 @@ function ArticleForm({ block }) {
         </button>
         {hasOwn && (
           <button
-            onClick={() => start(() => resetMyOnboardingBlock(block.id))}
+            onClick={() => start(() => resetMyOnboardingBlock(block.id, projectId))}
             disabled={pending}
             className="bg-dark-700 text-gray-400 rounded-lg px-3 py-2 text-sm"
           >
@@ -128,7 +128,7 @@ function ArticleForm({ block }) {
   );
 }
 
-function LinksForm({ block }) {
+function LinksForm({ block, projectId }) {
   const [pending, start] = useTransition();
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
@@ -139,7 +139,7 @@ function LinksForm({ block }) {
   function add() {
     setMsg(null);
     start(async () => {
-      const res = await addMyOnboardingLink(block.id, { title, url, note });
+      const res = await addMyOnboardingLink(block.id, projectId, { title, url, note });
       if (res?.error) setMsg(res.error);
       else {
         setTitle("");
@@ -158,7 +158,7 @@ function LinksForm({ block }) {
       setUploading(false);
       return;
     }
-    const res = await addMyOnboardingLink(block.id, {
+    const res = await addMyOnboardingLink(block.id, projectId, {
       title: up.name,
       url: up.url,
       note: "",
@@ -223,7 +223,7 @@ function LinksForm({ block }) {
   );
 }
 
-export default function OnboardingRopEditor({ blocks }) {
+export default function OnboardingRopEditor({ blocks, projectId }) {
   const [open, setOpen] = useState(null);
   const filled = blocks.filter((b) =>
     b.kind === "links" ? b.links.length > 0 : !!b.rop
@@ -267,9 +267,9 @@ export default function OnboardingRopEditor({ blocks }) {
                   {open === b.id && (
                     <div className="px-4 pb-4">
                       {b.kind === "article" ? (
-                        <ArticleForm block={b} />
+                        <ArticleForm block={b} projectId={projectId} />
                       ) : (
-                        <LinksForm block={b} />
+                        <LinksForm block={b} projectId={projectId} />
                       )}
                     </div>
                   )}

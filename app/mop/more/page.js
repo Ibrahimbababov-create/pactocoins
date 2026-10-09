@@ -58,7 +58,7 @@ export default async function MorePage() {
           label: "Регламенты и обучение",
           icon: "sparkle",
         },
-        role === "rop" && {
+        (role === "rop" || role === "mentor") && {
           href: "/mop/onboarding-materials",
           label: "Материалы стажёрам",
           icon: "sparkle",

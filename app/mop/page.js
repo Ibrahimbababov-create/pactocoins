@@ -108,7 +108,7 @@ export default async function MopDashboard({ searchParams }) {
       getTraineeOnboarding(
         createAdminClient(),
         user.id,
-        profile?.rop_id ?? null
+        profile?.project_id ?? null
       ),
     ]);
     ropName = rop?.name ?? null;
