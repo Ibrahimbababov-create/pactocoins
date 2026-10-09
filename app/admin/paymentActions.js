@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
+import { revokeMentorBonus, recalcMentorBonus } from "@/lib/mentorBonus";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -73,6 +74,9 @@ export async function cancelPayment(requestId, reason) {
 
   // У старых заявок credited_coins не заполнялся — берём расчётное.
   const coins = request.credited_coins ?? request.calculated_coins ?? 0;
+
+  // Процент наставника живёт на этой же оплате — снимаем вместе с ней.
+  await revokeMentorBonus(admin, requestId);
 
   const { data: profile } = await admin
     .from("users")
@@ -168,6 +172,9 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
   }
 
   await admin.from("revenue_requests").update(patch).eq("id", requestId);
+
+  // Сумма изменилась — процент наставника пересчитываем от новой.
+  await recalcMentorBonus(admin, { ...request, ...patch, status: "approved" });
 
   if (diff !== 0) {
     await admin

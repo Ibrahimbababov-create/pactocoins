@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso, almatyDayKey } from "@/lib/timezone";
 import { calculateRevenueCoins } from "@/lib/coinRate";
+import { creditMentorBonus, revokeMentorBonus } from "@/lib/mentorBonus";
 import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
@@ -266,6 +267,10 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   await admin.from("transactions").insert(transactionPayload);
 
+  // Процент наставнику — после того, как заявка уже помечена одобренной:
+  // иначе первая оплата подопечного сама себя не увидит.
+  await creditMentorBonus(admin, { ...request, status: "approved", earned_at: earnedAtIso });
+
   await checkAndApplyLevelUp(request.user_id, admin);
 
   const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} коинов`;
@@ -339,6 +344,9 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
   }
 
   const coins = request.credited_coins ?? 0;
+
+  // Вместе с оплатой уходит и процент, начисленный наставнику.
+  await revokeMentorBonus(admin, requestId);
 
   const { data: profile } = await admin
     .from("users")
