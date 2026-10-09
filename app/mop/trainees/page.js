@@ -25,9 +25,10 @@ export default async function TraineesPage() {
       supabase
         .from("users")
         .select(
-          "id, name, created_at, project_id, is_active, projects!users_project_id_fkey(name)"
+          "id, name, role, created_at, project_id, is_active, projects!users_project_id_fkey(name)"
         )
         .eq("mentor_id", user.id)
+        .eq("is_active", true)
         .order("created_at", { ascending: false }),
       supabase
         .from("onboarding_blocks")
@@ -41,7 +42,12 @@ export default async function TraineesPage() {
         .order("name"),
     ]);
 
-  const traineeIds = new Set((trainees ?? []).map((t) => t.id));
+  // Кто ещё учится, а кто уже вышел в менеджеры. Выпустившиеся не должны
+  // висеть в списке стажёров вечно — но и пропадать бесследно тоже.
+  const learning = (trainees ?? []).filter((t) => t.role === "trainee");
+  const graduated = (trainees ?? []).filter((t) => t.role !== "trainee");
+
+  const traineeIds = new Set(learning.map((t) => t.id));
   const dayOfBlock = Object.fromEntries((blocks ?? []).map((b) => [b.id, b.day]));
 
   const totalByDay = {};
@@ -68,7 +74,7 @@ export default async function TraineesPage() {
         </p>
       </div>
 
-      {(trainees ?? []).length === 0 && (
+      {learning.length === 0 && (
         <EmptyState
           icon="users"
           title="Стажёров пока нет"
@@ -76,7 +82,7 @@ export default async function TraineesPage() {
         />
       )}
 
-      {(trainees ?? []).map((t) => {
+      {learning.map((t) => {
         const done = doneByUser[t.id] ?? {};
         const allDone = days.every((d) => (done[d] ?? 0) >= totalByDay[d]);
 
@@ -137,6 +143,12 @@ export default async function TraineesPage() {
           </div>
         );
       })}
+
+      {graduated.length > 0 && (
+        <p className="text-xs text-gray-600 pt-2">
+          Выпустились и работают: {graduated.map((g) => g.name).join(", ")}
+        </p>
+      )}
     </div>
   );
 }
