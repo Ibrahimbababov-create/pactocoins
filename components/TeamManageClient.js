@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { assignMopToMe, unassignMop, graduateTrainee } from "@/app/mop/actions";
+import Icon from "@/components/Icon";
 
 function TraineeProgress({ ob }) {
   if (!ob) return null;
@@ -14,14 +15,14 @@ function TraineeProgress({ ob }) {
         return (
           <span
             key={d}
-            className={`text-[11px] px-2 py-0.5 rounded-full border ${
+            className={`inline-flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full border ${
               full
                 ? "bg-acid-400/15 text-acid-400 border-acid-400/30"
                 : "bg-dark-700 text-gray-500 border-dark-600"
             }`}
           >
             День {d}: {done}/{total}
-            {full ? " ✓" : ""}
+            {full && <Icon name="check" className="w-3 h-3" strokeWidth={2.5} />}
           </span>
         );
       })}
@@ -100,9 +101,10 @@ export default function TeamManageClient({ mine = [], others = [] }) {
                 <button
                   onClick={() => graduate(m.id, m.name)}
                   disabled={isPending}
-                  className="text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
+                  className="flex items-center gap-1 text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
                 >
-                  🎓 Допустить
+                  <Icon name="award" className="w-3.5 h-3.5" />
+                  Допустить
                 </button>
               )}
               <button

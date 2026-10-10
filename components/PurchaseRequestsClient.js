@@ -138,8 +138,8 @@ export default function PurchaseRequestsClient({ purchases }) {
                 }
                 placeholder={
                   currentStatus === "pending"
-                    ? "💬 Комментарий сотруднику (необязательно)"
-                    : "💬 Причина отмены, если переключишь на «Отклонено» (необязательно)"
+                    ? "Комментарий сотруднику (необязательно)"
+                    : "Причина отмены, если переключишь на «Отклонено» (необязательно)"
                 }
                 className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
               />

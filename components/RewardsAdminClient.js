@@ -6,6 +6,7 @@ import {
   updateReward,
   toggleRewardActive,
 } from "@/app/admin/actions";
+import Icon from "@/components/Icon";
 
 const GLOW_COLORS = [
   { value: "", label: "Без свечения" },
@@ -485,8 +486,9 @@ export default function RewardsAdminClient({ rewards, categories }) {
                       }`}
                   </p>
                   {r.sale_price_coins && r.sale_ends_at && (
-                    <p className="text-xs text-red-400 mt-0.5">
-                      🔥 Скидка {r.sale_price_coins} коинов до{" "}
+                    <p className="flex items-center gap-1 text-xs text-red-400 mt-0.5">
+                      <Icon name="fire" className="w-3.5 h-3.5 shrink-0" />
+                      Скидка {r.sale_price_coins} коинов до{" "}
                       {new Date(r.sale_ends_at).toLocaleString("ru-RU", {
                         timeZone: "Asia/Almaty",
                         day: "2-digit",

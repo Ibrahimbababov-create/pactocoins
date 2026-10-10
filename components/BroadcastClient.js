@@ -7,6 +7,7 @@ import {
   sendToEmployee,
 } from "@/app/admin/broadcastActions";
 import EmployeePicker from "@/components/EmployeePicker";
+import Icon from "@/components/Icon";
 
 export default function BroadcastClient({ employees = [] }) {
   const [isPending, startTransition] = useTransition();
@@ -135,7 +136,10 @@ export default function BroadcastClient({ employees = [] }) {
         />
         {file && (
           <div className="flex items-center justify-between bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-400">
-            <span>📎 {file.name}</span>
+            <span className="flex items-center gap-1.5">
+              <Icon name="paperclip" className="w-3.5 h-3.5 shrink-0" />
+              {file.name}
+            </span>
             <button type="button" onClick={clearFile} className="text-red-400">
               Убрать
             </button>

@@ -234,13 +234,13 @@ export default function BonusRequestsClient({
 
       <div className="grid lg:grid-cols-2 gap-4">
         <TopBonus
-          title="🏆 Топ-3 · неделя"
+          title="Топ-3 · неделя"
           variants={weekVariants}
           min={WEEKLY_TOP.min}
           defaults={WEEKLY_TOP.prizes.map(String)}
         />
         <TopBonus
-          title="🏆 Топ-3 · месяц"
+          title="Топ-3 · месяц"
           variants={monthVariants}
           min={MONTHLY_TOP.min}
           defaults={MONTHLY_TOP.prizes.map(String)}
@@ -412,7 +412,7 @@ export default function BonusRequestsClient({
                   onChange={(e) =>
                     setComments((prev) => ({ ...prev, [r.id]: e.target.value }))
                   }
-                  placeholder="💬 Комментарий сотруднику (необязательно)"
+                  placeholder="Комментарий сотруднику (необязательно)"
                   className="mt-2 w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
                 />
               </div>

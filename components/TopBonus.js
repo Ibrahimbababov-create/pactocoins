@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { awardTop3Bonus } from "@/app/admin/ratingExemptActions";
+import Icon from "@/components/Icon";
 
 const PLACE = ["🥇 1 место", "🥈 2 место", "🥉 3 место"];
 
@@ -10,7 +11,7 @@ const PLACE = ["🥇 1 место", "🥈 2 место", "🥉 3 место"];
 // выбранному периоду.
 export default function TopBonus({
   variants = [],
-  title = "🏆 Топ-3",
+  title = "Топ-3",
   min = 2500,
   defaults = ["2000", "1000", "300"],
 }) {
@@ -65,7 +66,10 @@ export default function TopBonus({
   return (
     <div className="rounded-2xl border border-acid-400/25 bg-gradient-to-br from-acid-400/10 to-dark-800 p-5">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-bold">{title}</p>
+        <p className="flex items-center gap-1.5 font-bold">
+          <Icon name="trophy" className="w-4 h-4 shrink-0" />
+          {title}
+        </p>
         <span className="text-xs text-gray-500 shrink-0">{periodLabel}</span>
       </div>
 

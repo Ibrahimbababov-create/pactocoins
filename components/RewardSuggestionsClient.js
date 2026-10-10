@@ -120,7 +120,7 @@ export default function RewardSuggestionsClient({ suggestions }) {
               onChange={(e) =>
                 setComments((prev) => ({ ...prev, [s.id]: e.target.value }))
               }
-              placeholder="💬 Комментарий сотруднику (необязательно)"
+              placeholder="Комментарий сотруднику (необязательно)"
               className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
             />
             <div className="flex gap-2">

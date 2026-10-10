@@ -5,6 +5,7 @@ import { formatDateTimeAlmaty, formatPaymentDay, almatyDayKey } from "@/lib/time
 import CancelWithReason from "@/components/CancelWithReason";
 import { loadRequestHistory } from "@/app/admin/historyActions";
 import EmptyState from "@/components/EmptyState";
+import Icon from "@/components/Icon";
 import {
   approveRevenueRequest,
   rejectRevenueRequest,
@@ -240,8 +241,9 @@ export default function RevenueRequestsClient({
                     </p>
                   )}
                 {r.receipt_confirmed && (
-                  <p className="text-xs text-acid-400 mt-1">
-                    ✅ Чек отправлен в группу
+                  <p className="flex items-center gap-1 text-xs text-acid-400 mt-1">
+                    <Icon name="check" className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    Чек отправлен в группу
                   </p>
                 )}
               </div>
@@ -292,7 +294,6 @@ export default function RevenueRequestsClient({
                   onClick={() => setDateEditingId(r.id)}
                   className="text-xs text-gray-500 hover:text-gray-300"
                 >
-                  📅{" "}
                   {dateOverrides[r.id]
                     ? `Засчитать датой: ${new Date(
                         dateOverrides[r.id]
@@ -307,7 +308,7 @@ export default function RevenueRequestsClient({
                 onChange={(e) =>
                   setComments((prev) => ({ ...prev, [r.id]: e.target.value }))
                 }
-                placeholder="💬 Комментарий сотруднику (необязательно)"
+                placeholder="Комментарий сотруднику (необязательно)"
                 className="mt-2 w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
               />
               </div>
