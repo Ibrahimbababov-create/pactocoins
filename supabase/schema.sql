@@ -733,8 +733,43 @@ begin
   return n > 0;
 end; $$;
 
-revoke all on function public.rating_revenue(timestamptz, timestamptz) from public;
-grant execute on function public.rating_revenue(timestamptz, timestamptz) to authenticated;
+-- Тема оформления: сотрудник меняет только свою. Сам update users ему
+-- запрещён RLS (только админ), поэтому функция security definer.
+create or replace function public.set_my_theme(p_theme text)
+ returns boolean language plpgsql security definer set search_path to 'public'
+as $$
+begin
+  if p_theme not in ('acid', 'brass', 'indigo', 'coral') then
+    return false;
+  end if;
+  update public.users set theme = p_theme where id = auth.uid();
+  return found;
+end; $$;
+
+-- Атомарное начисление (и отмена начисления минусом) — lib/addCoins.js.
+create or replace function public.add_coins(uid uuid, amount integer)
+ returns integer language plpgsql security definer set search_path to 'public'
+as $$
+declare new_balance integer;
+begin
+  if amount is null or amount = 0 then
+    select balance into new_balance from public.users where id = uid;
+    return new_balance;
+  end if;
+  update public.users set balance = balance + amount where id = uid returning balance into new_balance;
+  return new_balance;
+end; $$;
+
+-- Права на функции (supabase/security_hardening.sql, октябрь 2026).
+-- spend_coins/add_coins двигают чужие балансы — только сервер.
+revoke all on function public.spend_coins(uuid, integer, integer) from public, anon, authenticated;
+grant execute on function public.spend_coins(uuid, integer, integer) to service_role;
+revoke all on function public.add_coins(uuid, integer) from public, anon, authenticated;
+grant execute on function public.add_coins(uuid, integer) to service_role;
+revoke all on function public.rating_revenue(timestamptz, timestamptz) from public, anon;
+grant execute on function public.rating_revenue(timestamptz, timestamptz) to authenticated, service_role;
+revoke all on function public.set_my_theme(text) from public, anon;
+grant execute on function public.set_my_theme(text) to authenticated;
 
 -- ---------- Триггеры ----------
 
@@ -790,11 +825,12 @@ create policy transactions_select on public.transactions for select using ((auth
 create policy transactions_insert_admin on public.transactions for insert with check (is_admin());
 
 create policy revenue_select on public.revenue_requests for select using (((user_id = auth.uid()) or is_observer_or_admin()));
-create policy revenue_insert on public.revenue_requests for insert with check ((user_id = auth.uid()));
+-- Сотрудник вставляет только pending: иначе мог бы сразу «одобрить» себе выручку.
+create policy revenue_insert on public.revenue_requests for insert with check ((user_id = auth.uid()) and (status = 'pending'::request_status) and (reviewed_by is null) and (reviewed_at is null) and (credited_coins is null));
 create policy revenue_update_admin on public.revenue_requests for update using (is_admin());
 
 create policy bonus_select on public.bonus_requests for select using (((user_id = auth.uid()) or is_observer_or_admin()));
-create policy bonus_insert on public.bonus_requests for insert with check ((user_id = auth.uid()));
+create policy bonus_insert on public.bonus_requests for insert with check ((user_id = auth.uid()) and (status = 'pending'::request_status) and (reviewed_by is null) and (reviewed_at is null) and (credited_coins is null));
 create policy bonus_update_admin on public.bonus_requests for update using (is_admin());
 
 create policy rewards_select on public.rewards for select using (((is_active = true) or is_admin()));
@@ -807,7 +843,8 @@ create policy reward_suggestions_select on public.reward_suggestions for select 
 create policy reward_suggestions_insert on public.reward_suggestions for insert to authenticated with check ((auth.uid() = user_id));
 
 create policy purchase_select on public.purchase_requests for select using (((user_id = auth.uid()) or is_observer_or_admin()));
-create policy purchase_insert on public.purchase_requests for insert with check ((user_id = auth.uid()));
+-- Покупки создаёт только сервер после spend_coins (service_role обходит RLS).
+create policy purchase_insert on public.purchase_requests for insert with check (false);
 create policy purchase_update_admin on public.purchase_requests for update using (is_admin());
 
 create policy user_goals_select on public.user_goals for select using (((user_id = auth.uid()) or is_admin() or is_observer()));
