@@ -18,7 +18,17 @@ function computeStats(goal, balance) {
   return { remaining, pct, achieved: balance >= goal.target_amount };
 }
 
-export default function GoalWidget({ goal, balance }) {
+// Сколько выручки нужно, чтобы заработать столько коинов: 1 коин = 1000 ₸
+// × множитель (lib/coinRate.js). Так цель в магазине связана с продажами.
+function revenueForCoins(coins, rate) {
+  const kzt = Math.ceil(coins / (rate || 1)) * 1000;
+  if (kzt >= 1000000) {
+    return `${(Math.ceil(kzt / 100000) / 10).toLocaleString("ru-RU")} млн ₸`;
+  }
+  return `${Math.ceil(kzt / 1000).toLocaleString("ru-RU")} тыс ₸`;
+}
+
+export default function GoalWidget({ goal, balance, coinRate = 1, suggestion = null }) {
   const [animatedPct, setAnimatedPct] = useState(0);
 
   const stats = useMemo(
@@ -31,6 +41,34 @@ export default function GoalWidget({ goal, balance }) {
     const t = setTimeout(() => setAnimatedPct(stats.pct), 80);
     return () => clearTimeout(t);
   }, [stats?.pct]);
+
+  if (!goal && suggestion) {
+    const need = suggestion.price_coins - balance;
+    return (
+      <Link
+        href="/mop/shop"
+        className="bg-dark-800 border border-dark-700 rounded-2xl p-4 flex items-center gap-4"
+      >
+        {suggestion.image_url ? (
+          <img
+            src={suggestion.image_url}
+            alt=""
+            className="w-14 h-14 rounded-xl object-cover shrink-0"
+          />
+        ) : (
+          <Icon name="bag" className="w-10 h-10 text-gray-500 shrink-0" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-gray-500">Ближайшая награда</p>
+          <p className="font-semibold truncate">{suggestion.title}</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            ещё {formatCoins(need)} ≈ {revenueForCoins(need, coinRate)} продаж
+          </p>
+        </div>
+        <Icon name="chevronRight" className="w-5 h-5 text-gray-600 shrink-0" />
+      </Link>
+    );
+  }
 
   if (!goal) {
     // Пустой экран — приглашение к действию, а не инструкция из трёх шагов:
@@ -125,7 +163,7 @@ export default function GoalWidget({ goal, balance }) {
         <p className="text-xs text-gray-500">
           {achieved
             ? "Можно выбрать новую цель"
-            : `Осталось: ${formatCoins(remaining)}`}
+            : `Осталось ${formatCoins(remaining)} ≈ ${revenueForCoins(remaining, coinRate)} продаж`}
         </p>
         <Link
           href="/mop/shop"
