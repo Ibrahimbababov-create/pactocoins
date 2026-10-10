@@ -185,6 +185,14 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
   // реально занёс, а разница между 2,0 и 2,4 млн — это почти полмиллиона.
   // Разряды делим неразрывным пробелом, чтобы число не переносилось.
   const fmt = (n) => `${(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
+  // Коротко для тесного пьедестала: «490 тыс ₸», «1,2 млн ₸».
+  const shortKzt = (n) => {
+    const v = Math.max(0, Number(n) || 0);
+    if (v >= 1000000)
+      return `${(Math.ceil(v / 100000) / 10).toLocaleString("ru-RU")} млн ₸`;
+    if (v >= 1000) return `${Math.ceil(v / 1000).toLocaleString("ru-RU")} тыс ₸`;
+    return `${v.toLocaleString("ru-RU")} ₸`;
+  };
   const myIndex = ranked.findIndex((u) => u.id === currentUserId);
   const podium = ranked.length >= 3;
   const listStart = podium ? 3 : 0;
@@ -276,11 +284,18 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                         )}
                       </span>
                       <span className="text-[13px] font-black tabular-nums whitespace-nowrap">{fmt(u.value)}</span>
-                      {prize != null && (
-                        <span className="text-[11px] font-semibold text-gray-400 tabular-nums">
-                          +{formatCoins(Number(prize))}
-                        </span>
-                      )}
+                      {prize != null &&
+                        (Number(u.value) >= prizeCfg.min ? (
+                          <span className="text-[11px] font-semibold text-acid-400 tabular-nums">
+                            +{formatCoins(Number(prize))}
+                          </span>
+                        ) : (
+                          // Порог не взят — приз не положен. Вместо обещания
+                          // «+2 000 коинов» показываем, сколько не хватает.
+                          <span className="text-[11px] font-semibold text-gray-500 tabular-nums whitespace-nowrap">
+                            до приза {shortKzt(prizeCfg.min - Number(u.value))}
+                          </span>
+                        ))}
                       <div
                         className={`mt-2 w-full rounded-t-xl border bg-gradient-to-b ${tier.bar} ${tier.h} flex items-start justify-center pt-1.5`}
                       >

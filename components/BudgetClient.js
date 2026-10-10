@@ -4,17 +4,21 @@ import { formatCoins } from "@/lib/plural";
 
 import { useTransition, useState, useRef } from "react";
 import { addBudgetTopup, deleteBudgetTopup } from "@/app/admin/budgetActions";
+import { almatyDayKey } from "@/lib/timezone";
 
 function formatKzt(n) {
   return `${n.toLocaleString("ru-RU")} ₸`;
 }
 
 function formatDate(dateStr) {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("ru-RU");
+  const [y, m, d] = String(dateStr).slice(0, 10).split("-");
+  return `${d}.${m}.${y}`;
 }
 
+// Сегодня по Алматы, а не по часам сервера (UTC) — иначе с полуночи до
+// 5 утра по умолчанию подставлялось вчерашнее число.
 function todayLocal() {
-  return new Date().toLocaleDateString("en-CA");
+  return almatyDayKey(new Date());
 }
 
 export default function BudgetClient({ topups, expenses }) {
@@ -93,7 +97,7 @@ export default function BudgetClient({ topups, expenses }) {
       </div>
 
       <p className="text-xs text-gray-500">
-        Списано coins по этим покупкам: {totalCoinsSpent.toLocaleString("ru-RU")} —
+        Списано коинов по этим покупкам: {totalCoinsSpent.toLocaleString("ru-RU")} —
         для сверки с реальными тратами.
       </p>
 

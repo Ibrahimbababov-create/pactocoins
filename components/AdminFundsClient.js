@@ -108,7 +108,7 @@ export default function AdminFundsClient({ funds, contributions }) {
           name="goalCoins"
           type="number"
           min="1"
-          placeholder="Цель, coins"
+          placeholder="Цель в коинах"
           className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
         />
         <label className="block space-y-1">
@@ -182,7 +182,7 @@ export default function AdminFundsClient({ funds, contributions }) {
                     type="number"
                     min="1"
                     defaultValue={fund.goal_coins}
-                    placeholder="Цель, coins"
+                    placeholder="Цель в коинах"
                     className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                   />
                   <label className="block space-y-1">

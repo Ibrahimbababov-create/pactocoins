@@ -214,7 +214,7 @@ export default function WheelAdminClient({
         </p>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="text-xs text-gray-500">
-            Цена покупки крутки, coins
+            Цена покупки крутки, коинов
             <input
               type="number"
               min="1"
@@ -233,7 +233,7 @@ export default function WheelAdminClient({
                 setCfg((c) => ({ ...c, buy_enabled: e.target.checked }))
               }
             />
-            Разрешить покупку круток за coins
+            Разрешить покупку круток за коины
           </label>
         </div>
 

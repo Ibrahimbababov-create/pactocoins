@@ -12,9 +12,13 @@ const typeLabels = {
 export default async function ObserverActivity() {
   const supabase = createClient();
 
+  // Без гостевого демо-аккаунта и тестовых — их покупки и сбросы баланса
+  // засоряли ленту настоящих операций.
   const { data: transactions } = await supabase
     .from("transactions")
-    .select("*, users!transactions_user_id_fkey(name)")
+    .select("*, users!transactions_user_id_fkey!inner(name, is_guest, email)")
+    .eq("users.is_guest", false)
+    .not("users.email", "like", "%.test@pactocoins.local")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -54,7 +58,7 @@ export default async function ObserverActivity() {
               </div>
               <span className={`font-bold ${meta.color}`}>
                 {isNegative ? "" : "+"}
-                {t.amount_coins}
+                {Number(t.amount_coins).toLocaleString("ru-RU")}
               </span>
             </div>
           );

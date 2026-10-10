@@ -531,7 +531,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                   type="number"
                   value={adjustAmount}
                   onChange={(e) => setAdjustAmount(e.target.value)}
-                  placeholder="Количество coins"
+                  placeholder="Количество коинов"
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 />
                 <input

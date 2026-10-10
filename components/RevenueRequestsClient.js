@@ -115,7 +115,7 @@ export default function RevenueRequestsClient({
     startTransition(async () => {
       const res = await cancelApprovedRevenueRequest(id, comment);
       if (res?.error) showMessage(res.error, "error");
-      else showMessage("Заявка отменена, coins списаны обратно");
+      else showMessage("Заявка отменена, коины списаны обратно");
     });
   }
 
