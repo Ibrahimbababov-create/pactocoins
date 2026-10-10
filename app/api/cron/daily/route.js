@@ -7,7 +7,6 @@ import { sendTelegramDocument } from "@/lib/telegramBot";
 import { cleanupOldWelcomes } from "@/lib/groupWelcome";
 import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
 import { syncBotCommands } from "@/lib/botCommands";
-import { migrateTokyoStorage } from "@/lib/migrateTokyoStorage";
 import { createAdminClient } from "@/lib/supabase-admin";
 import {
   isMondayInAlmaty,
@@ -44,14 +43,6 @@ export async function GET(request) {
     summary.welcomesDeleted = await cleanupOldWelcomes(20);
   } catch (err) {
     console.error("[cron] welcome cleanup failed:", err);
-  }
-
-  // Разовый перенос файлов из старого токийского хранилища. Когда всё
-  // перенесено, ничего не делает.
-  try {
-    summary.tokyoStorage = await migrateTokyoStorage();
-  } catch (err) {
-    console.error("[cron] tokyo storage migration failed:", err);
   }
 
   // Меню команд бота держим в актуальном виде (lib/botCommands.js).
