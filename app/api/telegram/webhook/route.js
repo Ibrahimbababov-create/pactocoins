@@ -27,10 +27,10 @@ import { renderRevenueCommand } from "@/lib/revenueTop";
 export const maxDuration = 30;
 
 const RATING_CMDS = new Set(["/rating", "/rating_week", "/rating_month"]);
-const TODAY_CMDS = new Set(["/today", "/todayteam"]);
-// Топы раньше отвечал sales-bot по Google-таблицам. Теперь — PactoCoins,
-// по записанной и подтверждённой выручке, как рейтинг в приложении.
-const TOP_CMDS = new Set(["/top5", "/topall", "/topteam"]);
+// Топы и «сегодня» раньше считались по Google-таблицам (sales-bot). Теперь —
+// PactoCoins, по записанной и подтверждённой выручке, как рейтинг в
+// приложении. Открыты всем в группе.
+const TOP_CMDS = new Set(["/top5", "/topall", "/topteam", "/today", "/todayteam"]);
 const REPORT_CMDS = new Set(["/report", "/report_month"]);
 
 // /all может стоять где угодно в сообщении (обычно в конце анонса).
@@ -317,39 +317,7 @@ async function handleReportCommand(msg, cmd) {
   }
 }
 
-async function handleTodayCommand(msg, cmd) {
-  const admin = createAdminClient();
-  const { data: caller } = await admin
-    .from("users")
-    .select("role")
-    .eq("telegram_id", msg.from?.id)
-    .maybeSingle();
-
-  if (!["admin", "rop"].includes(caller?.role)) {
-    await sendTelegramMessage(
-      msg.chat.id,
-      "Команда для админов и РОПов.",
-      undefined,
-      msg.message_thread_id
-    );
-    return;
-  }
-
-  try {
-    const text = await renderRevenueCommand(admin, cmd);
-    await sendTelegramMessage(msg.chat.id, text, undefined, msg.message_thread_id);
-  } catch (err) {
-    console.error("[today] failed:", err);
-    await sendTelegramMessage(
-      msg.chat.id,
-      "Не получилось собрать оплаты за сегодня.",
-      undefined,
-      msg.message_thread_id
-    );
-  }
-}
-
-// Топ открыт всем в группе: соревнование видно каждому.
+// Топы и «сегодня» открыты всем в группе: соревнование видно каждому.
 async function handleTopCommand(msg, cmd) {
   try {
     const text = await renderRevenueCommand(createAdminClient(), cmd);
@@ -358,7 +326,7 @@ async function handleTopCommand(msg, cmd) {
     console.error("[top] failed:", err);
     await sendTelegramMessage(
       msg.chat.id,
-      "Не получилось собрать топ.",
+      "Не получилось собрать цифры.",
       undefined,
       msg.message_thread_id
     );
@@ -528,10 +496,6 @@ export async function POST(request) {
     console.log("[webhook] command:", cmd, "chat", msg.chat?.type, msg.chat?.id);
     if (RATING_CMDS.has(cmd)) {
       await handleRatingCommand(msg, cmd);
-      return NextResponse.json({ ok: true });
-    }
-    if (TODAY_CMDS.has(cmd)) {
-      await handleTodayCommand(msg, cmd);
       return NextResponse.json({ ok: true });
     }
     if (TOP_CMDS.has(cmd)) {
