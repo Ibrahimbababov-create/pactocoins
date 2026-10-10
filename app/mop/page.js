@@ -19,8 +19,8 @@ import EarningsMiniChart from "@/components/EarningsMiniChart";
 import { recentDaysAlmaty, almatyDayKey } from "@/lib/timezone";
 import Icon from "@/components/Icon";
 import { effectiveRole } from "@/lib/viewAs";
-import { getMyWeekPlace, getMyTeamMonth } from "@/lib/dashboardPulse";
-import { WeekPlaceCard, TeamMonthCard } from "@/components/DashboardPulse";
+import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
+import { WeekPlaceCard, TeamMonthCard, MonthTierCard } from "@/components/DashboardPulse";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -47,6 +47,7 @@ export default async function MopDashboard() {
     { data: chartInflows },
     weekPlace,
     { data: shopPrices },
+    monthTier,
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
     supabase
@@ -94,6 +95,7 @@ export default async function MopDashboard() {
       .select("id, title, price_coins, image_url")
       .eq("is_active", true)
       .order("price_coins", { ascending: true }),
+    getMyMonthTier(supabase, user.id),
   ]);
 
   const hasPending =
@@ -225,6 +227,10 @@ export default async function MopDashboard() {
       />
 
       <WeekPlaceCard data={weekPlace} />
+
+      {!profile?.is_guest && role !== "admin" && role !== "observer" && (
+        <MonthTierCard data={monthTier} />
+      )}
 
       <EarningsMiniChart series={chartSeries} />
 

@@ -4,7 +4,8 @@ import { formatCoins } from "@/lib/plural";
 
 import { useState } from "react";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
-import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
+import { WEEKLY_TOP } from "@/lib/topBonusConfig";
+import { REVENUE_TIERS } from "@/lib/coinRate";
 import Icon from "@/components/Icon";
 
 export default function RulesAccordion() {
@@ -38,11 +39,8 @@ export default function RulesAccordion() {
               Бонусы, колесо и подарки на него не влияют.
             </p>
             <p className="text-gray-400 text-xs">
-              Лучшие трое получают призы в коинах, если набрали от{" "}
-              {WEEKLY_TOP.minLabel} за неделю ({WEEKLY_TOP.prizes
-                .map((p) => p.toLocaleString("ru-RU"))
-                .join(" / ")}{" "}
-              коинов) или от {MONTHLY_TOP.minLabel} за месяц ({MONTHLY_TOP.prizes
+              Лучшие трое недели получают призы в коинах, если набрали от{" "}
+              {WEEKLY_TOP.minLabel} ({WEEKLY_TOP.prizes
                 .map((p) => p.toLocaleString("ru-RU"))
                 .join(" / ")}{" "}
               коинов).
@@ -56,6 +54,17 @@ export default function RulesAccordion() {
                 <span>Подтверждённая оплата</span>
                 <span className="text-gray-500 text-xs shrink-0">1 коин за 1000 ₸</span>
               </div>
+              {REVENUE_TIERS.slice(1).map((t) => (
+                <div
+                  key={t.from}
+                  className="flex items-center justify-between gap-3 text-gray-300"
+                >
+                  <span>Выручка за месяц от {t.label}</span>
+                  <span className="text-gray-500 text-xs shrink-0">
+                    {t.rate} коина за 1000 ₸ сверху
+                  </span>
+                </div>
+              ))}
               {Object.values(BONUS_CATEGORIES).map((meta) => (
                 <div
                   key={meta.label}

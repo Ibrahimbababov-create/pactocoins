@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso, almatyDayKey } from "@/lib/timezone";
-import { calculateRevenueCoins } from "@/lib/coinRate";
+import { tieredRevenueCoins, tierForMonth, REVENUE_TIERS } from "@/lib/coinRate";
+import { monthRevenueBefore } from "@/lib/revenueMonth";
 import { creditMentorBonus, revokeMentorBonus } from "@/lib/mentorBonus";
 import { notifyRatingShift } from "@/lib/ratingNotify";
 import { uploadPhoto } from "@/lib/uploadPhoto";
@@ -211,14 +212,6 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     .eq("id", request.user_id)
     .single();
 
-  // Пересчитываем на моменте одобрения (не берём calculated_coins
-  // как есть) — так множитель тимлида всегда актуальный, даже если
-  // его поменяли уже после того, как заявка была подана.
-  const coins = calculateRevenueCoins(
-    request.amount_kzt,
-    profile.coin_rate_multiplier
-  );
-
   // Дата оплаты. Админ может поставить свою — деньги пришли в субботу,
   // а подтверждают их в понедельник. Рейтинг считается по заявкам, а не
   // по транзакциям, поэтому дату пишем в саму заявку (earned_at): раньше
@@ -228,6 +221,12 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     const parsed = new Date(`${earnedAtDate}T12:00:00+05:00`);
     if (!isNaN(parsed)) earnedAtIso = parsed.toISOString();
   }
+
+  // Пересчитываем на моменте одобрения (не берём calculated_coins
+  // как есть) — так множитель тимлида всегда актуальный, а ставка по
+  // шкале учитывает выручку месяца (lib/coinRate.js).
+  const monthBefore = await monthRevenueBefore(admin, request.user_id, earnedAtIso, requestId);
+  const coins = tieredRevenueCoins(request.amount_kzt, profile.coin_rate_multiplier, monthBefore);
 
   // Сначала «захватываем» заявку: статус меняется, только если она ещё
   // pending. Двойной тап или два админа одновременно — второй получит
@@ -281,7 +280,13 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   await checkAndApplyLevelUp(request.user_id, admin);
 
-  const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${formatCoins(coins)}`;
+  let revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${formatCoins(coins)}`;
+  // Сработала повышенная ставка шкалы — пусть человек это увидит.
+  const monthNow = monthBefore + request.amount_kzt;
+  if (monthNow > REVENUE_TIERS[1].from) {
+    const { rate } = tierForMonth(monthNow);
+    revenueText += `\n🔥 За месяц уже ${monthNow.toLocaleString("ru-RU")} ₸ — ставка ${rate} коина за 1000 ₸`;
+  }
   await notifyUser(
     admin,
     request.user_id,

@@ -121,3 +121,47 @@ export function TeamMonthCard({ data }) {
     </Link>
   );
 }
+
+const short = (n) => {
+  const v = Math.max(0, Number(n) || 0);
+  if (v >= 1000000) return `${(Math.ceil(v / 100000) / 10).toLocaleString("ru-RU")} млн ₸`;
+  return `${Math.ceil(v / 1000).toLocaleString("ru-RU")} тыс ₸`;
+};
+
+// Шкала коинов: чем больше выручки за месяц, тем больше коинов за каждую
+// следующую тысячу. Карточка показывает, на каком ты «этаже» и сколько до
+// следующего — это и есть повод дожать ещё одну сделку.
+export function MonthTierCard({ data }) {
+  if (!data) return null;
+  const { rate, next, value, monthLabel } = data;
+  const pct = next ? Math.min(100, Math.round((value / next.from) * 100)) : 100;
+
+  return (
+    <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-500">Ставка за {monthLabel}</p>
+        <p className="text-xs text-gray-500 tabular-nums">{kzt(value)}</p>
+      </div>
+      <p className="mt-1 flex items-baseline gap-2">
+        <span
+          className={`font-display text-3xl font-bold tabular-nums ${rate > 1 ? "text-acid-400" : ""}`}
+        >
+          {rate} {rate === 1 ? "коин" : "коина"}
+        </span>
+        <span className="text-sm text-gray-500">за 1000 ₸</span>
+      </p>
+      {next ? (
+        <div className="mt-3">
+          <div className="h-1.5 rounded-full bg-dark-600 overflow-hidden">
+            <div className="h-full rounded-full bg-acid-400/70" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-xs text-gray-500 mt-1.5">
+            Ещё {short(next.left)} — и каждая 1000 ₸ сверху даст {next.rate} коина
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs text-acid-400 mt-2">Максимальная ставка месяца 🔥</p>
+      )}
+    </div>
+  );
+}
