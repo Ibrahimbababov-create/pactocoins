@@ -218,8 +218,8 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
   );
 }
 
-function SuggestForm({ onDone }) {
-  const [open, setOpen] = useState(false);
+function SuggestForm({ onDone, initiallyOpen = false }) {
+  const [open, setOpen] = useState(initiallyOpen);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
@@ -361,13 +361,16 @@ export default function ShopClient({ grouped, balance }) {
   // Из «Ещё» человек приходит сюда ради формы «Предложить награду», а она
   // в самом низу. Якорь в ссылке не работает: список товаров дорисовывается
   // уже после загрузки и утягивает страницу обратно наверх.
+  // Плавная прокрутка через весь каталог (16 000 px) шла ~2 секунды с
+  // пустыми кадрами — прыгаем сразу, и форма уже раскрыта.
+  const fromSuggestLink = searchParams.get("suggest") === "1";
   useEffect(() => {
-    if (searchParams.get("suggest") !== "1") return;
+    if (!fromSuggestLink) return;
     const t = setTimeout(() => {
-      suggestRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      suggestRef.current?.scrollIntoView({ behavior: "auto", block: "center" });
     }, 350);
     return () => clearTimeout(t);
-  }, [searchParams]);
+  }, [fromSuggestLink]);
 
   // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер
   const filteredGrouped = useMemo(() => {
@@ -833,6 +836,7 @@ export default function ShopClient({ grouped, balance }) {
 
       <div id="suggest" ref={suggestRef} className="scroll-mt-16">
         <SuggestForm
+          initiallyOpen={fromSuggestLink}
           onDone={() => {
             setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
             setTimeout(() => setMessage(null), 3000);

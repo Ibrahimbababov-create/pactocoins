@@ -308,9 +308,14 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name")
+    .select("name, is_guest")
     .eq("id", user.id)
     .single();
+
+  // Предложение уходит в админскую группу — с общего демо-аккаунта нельзя.
+  if (profile?.is_guest) {
+    return { error: "В гостевом режиме предложения не отправляются" };
+  }
 
   const { error } = await supabase.from("reward_suggestions").insert({
     user_id: user.id,
