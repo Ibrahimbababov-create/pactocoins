@@ -192,7 +192,18 @@ function TestOverlay({ block, onClose, onPassed }) {
         <div className="max-w-lg mx-auto space-y-5">
           {result && !result.error ? (
             <div className="text-center py-6">
-              <p className="text-5xl mb-3">{result.passed ? "🎉" : "😔"}</p>
+              <div
+                className={`mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center ${
+                  result.passed
+                    ? "bg-acid-400/15 border border-acid-400/40 text-acid-400"
+                    : "bg-dark-800 border border-dark-600 text-gray-500"
+                }`}
+              >
+                <Icon
+                  name={result.passed ? "award" : "history"}
+                  className="w-8 h-8"
+                />
+              </div>
               <p className="text-2xl font-black">
                 {result.correct} из {result.total} · {result.score}%
               </p>
