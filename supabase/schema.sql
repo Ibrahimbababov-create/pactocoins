@@ -56,7 +56,7 @@ create table if not exists public.users (
   wheel_spins integer not null default 0,
   rop_id uuid,
   level integer not null default 1,
-  theme text not null default 'acid'::text,
+  theme text not null default 'brass'::text,
   project_id uuid,
   mentor_id uuid,
   home_screen_tip_sent_at timestamptz

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { markOnboardingBlockDone, submitOnboardingTest } from "@/app/mop/actions";
 import { openExternal } from "@/lib/openExternal";
 import { BLOCK_KIND } from "@/lib/onboardingDays";
+import Icon from "@/components/Icon";
 
 // Пересчитываем гейтинг на клиенте, чтобы отметка «изучил» срабатывала
 // мгновенно, не дожидаясь ответа сервера. Логика 1-в-1 с getTraineeOnboarding.
@@ -32,14 +33,14 @@ function recompute(days, doneSet) {
 function StatusDot({ block, active }) {
   if (block.done)
     return (
-      <span className="w-8 h-8 shrink-0 rounded-full bg-acid-400 text-black text-base font-black flex items-center justify-center">
-        ✓
+      <span className="w-8 h-8 shrink-0 rounded-full bg-acid-400 text-black flex items-center justify-center">
+        <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
       </span>
     );
   if (block.locked)
     return (
-      <span className="w-8 h-8 shrink-0 rounded-full border border-dark-600 text-gray-600 text-sm flex items-center justify-center">
-        🔒
+      <span className="w-8 h-8 shrink-0 rounded-full border border-dark-600 text-gray-600 flex items-center justify-center">
+        <Icon name="lock" className="w-4 h-4" />
       </span>
     );
   const isTest = block.kind === "test";
@@ -53,7 +54,13 @@ function StatusDot({ block, active }) {
           : "border-gray-600 text-gray-500"
       }`}
     >
-      {isTest ? "🎯" : BLOCK_KIND[block.kind]?.icon ?? "•"}
+      {isTest ? (
+        <Icon name="target" className="w-4 h-4" />
+      ) : BLOCK_KIND[block.kind]?.icon ? (
+        <Icon name={BLOCK_KIND[block.kind].icon} className="w-4 h-4" />
+      ) : (
+        "•"
+      )}
     </span>
   );
 }
@@ -82,9 +89,10 @@ function Reader({ block, onClose, onDone }) {
         <span className="text-sm text-gray-400 truncate">{block.title}</span>
         <button
           onClick={onClose}
-          className="shrink-0 text-sm font-semibold text-acid-400 px-3 py-1.5 -mr-2 rounded-lg"
+          className="shrink-0 flex items-center gap-1 text-sm font-semibold text-acid-400 px-3 py-1.5 -mr-2 rounded-lg"
         >
-          Закрыть ✕
+          Закрыть
+          <Icon name="x" className="w-4 h-4" />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-5">
@@ -112,7 +120,10 @@ function Reader({ block, onClose, onDone }) {
             block.done ? "bg-acid-400/10 text-acid-400" : "bg-acid-400 text-black"
           }`}
         >
-          {block.done ? "✓ Изучено — закрыть" : "✓ Я изучил"}
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
+            {block.done ? "Изучено — закрыть" : "Я изучил"}
+          </span>
         </button>
       </div>
     </div>,
@@ -170,9 +181,10 @@ function TestOverlay({ block, onClose, onPassed }) {
         <span className="text-sm text-gray-400 truncate">{block.title}</span>
         <button
           onClick={onClose}
-          className="shrink-0 text-sm font-semibold text-acid-400 px-3 py-1.5 -mr-2"
+          className="shrink-0 flex items-center gap-1 text-sm font-semibold text-acid-400 px-3 py-1.5 -mr-2"
         >
-          Закрыть ✕
+          Закрыть
+          <Icon name="x" className="w-4 h-4" />
         </button>
       </div>
 
@@ -279,20 +291,27 @@ function LinksBlock({ block, onDone }) {
           onClick={() => openExternal(l.url)}
           className="w-full text-left rounded-xl bg-dark-800 border border-dark-600 p-3 hover:border-acid-400/40"
         >
-          <p className="text-sm font-semibold">🔗 {l.title} ↗</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold">
+            <Icon name="link" className="w-4 h-4 shrink-0" />
+            {l.title} ↗
+          </p>
           {l.note && <p className="text-xs text-gray-500 mt-0.5">{l.note}</p>}
         </button>
       ))}
       {block.links.length > 0 && !block.done && (
         <button
           onClick={onDone}
-          className="w-full rounded-xl bg-acid-400 text-black py-2.5 text-sm font-bold active:scale-[0.98] transition-transform"
+          className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-acid-400 text-black py-2.5 text-sm font-bold active:scale-[0.98] transition-transform"
         >
-          ✓ Готово, всё открыл
+          <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
+          Готово, всё открыл
         </button>
       )}
       {block.done && (
-        <p className="text-xs text-acid-400">✓ Пройдено</p>
+        <p className="flex items-center gap-1 text-xs text-acid-400">
+          <Icon name="check" className="w-3.5 h-3.5" strokeWidth={2.5} />
+          Пройдено
+        </p>
       )}
     </div>
   );
@@ -369,7 +388,10 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
   return (
     <div className="space-y-4">
       <div className="bg-gradient-to-br from-sky-500/10 to-dark-800 border border-sky-500/30 rounded-2xl p-5 space-y-2">
-        <p className="text-lg font-bold text-sky-300">🎓 Обучение стажёра</p>
+        <p className="flex items-center gap-2 text-lg font-bold text-sky-300">
+          <Icon name="award" className="w-5 h-5 shrink-0" />
+          Обучение стажёра
+        </p>
         <p className="text-sm text-gray-400">
           Учимся три дня. Блоки идут по порядку: прошёл один, открылся
           следующий.
@@ -391,7 +413,10 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
         className="flex items-center justify-between bg-dark-800 border border-dark-600 rounded-2xl px-5 py-4 active:scale-[0.98] transition"
       >
         <span>
-          <span className="block font-bold">📖 Как тут всё устроено</span>
+          <span className="flex items-center gap-1.5 font-bold">
+            <Icon name="book" className="w-4 h-4 shrink-0" />
+            Как тут всё устроено
+          </span>
           <span className="block text-sm text-gray-400">
             Инструкция: оплаты, коины, рейтинг, магазин
           </span>
@@ -431,7 +456,13 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
                   : "border-2 border-acid-400 text-acid-400"
               }`}
             >
-              {d.complete ? "✓" : d.locked ? "🔒" : d.day}
+              {d.complete ? (
+                <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
+              ) : d.locked ? (
+                <Icon name="lock" className="w-4 h-4" />
+              ) : (
+                d.day
+              )}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block font-bold text-sm">
@@ -492,8 +523,9 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
                           </p>
                         )}
                         {!active && isTest && !b.done && (
-                          <p className="text-[10px] font-black tracking-widest text-amber-400 mb-0.5">
-                            🎯 ТЕСТ
+                          <p className="flex items-center gap-1 text-[10px] font-black tracking-widest text-amber-400 mb-0.5">
+                            <Icon name="target" className="w-3 h-3" strokeWidth={2.5} />
+                            ТЕСТ
                           </p>
                         )}
                         <p
@@ -510,8 +542,9 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
                         )}
 
                         {b.done && (
-                          <p className="text-xs font-bold text-acid-400 mt-0.5">
-                            ✓ Пройдено
+                          <p className="flex items-center gap-1 text-xs font-bold text-acid-400 mt-0.5">
+                            <Icon name="check" className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            Пройдено
                           </p>
                         )}
                         {isTest && !b.hasContent && !b.done && (

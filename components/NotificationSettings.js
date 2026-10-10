@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateNotificationPref } from "@/app/mop/actions";
 import { haptic } from "@/lib/haptics";
+import Icon from "@/components/Icon";
 
 const ROWS = [
   {
@@ -50,7 +51,10 @@ export default function NotificationSettings({ prefs }) {
 
   return (
     <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-1">
-      <p className="text-sm text-gray-500 mb-2">🔔 Уведомления в Telegram</p>
+      <p className="flex items-center gap-1.5 text-sm text-gray-500 mb-2">
+        <Icon name="bell" className="w-4 h-4 shrink-0" />
+        Уведомления в Telegram
+      </p>
 
       {ROWS.map((r) => (
         <button

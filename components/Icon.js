@@ -48,6 +48,7 @@ const PATHS = {
   book: "M5 4h11a2 2 0 0 1 2 2v14l-6-3-6 3V6a2 2 0 0 1 2-2Z",
   food: "M6 3v7a2 2 0 0 0 4 0V3M8 10v11M17 3c-2 1-3 3-3 6s1 5 3 6M17 3v18",
   paperclip: "M8 12V6a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V7",
+  lock: "M5 11h14v9H5v-9ZM8 11V8a4 4 0 0 1 8 0v3M12 15v2",
 };
 
 export default function Icon({ name, className = "w-5 h-5", strokeWidth = 1.75 }) {
