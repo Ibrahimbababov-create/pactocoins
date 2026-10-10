@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { sendTelegramMessage } from "@/lib/telegramBot";
+import { addCoins } from "@/lib/addCoins";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -54,12 +55,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
       .single();
     if (!profile) continue;
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + amt,
-      })
-      .eq("id", userId);
+    await addCoins(admin, userId, amt);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -130,10 +126,7 @@ export async function manualAdjustBalanceExempt(
   const newBalance = profile.balance + amount;
   if (newBalance < 0) return { error: "Баланс не может уйти в минус" };
 
-  const { error: updateError } = await admin
-    .from("users")
-    .update({ balance: newBalance })
-    .eq("id", userId);
+  const { error: updateError } = await addCoins(admin, userId, amount);
 
   if (updateError) return { error: updateError.message };
 
@@ -178,7 +171,7 @@ export async function manualAdjustBalanceBulkExempt(
     const newBalance = profile.balance + amount;
     if (newBalance < 0) continue;
 
-    await admin.from("users").update({ balance: newBalance }).eq("id", userId);
+    await addCoins(admin, userId, amount);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -243,12 +236,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       .eq("id", request.user_id)
       .single();
 
-    const { error: creditError } = await admin
-      .from("users")
-      .update({
-        balance: profile.balance + coins,
-      })
-      .eq("id", request.user_id);
+    const { error: creditError } = await addCoins(admin, request.user_id, coins);
     if (creditError) {
       await admin
         .from("bonus_requests")

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { spendCoins } from "@/lib/spendCoins";
+import { addCoins } from "@/lib/addCoins";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -251,10 +252,7 @@ export async function refundContribution(fundId, userId) {
 
   if (!profile) return { error: "Пользователь не найден" };
 
-  const { error: balanceError } = await admin
-    .from("users")
-    .update({ balance: profile.balance + total })
-    .eq("id", userId);
+  const { error: balanceError } = await addCoins(admin, userId, total);
 
   if (balanceError) return { error: balanceError.message };
 

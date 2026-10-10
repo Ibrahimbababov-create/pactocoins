@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { revokeMentorBonus, recalcMentorBonus } from "@/lib/mentorBonus";
+import { addCoins } from "@/lib/addCoins";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -86,10 +87,7 @@ export async function cancelPayment(requestId, reason) {
     .eq("id", request.user_id)
     .single();
 
-  await admin
-    .from("users")
-    .update({ balance: (profile?.balance ?? 0) - coins })
-    .eq("id", request.user_id);
+  await addCoins(admin, request.user_id, -coins);
 
   await admin
     .from("revenue_requests")
@@ -179,10 +177,7 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
   await recalcMentorBonus(admin, { ...request, ...patch, status: "approved" });
 
   if (diff !== 0) {
-    await admin
-      .from("users")
-      .update({ balance: (profile?.balance ?? 0) + diff })
-      .eq("id", request.user_id);
+    await addCoins(admin, request.user_id, diff);
 
     await admin.from("transactions").insert({
       user_id: request.user_id,

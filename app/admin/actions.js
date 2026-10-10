@@ -15,6 +15,7 @@ import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 import { maybeGraduateTrainee } from "@/lib/onboarding";
 import { fetchTelegraphContent } from "@/lib/telegraph";
+import { addCoins } from "@/lib/addCoins";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -168,10 +169,7 @@ export async function manualAdjustBalance(userId, amount, description) {
   const newBalance = profile.balance + amount;
   if (newBalance < 0) return { error: "Баланс не может уйти в минус" };
 
-  const { error: updateError } = await admin
-    .from("users")
-    .update({ balance: newBalance })
-    .eq("id", userId);
+  const { error: updateError } = await addCoins(admin, userId, amount);
 
   if (updateError) return { error: updateError.message };
 
@@ -248,12 +246,7 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     .select("id");
   if (!claimed?.length) return { error: "Заявка уже обработана" };
 
-  const { error: updateUserError } = await admin
-    .from("users")
-    .update({
-      balance: profile.balance + coins,
-    })
-    .eq("id", request.user_id);
+  const { error: updateUserError } = await addCoins(admin, request.user_id, coins);
 
   if (updateUserError) {
     await admin
@@ -389,12 +382,7 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
     .eq("id", request.user_id)
     .single();
 
-  await admin
-    .from("users")
-    .update({
-      balance: profile.balance - coins,
-    })
-    .eq("id", request.user_id);
+  await addCoins(admin, request.user_id, -coins);
 
   if (coins) {
     await admin.from("transactions").insert({
@@ -465,10 +453,7 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
       .eq("id", purchase.user_id)
       .single();
 
-    await admin
-      .from("users")
-      .update({ balance: profile.balance + purchase.price_coins })
-      .eq("id", purchase.user_id);
+    await addCoins(admin, purchase.user_id, purchase.price_coins);
 
     await admin.from("transactions").insert({
       user_id: purchase.user_id,
@@ -698,12 +683,7 @@ export async function approveBonusRequest(requestId, comment) {
       .eq("id", request.user_id)
       .single();
 
-    const { error: creditError } = await admin
-      .from("users")
-      .update({
-        balance: profile.balance + coins,
-      })
-      .eq("id", request.user_id);
+    const { error: creditError } = await addCoins(admin, request.user_id, coins);
     if (creditError) {
       await admin
         .from("bonus_requests")
@@ -846,12 +826,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
       .eq("id", request.user_id)
       .single();
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance - coins,
-      })
-      .eq("id", request.user_id);
+    await addCoins(admin, request.user_id, -coins);
 
     await admin.from("transactions").insert({
       user_id: request.user_id,
@@ -926,12 +901,7 @@ export async function awardTopPerformers(period) {
       .eq("id", userId)
       .single();
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + prize,
-      })
-      .eq("id", userId);
+    await addCoins(admin, userId, prize);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -968,7 +938,7 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
     const newBalance = profile.balance + amount;
     if (newBalance < 0) continue;
 
-    await admin.from("users").update({ balance: newBalance }).eq("id", userId);
+    await addCoins(admin, userId, amount);
 
     await admin.from("transactions").insert({
       user_id: userId,
