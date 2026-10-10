@@ -46,6 +46,7 @@ export default async function MopDashboard() {
     monthEarned,
     { data: chartInflows },
     weekPlace,
+    { data: shopPrices },
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
     supabase
@@ -88,6 +89,11 @@ export default async function MopDashboard() {
       .gt("amount_coins", 0)
       .gte("created_at", chartStartIso),
     getMyWeekPlace(supabase, user.id),
+    supabase
+      .from("rewards")
+      .select("id, title, price_coins, image_url")
+      .eq("is_active", true)
+      .order("price_coins", { ascending: true }),
   ]);
 
   const hasPending =
@@ -131,6 +137,11 @@ export default async function MopDashboard() {
     ropName = rop?.name ?? null;
     onboardingDays = days;
   }
+
+  // Без цели подсказываем ближайшую награду, на которую ещё не хватает:
+  // «Донер — ещё 300 коинов» понятнее, чем пустое «на что копишь?».
+  const nextReward =
+    (shopPrices ?? []).find((r) => r.price_coins > (profile?.balance ?? 0)) ?? null;
 
   let currentGoal = fetchedGoal;
   if (currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
@@ -217,7 +228,12 @@ export default async function MopDashboard() {
 
       <EarningsMiniChart series={chartSeries} />
 
-      <GoalWidget goal={currentGoal} balance={profile?.balance ?? 0} />
+      <GoalWidget
+        goal={currentGoal}
+        balance={profile?.balance ?? 0}
+        coinRate={profile?.coin_rate_multiplier ?? 1}
+        suggestion={nextReward}
+      />
 
       {profile?.is_guest && (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
