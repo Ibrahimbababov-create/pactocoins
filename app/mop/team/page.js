@@ -88,7 +88,11 @@ export default async function TeamPage() {
   const pendingCount = {};
   for (const r of pending ?? []) pendingCount[r.user_id] = (pendingCount[r.user_id] ?? 0) + 1;
 
-  const dayOfBlock = Object.fromEntries((obBlocks ?? []).map((b) => [b.id, b.day]));
+  // Пройденными считаем только обязательные блоки — те же, что в «всего».
+  // Иначе необязательные статьи давали «День 1: 5/3».
+  const dayOfBlock = Object.fromEntries(
+    (obBlocks ?? []).filter((b) => b.required).map((b) => [b.id, b.day])
+  );
   const totalByDay = { 1: 0, 2: 0, 3: 0 };
   for (const b of obBlocks ?? []) if (b.required) totalByDay[b.day]++;
 

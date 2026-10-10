@@ -166,7 +166,7 @@ export async function contributeToFund(fundId, amount) {
 
   if (!user) return { error: "Не авторизован" };
 
-  const coins = Number(amount);
+  const coins = Math.floor(Number(amount));
   if (!coins || coins <= 0) return { error: "Укажи сумму больше нуля" };
 
   const admin = createAdminClient();
@@ -183,11 +183,17 @@ export async function contributeToFund(fundId, amount) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance")
+    .select("balance, is_guest")
     .eq("id", user.id)
     .single();
 
   if (!profile) return { error: "Профиль не найден" };
+
+  // Гостевые коины ненастоящие и сбрасываются каждую ночь, а взнос в
+  // копилку остался бы навсегда — в общем прогрессе и списке вкладчиков.
+  if (profile.is_guest) {
+    return { error: "В гостевом режиме в копилки не вносят" };
+  }
 
   const spent = await spendCoins(admin, user.id, coins);
   if (!spent.ok) return { error: spent.error };
