@@ -16,6 +16,8 @@ import { getEarnedMap } from "@/lib/earnings";
 import ViewAsSwitch from "@/components/ViewAsSwitch";
 import { viewAsRole, isViewableRole } from "@/lib/viewAs";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import { getProgramCost, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
+import { createAdminClient } from "@/lib/supabase-admin";
 
 const QUEUE_LINKS = [
   { key: "revenue", label: "Заявки на выручку", href: "/admin/revenue-requests" },
@@ -147,10 +149,10 @@ export default async function AdminOverview({ searchParams }) {
     (topups?.reduce((sum, t) => sum + t.amount_kzt, 0) ?? 0) -
     (budgetExpenses?.reduce((sum, e) => sum + e.actual_kzt_amount, 0) ?? 0);
 
-  const earnedMap = await getEarnedMap(supabase, (users ?? []).map((u) => u.id), {
-    start,
-    end,
-  });
+  const [earnedMap, cost] = await Promise.all([
+    getEarnedMap(supabase, (users ?? []).map((u) => u.id), { start, end }),
+    getProgramCost(createAdminClient(), { start, end }),
+  ]);
 
   // Общая очередь: берём самую старую заявку среди трёх типов.
   const candidates = [
@@ -249,6 +251,8 @@ export default async function AdminOverview({ searchParams }) {
             </p>
           </div>
 
+          <ProgramCostCard cost={cost} />
+
           <ThemePicker current={myTheme} />
 
           {funds && funds.length > 0 && (
@@ -329,6 +333,60 @@ export default async function AdminOverview({ searchParams }) {
           <ResetButton />
         </div>
       </div>
+    </div>
+  );
+}
+
+// Сколько программа стоит компании за месяц — по выданным коинам. Цвет:
+// в рамках (до 7% прибыли), на грани (7–10%), перебор (больше 10%).
+function ProgramCostCard({ cost }) {
+  const pct = cost.share == null ? null : cost.share * 100;
+  const tone =
+    pct == null
+      ? "text-gray-300"
+      : cost.share <= BUDGET_SHARE.ok
+      ? "text-acid-400"
+      : cost.share <= BUDGET_SHARE.max
+      ? "text-amber-400"
+      : "text-red-400";
+  const verdict =
+    pct == null
+      ? "Выручки за месяц пока нет"
+      : cost.share <= BUDGET_SHARE.ok
+      ? "В рамках бюджета"
+      : cost.share <= BUDGET_SHARE.max
+      ? "На верхней границе бюджета"
+      : "Дороже бюджета — пора пересмотреть ставки";
+  const kzt = (n) => `${Math.round(n).toLocaleString("ru-RU")} ₸`;
+
+  return (
+    <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+      <p className="text-xs text-gray-500">Сколько стоит PactoCoins за месяц</p>
+      <div className="mt-1 flex items-baseline gap-3 flex-wrap">
+        <span className={`text-2xl font-bold tabular-nums ${tone}`}>
+          {pct == null ? "—" : `${pct.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%`}
+        </span>
+        <span className="text-sm text-gray-400">прибыли · {kzt(cost.costKzt)}</span>
+      </div>
+      <p className={`text-xs mt-1 ${tone}`}>{verdict}</p>
+
+      <div className="mt-3 space-y-1 text-xs">
+        {cost.breakdown.map((b) => (
+          <div key={b.label} className="flex justify-between gap-3 text-gray-400">
+            <span>{b.label}</span>
+            <span className="tabular-nums">
+              {formatCoins(b.coins)} · {kzt(b.kzt)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[11px] text-gray-600 mt-3 leading-relaxed">
+        Считаем по выданным коинам (их всё равно потратят), без возвратов и без
+        админов. 1 коин ≈ {cost.kztPerCoin.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₸
+        — по реальным покупкам за 90 дней. Прибыль ≈ {(NET_MARGIN * 100).toLocaleString("ru-RU")}% от
+        выручки {kzt(cost.revenueKzt)} = {kzt(cost.profitKzt)}. Бюджет — 5–10% прибыли.
+      </p>
     </div>
   );
 }
