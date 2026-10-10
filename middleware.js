@@ -51,6 +51,8 @@ export async function middleware(request) {
   // Наставнику открыты два раздела админки: обучение и приём новичков.
   const isMentorAdminPage =
     path.startsWith("/admin/onboarding") || path.startsWith("/admin/join-requests");
+  // РОПу открыта только сверка с таблицами — это таблицы его команды.
+  const isRopAdminPage = path.startsWith("/admin/reconcile");
   const isObserverPage = path.startsWith("/observer");
   // Гость нажал «выйти» — ему нужен экран выбора, даже если сессия
   // технически ещё не успела очиститься. Не редиректим его с /login.
@@ -99,7 +101,8 @@ export async function middleware(request) {
     if (
       isAdminPage &&
       profile?.role !== "admin" &&
-      !(isMentorAdminPage && profile?.role === "mentor")
+      !(isMentorAdminPage && profile?.role === "mentor") &&
+      !(isRopAdminPage && profile?.role === "rop")
     ) {
       return NextResponse.redirect(
         new URL(homeForRole(profile?.role), request.url)
