@@ -6,7 +6,7 @@ import BonusRequestForm from "@/components/BonusRequestForm";
 
 // Кнопка «Записать выручку» крупная и рядом поменьше «Бонус» — когда
 // одна открыта, вторая скрывается, чтобы её форма заняла всю ширину.
-export default function RequestActions() {
+export default function RequestActions({ multiplier = 1, monthKzt = 0 }) {
   const [activeForm, setActiveForm] = useState(null); // null | "revenue" | "bonus"
   const boxRef = useRef(null);
 
@@ -24,6 +24,8 @@ export default function RequestActions() {
     <div ref={boxRef} className={activeForm ? "scroll-mt-20" : "flex gap-3"}>
       {activeForm !== "bonus" && (
         <RevenueRequestForm
+          multiplier={multiplier}
+          monthKzt={monthKzt}
           open={activeForm === "revenue"}
           onOpenChange={(v) => setActiveForm(v ? "revenue" : null)}
         />

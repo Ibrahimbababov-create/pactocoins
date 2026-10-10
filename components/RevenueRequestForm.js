@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCoins } from "@/lib/plural";
+import { tieredRevenueCoins } from "@/lib/coinRate";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -19,7 +20,7 @@ function paymentDayOptions() {
     }));
 }
 
-export default function RevenueRequestForm({ open, onOpenChange }) {
+export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1, monthKzt = 0 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -33,7 +34,9 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
   const [paymentDay, setPaymentDay] = useState("");
   const [dayOptions, setDayOptions] = useState([]);
 
-  const coins = amount ? Math.floor(Number(amount) / 1000) : 0;
+  // Та же формула, что при одобрении: шкала месяца и личный множитель.
+  // Дата оплаты может быть в прошлом месяце — тогда это лишь прикидка.
+  const coins = amount ? tieredRevenueCoins(Number(amount), multiplier, monthKzt) : 0;
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -131,7 +134,7 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
             </span>
             <span className="text-acid-400">
               {" "}
-              ≈ {formatCoins(coins)} (1000 ₸ = 1 коин, с 5 млн ₸ за месяц — больше)
+              ≈ {formatCoins(coins)} после одобрения
             </span>
           </p>
         )}
