@@ -17,6 +17,7 @@ import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 import { maybeGraduateTrainee } from "@/lib/onboarding";
 import { fetchTelegraphContent } from "@/lib/telegraph";
 import { addCoins } from "@/lib/addCoins";
+import { bonusLabel } from "@/lib/bonusCategories";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -315,11 +316,11 @@ export async function rejectRevenueRequest(requestId, comment) {
 
   const { data: request } = await admin
     .from("revenue_requests")
-    .select("user_id")
+    .select("user_id, amount_kzt")
     .eq("id", requestId)
     .single();
 
-  const { error } = await admin
+  const { data: claimed, error } = await admin
     .from("revenue_requests")
     .update({
       status: "rejected",
@@ -327,12 +328,16 @@ export async function rejectRevenueRequest(requestId, comment) {
       reviewed_by: admin_user.id,
     })
     .eq("id", requestId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: error.message };
+  // Уже обработана (второй клик или кнопкой в Telegram) — человеку второе
+  // «отклонена» не шлём.
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
 
   if (request?.user_id) {
-    const rejectText = "❌ Заявка на выручку отклонена";
+    const rejectText = `❌ Заявка на выручку ${Number(request.amount_kzt).toLocaleString("ru-RU")} ₸ отклонена`;
     await notifyUser(
       admin,
       request.user_id,
@@ -703,7 +708,7 @@ export async function approveBonusRequest(requestId, comment) {
       user_id: request.user_id,
       type: "earn",
       amount_coins: coins,
-      description: `Бонус: ${request.category}`,
+      description: `Бонус: ${bonusLabel(request.category)}`,
       // Бонусы в рейтинг не идут: рейтинг — это выручка.
       rating_exempt: true,
       created_by: admin_user.id,
@@ -711,7 +716,7 @@ export async function approveBonusRequest(requestId, comment) {
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${formatCoins(coins)}`;
+    const bonusText = `✅ Бонус «${bonusLabel(request.category)}» одобрен: +${formatCoins(coins)}`;
     await notifyUser(
       admin,
       request.user_id,
@@ -751,11 +756,11 @@ export async function rejectBonusRequest(requestId, comment) {
 
   const { data: request } = await admin
     .from("bonus_requests")
-    .select("user_id")
+    .select("user_id, category")
     .eq("id", requestId)
     .single();
 
-  const { error } = await admin
+  const { data: claimed, error } = await admin
     .from("bonus_requests")
     .update({
       status: "rejected",
@@ -763,12 +768,14 @@ export async function rejectBonusRequest(requestId, comment) {
       reviewed_by: admin_user.id,
     })
     .eq("id", requestId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: error.message };
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
 
   if (request?.user_id) {
-    const rejectText = "❌ Заявка на бонус отклонена";
+    const rejectText = `❌ Заявка на бонус «${bonusLabel(request.category)}» отклонена`;
     await notifyUser(
       admin,
       request.user_id,
