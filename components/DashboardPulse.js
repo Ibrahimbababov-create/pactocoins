@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
-import { formatCoins } from "@/lib/plural";
 
 const kzt = (n) => `${(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
 
@@ -59,7 +58,7 @@ export function WeekPlaceCard({ data }) {
       </p>
       {data.prize != null ? (
         <p className="text-xs text-acid-400 mt-2">
-          Сейчас ты в призах: +{formatCoins(data.prize)}
+          Сейчас ты в призовой тройке и выше порога
         </p>
       ) : toPrize > 0 ? (
         <div className="mt-3">
