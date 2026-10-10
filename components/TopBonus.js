@@ -4,7 +4,12 @@ import { useState, useEffect, useTransition } from "react";
 import { awardTop3Bonus } from "@/app/admin/ratingExemptActions";
 import Icon from "@/components/Icon";
 
-const PLACE = ["🥇 1 место", "🥈 2 место", "🥉 3 место"];
+// Золото, серебро, бронза — оттенками текущей темы, а не эмодзи-медалями.
+const MEDAL_BG = [
+  "rgb(var(--c-accent))",
+  "rgb(var(--c-muted))",
+  "rgb(var(--c-accent) / 0.55)",
+];
 
 // variants: [{ key, tab, phrase, periodLabel, ranking }] — например «прошлая
 // неделя» и «текущая неделя». Админ переключает вкладкой, начисляет по
@@ -144,8 +149,14 @@ export default function TopBonus({
           <div className="mt-4 space-y-2">
             {winners.map((w, i) => (
               <div key={w.id} className="flex items-center gap-3">
-                <span className="text-sm w-24 shrink-0 text-gray-400">
-                  {PLACE[i]}
+                <span className="text-sm w-24 shrink-0 text-gray-400 flex items-center gap-1.5">
+                  <span
+                    className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-black text-dark-900"
+                    style={{ background: MEDAL_BG[i] }}
+                  >
+                    {i + 1}
+                  </span>
+                  место
                 </span>
                 <span className="flex-1 min-w-0 truncate font-semibold">
                   {w.name}

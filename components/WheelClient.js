@@ -6,6 +6,7 @@ import { useRef, useState, useTransition } from "react";
 import { spinWheel, buySpin } from "@/app/mop/wheel/actions";
 import { segmentColor, segmentTextColor } from "@/lib/wheel";
 import { haptic } from "@/lib/haptics";
+import Icon from "@/components/Icon";
 
 const CX = 150;
 const CY = 150;
@@ -205,10 +206,11 @@ export default function WheelClient({
               : "border-acid-400/40 bg-acid-400/10 text-acid-400"
           }`}
         >
-          <p className="text-lg font-bold">
-            {result.prizeType === "nothing"
-              ? "Мимо 😐"
-              : `🎉 ${result.resultText}`}
+          <p className="flex items-center justify-center gap-2 text-lg font-bold">
+            {result.prizeType !== "nothing" && (
+              <Icon name="sparkle" className="w-5 h-5 shrink-0" />
+            )}
+            {result.prizeType === "nothing" ? "Мимо — в следующий раз" : result.resultText}
           </p>
           <p className="text-xs text-gray-500 mt-1">Сектор: {result.label}</p>
         </div>

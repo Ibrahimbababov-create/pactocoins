@@ -87,7 +87,7 @@ export default function LevelUpCelebration({ level }) {
         disabled={isPending}
         className="relative mt-10 rounded-2xl bg-acid-400 px-8 py-3 font-bold text-black transition active:scale-95 disabled:opacity-50"
       >
-        Круто 🔥
+        Круто
       </button>
     </div>
   );

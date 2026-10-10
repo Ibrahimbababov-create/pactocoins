@@ -160,7 +160,10 @@ export function MonthTierCard({ data }) {
           </p>
         </div>
       ) : (
-        <p className="text-xs text-acid-400 mt-2">Максимальная ставка месяца 🔥</p>
+        <p className="flex items-center gap-1 text-xs text-acid-400 mt-2">
+          <Icon name="fire" className="w-3.5 h-3.5 shrink-0" />
+          Максимальная ставка месяца
+        </p>
       )}
     </div>
   );

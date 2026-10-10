@@ -4,6 +4,7 @@ import { useTransition, useState } from "react";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { approveJoinRequest, rejectJoinRequest } from "@/app/admin/joinRequestActions";
 import EmptyState from "@/components/EmptyState";
+import Icon from "@/components/Icon";
 
 const STATUS_META = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -79,8 +80,8 @@ export default function JoinRequestsClient({ requests }) {
                   {r.telegram_username ? `@${r.telegram_username}` : `id ${r.telegram_id}`}
                 </p>
                 {r.birthday && (
-                  <p className="text-xs text-gray-500">
-                    🎂{" "}
+                  <p className="flex items-center gap-1 text-xs text-gray-500">
+                    <Icon name="gift" className="w-3.5 h-3.5 shrink-0" />
                     {new Date(r.birthday).toLocaleDateString("ru-RU", {
                       day: "numeric",
                       month: "long",
