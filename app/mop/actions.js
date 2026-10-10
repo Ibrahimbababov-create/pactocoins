@@ -275,6 +275,15 @@ export async function markOnboardingBlockDone(blockId) {
     return { error: "Только для стажёров" };
   }
   const admin = createAdminClient();
+  // Тест засчитывается только сдачей (submitOnboardingTest), иначе его
+  // можно было «пройти» этим действием, не отвечая на вопросы.
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("kind")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.kind === "test") return { error: "Этот блок так не отмечается" };
+
   const { error } = await admin
     .from("onboarding_progress")
     .upsert({ user_id: p.id, block_id: blockId }, { onConflict: "user_id,block_id" });
