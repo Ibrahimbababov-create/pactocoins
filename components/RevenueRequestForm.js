@@ -114,6 +114,7 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
         </label>
         <input
           type="number"
+          inputMode="numeric"
           required
           min="1"
           value={amount}
@@ -122,8 +123,16 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
           placeholder="560000"
         />
         {amount > 0 && (
-          <p className="text-xs text-acid-400 mt-1">
-            ≈ {formatCoins(coins)} (1000 ₸ = 1 коин, с 5 млн ₸ за месяц — больше)
+          // В поле число без пробелов: 5600000 и 560000 легко перепутать.
+          // Показываем ту же сумму с разрядами — лишний ноль сразу виден.
+          <p className="text-xs mt-1">
+            <span className="text-white font-semibold tabular-nums">
+              {Math.round(Number(amount)).toLocaleString("ru-RU")} ₸
+            </span>
+            <span className="text-acid-400">
+              {" "}
+              ≈ {formatCoins(coins)} (1000 ₸ = 1 коин, с 5 млн ₸ за месяц — больше)
+            </span>
           </p>
         )}
       </div>
