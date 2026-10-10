@@ -5,6 +5,8 @@ import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { sendTelegramDocument } from "@/lib/telegramBot";
 import { cleanupOldWelcomes } from "@/lib/groupWelcome";
+import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
+import { createAdminClient } from "@/lib/supabase-admin";
 import {
   isMondayInAlmaty,
   isFirstOfMonthInAlmaty,
@@ -77,6 +79,15 @@ export async function GET(request) {
       summary.weeklyReportSent = true;
     } catch (err) {
       console.error("[cron] weekly report failed:", err);
+    }
+  }
+
+  // Итоги недели лично каждому, у кого были оплаты (без звука — 00:05).
+  if (isMondayInAlmaty()) {
+    try {
+      summary.weeklyRatingSummaries = await sendWeeklyRatingSummary(createAdminClient());
+    } catch (err) {
+      console.error("[cron] weekly rating summary failed:", err);
     }
   }
 

@@ -9,6 +9,7 @@ import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso, almatyDayKey } from "@/lib/timezone";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { creditMentorBonus, revokeMentorBonus } from "@/lib/mentorBonus";
+import { notifyRatingShift } from "@/lib/ratingNotify";
 import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
@@ -282,6 +283,12 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     comment?.trim() ? `${revenueText}\n\n💬 ${escapeHtml(comment.trim())}` : revenueText,
     "notify_requests"
   );
+
+  await notifyRatingShift(admin, {
+    userId: request.user_id,
+    amountKzt: request.amount_kzt,
+    earnedAtIso,
+  });
 
   await maybeGraduateTrainee(admin, request.user_id);
 
