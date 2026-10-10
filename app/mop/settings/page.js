@@ -17,13 +17,14 @@ export default async function SettingsPage() {
   const { data: profile } = await supabase
     .from("users")
     .select(
-      "name, role, rop_id, theme, reminder_enabled, reminder_time, notify_requests, notify_shop, notify_goal, notify_rating"
+      "name, role, rop_id, theme, is_guest, reminder_enabled, reminder_time, notify_requests, notify_shop, notify_goal, notify_rating"
     )
     .eq("id", user.id)
     .single();
 
   let rops = [];
-  if (profile?.role === "mop" || profile?.role === "trainee") {
+  const isGuest = !!profile?.is_guest;
+  if (!isGuest && (profile?.role === "mop" || profile?.role === "trainee")) {
     const { data } = await createAdminClient()
       .from("users")
       .select("id, name")
@@ -40,10 +41,14 @@ export default async function SettingsPage() {
 
       <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-2">
         <p className="text-sm text-gray-500">Профиль</p>
-        <EditableName name={profile?.name ?? ""} />
+        {isGuest ? (
+          <p className="font-bold">{profile?.name}</p>
+        ) : (
+          <EditableName name={profile?.name ?? ""} />
+        )}
       </div>
 
-      {(profile?.role === "mop" || profile?.role === "trainee") && (
+      {!isGuest && (profile?.role === "mop" || profile?.role === "trainee") && (
         <RopPicker rops={rops} currentRopId={profile?.rop_id} />
       )}
 
