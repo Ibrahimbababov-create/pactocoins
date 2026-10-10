@@ -220,22 +220,10 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
   const spinOnly = request.category === "attendance";
   const coins = spinOnly ? 0 : request.amount_coins;
 
-  if (!spinOnly) {
-    const { data: profile } = await admin
-      .from("users")
-      .select("balance")
-      .eq("id", request.user_id)
-      .single();
-
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + coins,
-      })
-      .eq("id", request.user_id);
-  }
-
-  await admin
+  // Сначала «захватываем» заявку: статус меняется, только если она ещё
+  // pending. Двойной тап или два админа одновременно — второй получит
+  // «уже обработана», а не второе начисление.
+  const { data: claimed } = await admin
     .from("bonus_requests")
     .update({
       status: "approved",
@@ -243,7 +231,32 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       reviewed_by: admin_user.id,
       credited_coins: coins,
     })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
+
+  if (!spinOnly) {
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance")
+      .eq("id", request.user_id)
+      .single();
+
+    const { error: creditError } = await admin
+      .from("users")
+      .update({
+        balance: profile.balance + coins,
+      })
+      .eq("id", request.user_id);
+    if (creditError) {
+      await admin
+        .from("bonus_requests")
+        .update({ status: "pending", reviewed_at: null, credited_coins: null })
+        .eq("id", requestId);
+      return { error: "Не удалось начислить коины, попробуй ещё раз" };
+    }
+  }
 
   if (!spinOnly) {
     await admin.from("transactions").insert({
