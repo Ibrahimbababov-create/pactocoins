@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Линтер гоняем отдельно (npm run lint): его замечания не должны
+  // ронять выкладку на Vercel.
+  eslint: { ignoreDuringBuilds: true },
   experimental: {
     outputFileTracingIncludes: {
       "/api/cron/daily": ["./fonts/**"],
