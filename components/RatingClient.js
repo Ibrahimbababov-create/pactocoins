@@ -5,7 +5,7 @@ import { formatCoins } from "@/lib/plural";
 import { useState, useMemo, useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
-import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
+import { WEEKLY_TOP } from "@/lib/topBonusConfig";
 
 const PERIODS = [
   { key: "week", label: "Неделя" },
@@ -199,12 +199,8 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
 
   const now = new Date();
   const atLatest = periodMode === "all" || (range.start <= now && now <= range.end);
-  const prizeCfg =
-    atLatest && periodMode === "week"
-      ? WEEKLY_TOP
-      : atLatest && periodMode === "month"
-      ? MONTHLY_TOP
-      : null;
+  // Приз за топ — только недельный. За месяц вместо приза шкала коинов.
+  const prizeCfg = atLatest && periodMode === "week" ? WEEKLY_TOP : null;
 
   return (
     <div className="space-y-4 max-w-md mx-auto">

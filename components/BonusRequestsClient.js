@@ -20,7 +20,7 @@ import {
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import EmployeePicker from "@/components/EmployeePicker";
 import TopBonus from "@/components/TopBonus";
-import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
+import { WEEKLY_TOP } from "@/lib/topBonusConfig";
 
 const statusLabels = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -32,7 +32,6 @@ export default function BonusRequestsClient({
   requests,
   employees,
   weekVariants = [],
-  monthVariants = [],
   historyTotal = 0,
   historyPageSize = 20,
 }) {
@@ -234,18 +233,12 @@ export default function BonusRequestsClient({
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid gap-4">
         <TopBonus
           title="Топ-3 · неделя"
           variants={weekVariants}
           min={WEEKLY_TOP.min}
           defaults={WEEKLY_TOP.prizes.map(String)}
-        />
-        <TopBonus
-          title="Топ-3 · месяц"
-          variants={monthVariants}
-          min={MONTHLY_TOP.min}
-          defaults={MONTHLY_TOP.prizes.map(String)}
         />
       </div>
 

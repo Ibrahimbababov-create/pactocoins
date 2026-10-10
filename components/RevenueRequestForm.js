@@ -123,7 +123,7 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
         />
         {amount > 0 && (
           <p className="text-xs text-acid-400 mt-1">
-            = {formatCoins(coins)} (1000 ₸ = 1 коин)
+            ≈ {formatCoins(coins)} (1000 ₸ = 1 коин, с 5 млн ₸ за месяц — больше)
           </p>
         )}
       </div>

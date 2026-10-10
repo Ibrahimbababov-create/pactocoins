@@ -5,7 +5,8 @@ import { formatCoins } from "@/lib/plural";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
-import { calculateRevenueCoins } from "@/lib/coinRate";
+import { tieredRevenueCoins } from "@/lib/coinRate";
+import { monthRevenueBefore } from "@/lib/revenueMonth";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { revokeMentorBonus, recalcMentorBonus } from "@/lib/mentorBonus";
 import { addCoins } from "@/lib/addCoins";
@@ -147,7 +148,14 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
     .eq("id", request.user_id)
     .single();
 
-  const newCoins = calculateRevenueCoins(newAmount, profile?.coin_rate_multiplier);
+  // Новая дата может перенести оплату в другой месяц — шкалу считаем по ней.
+  let newEarnedAt = request.earned_at ?? request.created_at;
+  if (earnedAt) {
+    const parsed = new Date(`${earnedAt}T12:00:00+05:00`);
+    if (!isNaN(parsed)) newEarnedAt = parsed.toISOString();
+  }
+  const monthBefore = await monthRevenueBefore(admin, request.user_id, newEarnedAt, requestId);
+  const newCoins = tieredRevenueCoins(newAmount, profile?.coin_rate_multiplier, monthBefore);
   const oldCoins = request.credited_coins ?? request.calculated_coins ?? 0;
   const diff = newCoins - oldCoins;
 

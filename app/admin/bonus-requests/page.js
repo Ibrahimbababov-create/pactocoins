@@ -2,10 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import BonusRequestsClient from "@/components/BonusRequestsClient";
 import {
   lastWeekRangeAlmaty,
-  lastMonthRangeAlmaty,
   thisWeekRangeAlmaty,
-  monthRangeAlmaty,
-  currentMonthKeyAlmaty,
 } from "@/lib/timezone";
 
 // Топ-3 считаем по той же выручке в тенге, что и рейтинг: призы выдаются
@@ -35,8 +32,6 @@ export default async function BonusRequestsPage() {
   const supabase = createClient();
   const lastWeek = lastWeekRangeAlmaty();
   const thisWeek = thisWeekRangeAlmaty();
-  const lastMonth = lastMonthRangeAlmaty();
-  const thisMonth = monthRangeAlmaty(currentMonthKeyAlmaty());
 
   const withUser = "*, users!bonus_requests_user_id_fkey(name, email, is_guest)";
   const HISTORY_PAGE = 20;
@@ -87,13 +82,11 @@ export default async function BonusRequestsPage() {
     (historyEmployees ?? []).map((e) => [e.id, e.name])
   );
 
-  const [lastWeekRanking, thisWeekRanking, lastMonthRanking, thisMonthRanking] =
-    await Promise.all([
-      rankingFor(supabase, empIds, nameById, lastWeek.start, lastWeek.end),
-      rankingFor(supabase, empIds, nameById, thisWeek.start, thisWeek.end),
-      rankingFor(supabase, empIds, nameById, lastMonth.start, lastMonth.end),
-      rankingFor(supabase, empIds, nameById, thisMonth.start, thisMonth.end),
-    ]);
+  // Месячного приза больше нет — вместо него шкала коинов (lib/coinRate.js).
+  const [lastWeekRanking, thisWeekRanking] = await Promise.all([
+    rankingFor(supabase, empIds, nameById, lastWeek.start, lastWeek.end),
+    rankingFor(supabase, empIds, nameById, thisWeek.start, thisWeek.end),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -117,22 +110,6 @@ export default async function BonusRequestsPage() {
             phrase: "за неделю",
             periodLabel: thisWeek.label,
             ranking: thisWeekRanking,
-          },
-        ]}
-        monthVariants={[
-          {
-            key: "last",
-            tab: "Прошлый",
-            phrase: "за прошлый месяц",
-            periodLabel: lastMonth.label,
-            ranking: lastMonthRanking,
-          },
-          {
-            key: "this",
-            tab: "Текущий",
-            phrase: "за месяц",
-            periodLabel: thisMonth.label,
-            ranking: thisMonthRanking,
           },
         ]}
       />
