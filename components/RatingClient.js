@@ -6,6 +6,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
 import { WEEKLY_TOP } from "@/lib/topBonusConfig";
+import { almatyDayKey } from "@/lib/timezone";
 
 const PERIODS = [
   { key: "week", label: "Неделя" },
@@ -81,7 +82,10 @@ function formatRange(start, end, mode) {
 export default function RatingClient({ currentUserId, users, initialTotals = {} }) {
   const tab = "overall";
   const [periodMode, setPeriodMode] = useState("week");
-  const [pickedDate, setPickedDate] = useState(() => ymd(new Date()));
+  // «Сегодня» берём по Алматы, а не по часам устройства/сервера: сервер
+  // живёт в UTC, и в понедельник до 5 утра он рисовал прошлую неделю, а
+  // телефон — новую. Разный HTML ломает гидратацию и кнопки.
+  const [pickedDate, setPickedDate] = useState(() => almatyDayKey(new Date()));
   // { [userId]: сумма коинов за период }. Текущая неделя приходит уже
   // посчитанной с сервера — первый экран рисуется сразу, без пустоты.
   const [totals, setTotals] = useState(initialTotals);
@@ -178,7 +182,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
   }
 
   function goToday() {
-    setPickedDate(ymd(new Date()));
+    setPickedDate(almatyDayKey(new Date()));
   }
 
   // Выручка в тенге, точной суммой: «2,0 млн» не даёт понять, кто сколько
@@ -197,8 +201,10 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
   const podium = ranked.length >= 3;
   const listStart = podium ? 3 : 0;
 
-  const now = new Date();
-  const atLatest = periodMode === "all" || (range.start <= now && now <= range.end);
+  const todayKey = almatyDayKey(new Date());
+  const atLatest =
+    periodMode === "all" ||
+    (ymd(range.start) <= todayKey && todayKey <= ymd(range.end));
   // Приз за топ — только недельный. За месяц вместо приза шкала коинов.
   const prizeCfg = atLatest && periodMode === "week" ? WEEKLY_TOP : null;
 

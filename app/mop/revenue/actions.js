@@ -8,7 +8,9 @@ import { escapeHtml } from "@/lib/notifyUser";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { paymentDateToIso, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 
-export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed, paymentDay) {
+export async function submitRevenueRequest(rawAmountKzt, comment, receiptConfirmed, paymentDay) {
+  // Колонка amount_kzt целая — сумма с копейками роняла вставку.
+  const amountKzt = Math.round(Number(rawAmountKzt));
   const supabase = createClient();
   const {
     data: { user },

@@ -21,6 +21,15 @@ export async function updateMyName(formData) {
   if (name.length > 50) return { error: "Слишком длинное имя" };
 
   const admin = createAdminClient();
+
+  // Гость один на всех: переименуй его один посетитель — увидят остальные
+  // и админ в уведомлениях о покупках.
+  const { data: me } = await admin
+    .from("users")
+    .select("is_guest")
+    .eq("id", user.id)
+    .single();
+  if (me?.is_guest) return { error: "В гостевом режиме имя не меняется" };
   const { error } = await admin
     .from("users")
     .update({ name })

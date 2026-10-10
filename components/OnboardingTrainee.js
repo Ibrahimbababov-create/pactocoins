@@ -509,10 +509,10 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
                 else if (isTest)
                   cls +=
                     " border-2 border-amber-400/70 bg-amber-400/[0.06]" +
-                    (active ? " shadow-[0_0_0_4px_rgba(251,191,36,0.12)]" : "");
+                    (active ? " shadow-[0_0_0_4px_rgb(var(--c-warn)/0.12)]" : "");
                 else if (active)
                   cls +=
-                    " border-2 border-acid-400 bg-dark-800 shadow-[0_0_0_4px_rgba(163,255,18,0.10)]";
+                    " border-2 border-acid-400 bg-dark-800 shadow-[0_0_0_4px_rgb(var(--c-accent)/0.10)]";
                 else cls += " border-dark-600 bg-dark-800";
                 if (popped) cls += " ob-pop";
 
