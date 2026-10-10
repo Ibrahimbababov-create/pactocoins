@@ -164,7 +164,7 @@ export default function TopBonus({
                       a.map((x, j) => (j === i ? e.target.value : x))
                     )
                   }
-                  placeholder="coins"
+                  placeholder="коины"
                   className="w-24 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white"
                 />
               </div>

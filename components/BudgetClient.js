@@ -97,7 +97,7 @@ export default function BudgetClient({ topups, expenses }) {
       </div>
 
       <p className="text-xs text-gray-500">
-        Списано coins по этим покупкам: {totalCoinsSpent.toLocaleString("ru-RU")} —
+        Списано коинов по этим покупкам: {totalCoinsSpent.toLocaleString("ru-RU")} —
         для сверки с реальными тратами.
       </p>
 

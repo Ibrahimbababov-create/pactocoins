@@ -235,7 +235,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
                 name="price_coins"
                 type="number"
                 required
-                placeholder="Цена в coins"
+                placeholder="Цена в коинах"
                 className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
               />
               <div className="space-y-1">

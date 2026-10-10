@@ -267,7 +267,7 @@ export default function BonusRequestsClient({
             type="number"
             value={singleAmount}
             onChange={(e) => setSingleAmount(e.target.value)}
-            placeholder="Количество coins (можно минус)"
+            placeholder="Количество коинов (можно минус)"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
           />
           <input
@@ -312,7 +312,7 @@ export default function BonusRequestsClient({
             type="number"
             value={bulkAmount}
             onChange={(e) => setBulkAmount(e.target.value)}
-            placeholder="Количество coins (можно минус)"
+            placeholder="Количество коинов (можно минус)"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
           />
           <input
