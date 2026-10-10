@@ -7,6 +7,7 @@ import MopTopBar from "@/components/MopTopBar";
 import { effectiveRole } from "@/lib/viewAs";
 import { roleTitle } from "@/lib/roles";
 import { clearViewAs } from "@/app/admin/viewAsActions";
+import WhatsNew from "@/components/WhatsNew";
 
 export default async function MopLayout({ children }) {
   const supabase = createClient();
@@ -62,6 +63,7 @@ export default async function MopLayout({ children }) {
         <PageTransition>{children}</PageTransition>
       </div>
       <BottomNav role={role} unreadCount={unreadCount ?? 0} />
+      <WhatsNew role={role} />
     </div>
   );
 }
