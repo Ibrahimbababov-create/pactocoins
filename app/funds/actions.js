@@ -198,14 +198,8 @@ export async function contributeToFund(fundId, amount) {
   const spent = await spendCoins(admin, user.id, coins);
   if (!spent.ok) return { error: spent.error };
 
-  await admin.from("transactions").insert({
-    user_id: user.id,
-    type: "spend",
-    amount_coins: -coins,
-    description: `Взнос в копилку: ${fund.title}`,
-    created_by: user.id,
-  });
-
+  // Сначала сам взнос, потом запись в историю: если взнос не запишется,
+  // коины возвращаем, и в истории не остаётся «взноса», которого нет.
   const { error: contribError } = await admin
     .from("fund_contributions")
     .insert({
@@ -214,7 +208,18 @@ export async function contributeToFund(fundId, amount) {
       amount_coins: coins,
     });
 
-  if (contribError) return { error: contribError.message };
+  if (contribError) {
+    await addCoins(admin, user.id, coins);
+    return { error: "Не получилось внести — коины вернули на баланс" };
+  }
+
+  await admin.from("transactions").insert({
+    user_id: user.id,
+    type: "spend",
+    amount_coins: -coins,
+    description: `Взнос в копилку: ${fund.title}`,
+    created_by: user.id,
+  });
 
   revalidatePath("/funds");
   revalidatePath("/mop/funds");
