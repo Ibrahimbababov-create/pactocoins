@@ -151,7 +151,10 @@ function TestOverlay({ block, onClose, onPassed }) {
     if (!allAnswered || busy) return;
     setBusy(true);
     try {
-      const res = await submitOnboardingTest(block.id, block.test.day, answers);
+      // Ответы привязываем к id вопроса, а не к порядковому номеру: порядок
+      // на сервере мог разойтись с порядком на экране.
+      const byId = Object.fromEntries(qs.map((q, k) => [q.id, answers[k]]));
+      const res = await submitOnboardingTest(block.id, block.test.day, byId);
       if (res?.error) {
         setResult({ error: res.error });
       } else {
