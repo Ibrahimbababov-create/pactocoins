@@ -21,7 +21,7 @@ async function notifyPurchaseGroup(admin, purchaseId, employeeName, text) {
 
   const tgResult = await sendTelegramMessage(
     groupChatId,
-    `🛍 <b>Новая покупка</b>\n\nОт: <b>${employeeName}</b>\n${text}`,
+    `🛍 <b>Новая покупка</b>\n\nОт: <b>${escapeHtml(employeeName)}</b>\n${text}`,
     {
       inline_keyboard: [
         [
