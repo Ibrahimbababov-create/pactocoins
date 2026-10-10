@@ -88,7 +88,7 @@ export default function BonusRequestForm({ open, onOpenChange }) {
               onChange={(e) => setCategory(e.target.value)}
               className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white"
             >
-              {Object.entries(BONUS_CATEGORIES).map(([key, m]) => (
+              {Object.entries(BONUS_CATEGORIES).filter(([, m]) => !m.hidden).map(([key, m]) => (
                 <option key={key} value={key}>
                   {m.label}
                   {m.spin
