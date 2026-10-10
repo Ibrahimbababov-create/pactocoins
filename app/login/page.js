@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import BirthdayInput from "@/components/BirthdayInput";
+import Icon from "@/components/Icon";
 
-const API_URL = "https://pactocoins.vercel.app/api/auth/telegram";
-const GUEST_API_URL = "https://pactocoins.vercel.app/api/auth/guest";
+const API_URL = "/api/auth/telegram";
+const GUEST_API_URL = "/api/auth/guest";
 
 // Кнопка «Инструкция» в Telegram открывает приложение со start_param=help
 // (из группы) или с ?next=help (из лички) — сразу ведём на инструкцию.
