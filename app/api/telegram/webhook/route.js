@@ -22,17 +22,15 @@ import { renderRatingImage } from "@/lib/ratingImage";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { lastWeekRangeAlmaty, lastMonthRangeAlmaty } from "@/lib/timezone";
-import {
-  loadTodayData,
-  renderToday,
-  renderTodayTeam,
-} from "@/lib/salesToday";
+import { renderRevenueCommand } from "@/lib/revenueTop";
 
-// /today читает несколько Google-таблиц — даём запас по времени.
 export const maxDuration = 30;
 
 const RATING_CMDS = new Set(["/rating", "/rating_week", "/rating_month"]);
 const TODAY_CMDS = new Set(["/today", "/todayteam"]);
+// Топы раньше отвечал sales-bot по Google-таблицам. Теперь — PactoCoins,
+// по записанной и подтверждённой выручке, как рейтинг в приложении.
+const TOP_CMDS = new Set(["/top5", "/topall", "/topteam"]);
 const REPORT_CMDS = new Set(["/report", "/report_month"]);
 
 // /all может стоять где угодно в сообщении (обычно в конце анонса).
@@ -338,14 +336,29 @@ async function handleTodayCommand(msg, cmd) {
   }
 
   try {
-    const rows = await loadTodayData();
-    const text = cmd === "/todayteam" ? renderTodayTeam(rows) : renderToday(rows);
+    const text = await renderRevenueCommand(admin, cmd);
     await sendTelegramMessage(msg.chat.id, text, undefined, msg.message_thread_id);
   } catch (err) {
     console.error("[today] failed:", err);
     await sendTelegramMessage(
       msg.chat.id,
       "Не получилось собрать оплаты за сегодня.",
+      undefined,
+      msg.message_thread_id
+    );
+  }
+}
+
+// Топ открыт всем в группе: соревнование видно каждому.
+async function handleTopCommand(msg, cmd) {
+  try {
+    const text = await renderRevenueCommand(createAdminClient(), cmd);
+    await sendTelegramMessage(msg.chat.id, text, undefined, msg.message_thread_id);
+  } catch (err) {
+    console.error("[top] failed:", err);
+    await sendTelegramMessage(
+      msg.chat.id,
+      "Не получилось собрать топ.",
       undefined,
       msg.message_thread_id
     );
@@ -519,6 +532,10 @@ export async function POST(request) {
     }
     if (TODAY_CMDS.has(cmd)) {
       await handleTodayCommand(msg, cmd);
+      return NextResponse.json({ ok: true });
+    }
+    if (TOP_CMDS.has(cmd)) {
+      await handleTopCommand(msg, cmd);
       return NextResponse.json({ ok: true });
     }
     if (REPORT_CMDS.has(cmd)) {
