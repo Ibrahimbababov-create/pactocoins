@@ -4,10 +4,16 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { getReconcile, reconcileReminderText, REMIND_MIN_KZT } from "@/lib/reconcile";
-import { getSheetSources, saveSheetSources, spreadsheetIdFrom, colToIndex } from "@/lib/sheetConfig";
+import {
+  getSheetSources,
+  saveSheetSources,
+  spreadsheetIdFrom,
+  colToIndex,
+  upsertSource,
+} from "@/lib/sheetConfig";
 import { notifyUser } from "@/lib/notifyUser";
 import { listSheetTabs, previewSource } from "@/lib/sheetsRevenue";
-import { currentMonthKeyAlmaty } from "@/lib/timezone";
+import { recentMonthKeysAlmaty } from "@/lib/timezone";
 
 // Кто смотрит сверку. Админ — все проекты (projectIds = null). РОП — только
 // свои проекты (project_rops): видит своих людей, меняет ссылку на таблицу
@@ -57,34 +63,32 @@ export async function sendReconcileReminders(monthKey, userIds = []) {
 }
 
 // Разобрать настройки из формы в источник. Ошибка — { error }.
-function buildSource({ projectId, project, link, layout, tab, nameCol, dateCol, amountCol, startRow }) {
+// month — месяц, за который таблица: текущий или прошлый.
+function buildSource({ projectId, project, month, link, layout, tab, nameCol, dateCol, amountCol, startRow }) {
+  if (!recentMonthKeysAlmaty(2).some((m) => m.key === month)) return { error: "Неверный месяц" };
   const spreadsheetId = spreadsheetIdFrom(link);
   if (!spreadsheetId) return { error: "Не похоже на ссылку на Google-таблицу" };
   const isSheet = layout === "sheet";
   if (isSheet && !String(tab || "").trim()) return { error: "Выбери лист" };
   const a = colToIndex(amountCol);
-  if (a == null) return { error: "Колонка суммы — буквой, например I" };
-  const n = isSheet ? colToIndex(nameCol) : null;
-  if (isSheet && n == null) return { error: "Колонка имени — буквой, например A" };
-  const dateEmpty = !String(dateCol || "").trim();
-  const d = dateEmpty ? null : colToIndex(dateCol);
-  if (!dateEmpty && d == null) return { error: "Колонка даты — буквой, например B, или оставь пустой" };
-  if (!isSheet && d == null) return { error: "Когда каждый лист — менеджер, нужна колонка даты" };
-  const row = Math.max(1, Math.min(50, Number(startRow) || 3));
-  return {
-    source: {
-      project: String(project || "").trim() || "Проект",
-      projectId,
-      spreadsheetId,
-      layout: isSheet ? "sheet" : "tabs",
-      tab: isSheet ? String(tab).trim() : null,
-      nameCol: n,
-      dateCol: d,
-      amountCol: a,
-      startRow: row,
-      savedMonth: currentMonthKeyAlmaty(),
-    },
+  if (a == null) return { error: "Колонка суммы — буквой, например D" };
+  const base = {
+    project: String(project || "").trim() || "Проект",
+    projectId,
+    month,
+    spreadsheetId,
+    amountCol: a,
   };
+  if (isSheet) {
+    const n = colToIndex(nameCol);
+    if (n == null) return { error: "Колонка имени — буквой, например A" };
+    if (n === a) return { error: "Имя и сумма не могут быть в одной колонке" };
+    return { source: { ...base, layout: "sheet", tab: String(tab).trim(), nameCol: n } };
+  }
+  const d = colToIndex(dateCol);
+  if (d == null) return { error: "Колонка даты — буквой, например B" };
+  const row = Math.max(1, Math.min(50, Number(startRow) || 3));
+  return { source: { ...base, layout: "tabs", dateCol: d, startRow: row } };
 }
 
 async function viewerFor(projectId) {
@@ -102,9 +106,9 @@ export async function listTabsForLink(projectId, link) {
   if (v.error) return v;
   const id = spreadsheetIdFrom(link);
   if (!id) return { error: "Не похоже на ссылку на Google-таблицу" };
-  const tabs = await listSheetTabs(id);
-  if (!tabs.length) return { error: "Таблица не открылась. Включи доступ «Все, у кого есть ссылка»." };
-  return { tabs };
+  const res = await listSheetTabs(id);
+  if (res.error) return { error: res.error[0].toUpperCase() + res.error.slice(1) };
+  return { tabs: res.tabs };
 }
 
 // Проверить настройки: как сервер понял строки — до сохранения.
@@ -125,10 +129,7 @@ export async function saveProjectSheet(form) {
 
   const admin = createAdminClient();
   const { sources } = await getSheetSources(admin);
-  const next = sources.filter((s) => s.projectId !== form.projectId);
-  next.push(built.source);
-
-  const res = await saveSheetSources(admin, next);
+  const res = await saveSheetSources(admin, upsertSource(sources, built.source));
   if (res.error) return { error: res.error };
   revalidatePath("/admin/reconcile");
   return { ok: true };
