@@ -18,11 +18,13 @@ import { viewAsRole, isViewableRole } from "@/lib/viewAs";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getProgramCost, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { forecastRevenueCoins } from "@/lib/revenueForecast";
 
 const QUEUE_LINKS = [
-  { key: "revenue", label: "Заявки на выручку", href: "/admin/revenue-requests" },
-  { key: "bonus", label: "Заявки на бонусы", href: "/admin/bonus-requests" },
-  { key: "purchases", label: "Заявки на покупки", href: "/admin/purchase-requests" },
+  // Коротко: на телефоне три плитки в ряд, «Заявки на выручку» обрезалось.
+  { key: "revenue", label: "Выручка", href: "/admin/revenue-requests" },
+  { key: "bonus", label: "Бонусы", href: "/admin/bonus-requests" },
+  { key: "purchases", label: "Покупки", href: "/admin/purchase-requests" },
 ];
 
 export default async function AdminOverview({ searchParams }) {
@@ -76,7 +78,7 @@ export default async function AdminOverview({ searchParams }) {
     // очередь и показать самую старую целиком, без похода на подстраницу.
     supabase
       .from("revenue_requests")
-      .select("id, created_at, amount_kzt, calculated_coins, comment, users!revenue_requests_user_id_fkey(name)")
+      .select("id, user_id, created_at, earned_at, amount_kzt, calculated_coins, comment, users!revenue_requests_user_id_fkey(name)")
       .eq("status", "pending")
       .order("created_at", { ascending: true })
       .limit(1),
@@ -149,9 +151,10 @@ export default async function AdminOverview({ searchParams }) {
     (topups?.reduce((sum, t) => sum + t.amount_kzt, 0) ?? 0) -
     (budgetExpenses?.reduce((sum, e) => sum + e.actual_kzt_amount, 0) ?? 0);
 
-  const [earnedMap, cost] = await Promise.all([
+  const [earnedMap, cost, nextForecast] = await Promise.all([
     getEarnedMap(supabase, (users ?? []).map((u) => u.id), { start, end }),
     getProgramCost(createAdminClient(), { start, end }),
+    forecastRevenueCoins(createAdminClient(), nextRevenue ?? []),
   ]);
 
   // Общая очередь: берём самую старую заявку среди трёх типов.
@@ -162,7 +165,7 @@ export default async function AdminOverview({ searchParams }) {
       created_at: nextRevenue[0].created_at,
       name: nextRevenue[0].users?.name,
       title: `${nextRevenue[0].amount_kzt.toLocaleString("ru-RU")} ₸`,
-      sub: `→ ${formatCoins(nextRevenue[0].calculated_coins ?? "?")}`,
+      sub: `→ ${formatCoins(nextForecast[nextRevenue[0].id] ?? nextRevenue[0].calculated_coins ?? 0)}`,
       comment: nextRevenue[0].comment,
     },
     nextBonus?.[0] && {

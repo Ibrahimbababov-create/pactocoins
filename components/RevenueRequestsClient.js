@@ -110,7 +110,7 @@ export default function RevenueRequestsClient({
   }
 
   function handleCancelApproved(id, comment) {
-    if (!window.confirm("Отменить одобренную заявку? Coins спишутся обратно.")) return;
+    if (!window.confirm("Отменить одобренную заявку? Коины спишутся обратно.")) return;
 
     startTransition(async () => {
       const res = await cancelApprovedRevenueRequest(id, comment);
@@ -230,8 +230,11 @@ export default function RevenueRequestsClient({
                 <p className="text-sm">
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ →{" "}
                   <span className="text-acid-400 font-bold">
-                    {formatCoins(r.calculated_coins)}
+                    {formatCoins(r.forecast_coins ?? r.calculated_coins)}
                   </span>
+                  {r.forecast_coins != null && r.forecast_coins > r.calculated_coins && (
+                    <span className="text-xs text-gray-500"> · по шкале месяца</span>
+                  )}
                 </p>
                 {r.comment && (
                   <p className="text-xs text-gray-500">{r.comment}</p>
@@ -342,7 +345,8 @@ export default function RevenueRequestsClient({
                   </p>
                   <p className="text-sm text-gray-500">
                     {r.amount_kzt.toLocaleString("ru-RU")} ₸ ·{" "}
-                    {formatCoins(r.calculated_coins)}
+                    {/* Сколько реально начислили (шкала, множитель), а не базовый расчёт */}
+                    {formatCoins(r.credited_coins ?? r.calculated_coins)}
                   </p>
                   <p className="text-xs text-gray-600">
                     оплата {formatPaymentDay(r.earned_at || r.created_at)} ·

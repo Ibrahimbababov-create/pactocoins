@@ -46,7 +46,9 @@ export default function BonusRequestsClient({
   const [comments, setComments] = useState({});
 
   // Одному участнику
-  const [singleUserId, setSingleUserId] = useState(employees[0]?.id ?? "");
+  // Никого не выбираем заранее: раньше стоял первый по списку, и коины
+  // уходили ему, если админ забывал выбрать человека.
+  const [singleUserId, setSingleUserId] = useState("");
   const [singleAmount, setSingleAmount] = useState("");
   const [singleReason, setSingleReason] = useState("");
   const [singleExempt, setSingleExempt] = useState(false);
@@ -115,7 +117,7 @@ export default function BonusRequestsClient({
   }
 
   function handleCancelApproved(id, comment) {
-    if (!window.confirm("Отменить одобренную заявку? Coins (или крутка) спишутся обратно.")) return;
+    if (!window.confirm("Отменить одобренную заявку? Коины (или крутка) спишутся обратно.")) return;
 
     startTransition(async () => {
       const res = await cancelApprovedBonusRequest(id, comment);
@@ -171,7 +173,14 @@ export default function BonusRequestsClient({
   function handleSingleSubmit(e) {
     e.preventDefault();
     const amount = Number(singleAmount);
-    if (!singleUserId || !amount) return;
+    if (!singleUserId) {
+      showMessage("Выбери сотрудника", "error");
+      return;
+    }
+    if (!amount) return;
+    const who = employees.find((x) => x.id === singleUserId)?.name ?? "сотруднику";
+    const what = amount > 0 ? `Начислить ${formatCoins(amount)}` : `Списать ${formatCoins(-amount)}`;
+    if (!window.confirm(`${what}: ${who}?`)) return;
 
     startTransition(async () => {
       const res = await manualAdjustBalanceExempt(
@@ -200,6 +209,8 @@ export default function BonusRequestsClient({
     e.preventDefault();
     const amount = Number(bulkAmount);
     if (selectedEmployeeIds.length === 0 || !amount) return;
+    const what = amount > 0 ? `Начислить по ${formatCoins(amount)}` : `Списать по ${formatCoins(-amount)}`;
+    if (!window.confirm(`${what}, людей: ${selectedEmployeeIds.length}?`)) return;
 
     startTransition(async () => {
       const res = await manualAdjustBalanceBulkExempt(
