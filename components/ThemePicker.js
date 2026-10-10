@@ -7,7 +7,7 @@ import { setMyTheme } from "@/app/admin/themeActions";
 import { haptic } from "@/lib/haptics";
 import Icon from "@/components/Icon";
 
-export default function ThemePicker({ current = "acid" }) {
+export default function ThemePicker({ current = "brass" }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [picked, setPicked] = useState(current);
