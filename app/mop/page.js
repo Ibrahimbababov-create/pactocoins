@@ -19,6 +19,8 @@ import EarningsMiniChart from "@/components/EarningsMiniChart";
 import { recentDaysAlmaty, almatyDayKey } from "@/lib/timezone";
 import Icon from "@/components/Icon";
 import { effectiveRole } from "@/lib/viewAs";
+import { getMyWeekPlace, getMyTeamMonth } from "@/lib/dashboardPulse";
+import { WeekPlaceCard, TeamMonthCard } from "@/components/DashboardPulse";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -43,6 +45,7 @@ export default async function MopDashboard() {
     { data: teamEvents },
     monthEarned,
     { data: chartInflows },
+    weekPlace,
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
     supabase
@@ -84,6 +87,7 @@ export default async function MopDashboard() {
       .eq("user_id", user.id)
       .gt("amount_coins", 0)
       .gte("created_at", chartStartIso),
+    getMyWeekPlace(supabase, user.id),
   ]);
 
   const hasPending =
@@ -100,6 +104,7 @@ export default async function MopDashboard() {
   // кабинет глазами стажёра или РОПа. В базе роль при этом не меняется.
   const role = effectiveRole(profile?.role);
   const isTrainee = role === "trainee";
+  const teamMonth = role === "rop" ? await getMyTeamMonth(supabase, user.id) : null;
   let ropName = null;
   let onboardingDays = null;
   if (isTrainee) {
@@ -172,18 +177,7 @@ export default async function MopDashboard() {
         <BirthdayProfile birthday={profile?.birthday} variant="prompt" />
       )}
 
-      {role === "rop" && (
-        <div className="bg-gradient-to-br from-purple-500/10 to-dark-800 border border-purple-500/30 rounded-2xl p-4">
-          <p className="font-bold text-purple-300 flex items-center gap-2">
-            <Icon name="sparkle" className="w-4 h-4" />
-            Для РОПов скоро новинка
-          </p>
-          <p className="text-sm text-gray-400 mt-1">
-            Мы готовим отдельную функцию под твою должность. Пока всё
-            работает как у МОПа — выручка, бонусы, магазин.
-          </p>
-        </div>
-      )}
+      {role === "rop" && <TeamMonthCard data={teamMonth} />}
 
       {(profile?.wheel_spins ?? 0) > 0 && (
         <Link
@@ -218,6 +212,8 @@ export default async function MopDashboard() {
         goalTarget={currentGoal?.target_amount ?? null}
         goalTitle={currentGoal?.rewards?.title ?? null}
       />
+
+      <WeekPlaceCard data={weekPlace} />
 
       <EarningsMiniChart series={chartSeries} />
 
