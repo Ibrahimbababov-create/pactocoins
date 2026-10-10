@@ -4,6 +4,7 @@ import Icon from "@/components/Icon";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LogoutButton from "@/components/LogoutButton";
 import { effectiveRole } from "@/lib/viewAs";
+import { WhatsNewButton } from "@/components/WhatsNew";
 
 // Длинные подписи — только для этого экрана, короткие живут в lib/roles.js
 const ROLE_LABELS = {
@@ -133,6 +134,12 @@ export default async function MorePage() {
           </div>
         </div>
       ))}
+
+      <WhatsNewButton className="w-full flex items-center gap-3 py-3.5 text-left active:opacity-60 transition border-t border-dark-700">
+        <Icon name="sparkle" className="w-5 h-5 shrink-0 text-acid-400" />
+        <span className="flex-1">Что нового в PactoCoins</span>
+        <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
+      </WhatsNewButton>
 
       <AddToHomeScreen />
 
