@@ -221,15 +221,6 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     profile.coin_rate_multiplier
   );
 
-  const { error: updateUserError } = await admin
-    .from("users")
-    .update({
-      balance: profile.balance + coins,
-    })
-    .eq("id", request.user_id);
-
-  if (updateUserError) return { error: updateUserError.message };
-
   // Дата оплаты. Админ может поставить свою — деньги пришли в субботу,
   // а подтверждают их в понедельник. Рейтинг считается по заявкам, а не
   // по транзакциям, поэтому дату пишем в саму заявку (earned_at): раньше
@@ -240,7 +231,10 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     if (!isNaN(parsed)) earnedAtIso = parsed.toISOString();
   }
 
-  await admin
+  // Сначала «захватываем» заявку: статус меняется, только если она ещё
+  // pending. Двойной тап или два админа одновременно — второй получит
+  // «уже обработана», а не второе начисление.
+  const { data: claimed } = await admin
     .from("revenue_requests")
     .update({
       status: "approved",
@@ -249,7 +243,25 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
       credited_coins: coins,
       earned_at: earnedAtIso,
     })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
+
+  const { error: updateUserError } = await admin
+    .from("users")
+    .update({
+      balance: profile.balance + coins,
+    })
+    .eq("id", request.user_id);
+
+  if (updateUserError) {
+    await admin
+      .from("revenue_requests")
+      .update({ status: "pending", reviewed_at: null, reviewed_by: null, credited_coins: null })
+      .eq("id", requestId);
+    return { error: updateUserError.message };
+  }
 
   const transactionPayload = {
     user_id: request.user_id,
@@ -354,6 +366,20 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
 
   const coins = request.credited_coins ?? 0;
 
+  // Сначала статус (только если ещё «одобрено»), потом списание — иначе
+  // двойной клик списал бы коины дважды.
+  const { data: claimed } = await admin
+    .from("revenue_requests")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+    })
+    .eq("id", requestId)
+    .eq("status", "approved")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже отменена" };
+
   // Вместе с оплатой уходит и процент, начисленный наставнику.
   await revokeMentorBonus(admin, requestId);
 
@@ -369,15 +395,6 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
       balance: profile.balance - coins,
     })
     .eq("id", request.user_id);
-
-  await admin
-    .from("revenue_requests")
-    .update({
-      status: "rejected",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin_user.id,
-    })
-    .eq("id", requestId);
 
   if (coins) {
     await admin.from("transactions").insert({
@@ -418,6 +435,28 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
 
   if (!purchase) return { error: "Заявка не найдена" };
 
+  const update = { status: newStatus, updated_at: new Date().toISOString() };
+  // Отклонённая покупка не состоялась — реальных денег на неё не ушло.
+  if (newStatus === "rejected") update.actual_kzt_amount = null;
+  // Кто и когда обработал заявку.
+  if (["approved", "rejected", "done"].includes(newStatus)) {
+    update.reviewed_by = admin_user.id;
+    update.reviewed_at = new Date().toISOString();
+  }
+
+  // Меняем статус, только если его никто не успел поменять до нас (кнопкой
+  // в Telegram или второй вкладкой). Иначе двойное «Отклонить» вернуло бы
+  // коины дважды.
+  const { data: changed, error } = await admin
+    .from("purchase_requests")
+    .update(update)
+    .eq("id", purchaseId)
+    .eq("status", purchase.status)
+    .select("id");
+
+  if (error) return { error: error.message };
+  if (!changed?.length) return { error: "Заявку уже кто-то обработал — обнови страницу" };
+
   // Если отклоняем (и раньше не было отклонено) — возвращаем коины
   if (newStatus === "rejected" && purchase.status !== "rejected") {
     const { data: profile } = await admin
@@ -439,22 +478,6 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
       rating_exempt: true,
     });
   }
-
-  const update = { status: newStatus, updated_at: new Date().toISOString() };
-  // Отклонённая покупка не состоялась — реальных денег на неё не ушло.
-  if (newStatus === "rejected") update.actual_kzt_amount = null;
-  // Кто и когда обработал заявку.
-  if (["approved", "rejected", "done"].includes(newStatus)) {
-    update.reviewed_by = admin_user.id;
-    update.reviewed_at = new Date().toISOString();
-  }
-
-  const { error } = await admin
-    .from("purchase_requests")
-    .update(update)
-    .eq("id", purchaseId);
-
-  if (error) return { error: error.message };
 
   // Уведомляем сотрудника об одобрении/отказе покупки — так же, как по
   // выручке и бонусам. Только при реальном переходе, чтобы не слать повторно.
@@ -652,22 +675,10 @@ export async function approveBonusRequest(requestId, comment) {
   const spinOnly = request.category === "attendance";
   const coins = spinOnly ? 0 : request.amount_coins;
 
-  if (!spinOnly) {
-    const { data: profile } = await admin
-      .from("users")
-      .select("balance")
-      .eq("id", request.user_id)
-      .single();
-
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + coins,
-      })
-      .eq("id", request.user_id);
-  }
-
-  await admin
+  // Сначала «захватываем» заявку: статус меняется, только если она ещё
+  // pending. Двойной тап или два админа одновременно — второй получит
+  // «уже обработана», а не второе начисление.
+  const { data: claimed } = await admin
     .from("bonus_requests")
     .update({
       status: "approved",
@@ -675,7 +686,32 @@ export async function approveBonusRequest(requestId, comment) {
       reviewed_by: admin_user.id,
       credited_coins: coins,
     })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
+
+  if (!spinOnly) {
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance")
+      .eq("id", request.user_id)
+      .single();
+
+    const { error: creditError } = await admin
+      .from("users")
+      .update({
+        balance: profile.balance + coins,
+      })
+      .eq("id", request.user_id);
+    if (creditError) {
+      await admin
+        .from("bonus_requests")
+        .update({ status: "pending", reviewed_at: null, credited_coins: null })
+        .eq("id", requestId);
+      return { error: "Не удалось начислить коины, попробуй ещё раз" };
+    }
+  }
 
   if (!spinOnly) {
     await admin.from("transactions").insert({
@@ -779,6 +815,20 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
   const spinOnly = request.category === "attendance";
   const coins = request.credited_coins ?? 0;
 
+  // Сначала статус (только если ещё «одобрено»), потом списание — иначе
+  // двойной клик списал бы дважды.
+  const { data: claimed } = await admin
+    .from("bonus_requests")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+    })
+    .eq("id", requestId)
+    .eq("status", "approved")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже отменена" };
+
   if (spinOnly) {
     const { data: w } = await admin
       .from("users")
@@ -811,15 +861,6 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
       created_by: admin_user.id,
     });
   }
-
-  await admin
-    .from("bonus_requests")
-    .update({
-      status: "rejected",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin_user.id,
-    })
-    .eq("id", requestId);
 
   let text = spinOnly
     ? "⚠️ Заявка на бонус отменена (одобрена по ошибке) — крутка на колесе списана обратно"
