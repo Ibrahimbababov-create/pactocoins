@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import { purchaseReward } from "@/app/mop/shop/actions";
@@ -88,7 +90,7 @@ export default function FlashSaleCard({ reward, balance }) {
           className="w-full mt-4 rounded-xl py-3 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed bg-red-500 text-white active:scale-[0.98] transition"
         >
           {canAfford
-            ? `Купить за ${reward.sale_price_coins} коинов`
+            ? `Купить за ${formatCoins(reward.sale_price_coins)}`
             : `Не хватает ${reward.sale_price_coins - displayBalance}`}
         </button>
       ) : (

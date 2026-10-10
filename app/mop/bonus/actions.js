@@ -1,5 +1,7 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
@@ -27,7 +29,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
       return { error: "Укажи количество коинов" };
     }
     if (parsed > MAX_CUSTOM_AMOUNT) {
-      return { error: `Максимум ${MAX_CUSTOM_AMOUNT} коинов за раз` };
+      return { error: `Максимум ${formatCoins(MAX_CUSTOM_AMOUNT)} за раз` };
     }
     amount = Math.floor(parsed);
 

@@ -1,5 +1,7 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
@@ -38,7 +40,7 @@ export async function buySpin(count = 1) {
   const price = cfg.spin_price_coins;
   const cost = price * n;
   if ((profile?.balance ?? 0) < cost)
-    return { error: `Нужно ${cost.toLocaleString("ru-RU")} коинов` };
+    return { error: `Нужно ${formatCoins(cost)}` };
 
   // Списание коинов и начисление круток — одним атомарным запросом,
   // иначе двойным кликом можно купить крутки дважды за одни коины.
@@ -109,7 +111,7 @@ export async function spinWheel() {
       user_id: user.id,
       type: "manual_add",
       amount_coins: seg.prize_amount,
-      description: `🎡 Колесо фортуны: +${seg.prize_amount} коинов`,
+      description: `🎡 Колесо фортуны: +${formatCoins(seg.prize_amount)}`,
       rating_exempt: true,
     });
   } else if (seg.prize_type === "spins" && seg.prize_amount > 0) {

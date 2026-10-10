@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins, spinsAcc } from "@/lib/plural";
+
 import { useRef, useState, useTransition } from "react";
 import { spinWheel, buySpin } from "@/app/mop/wheel/actions";
 import { segmentColor, segmentTextColor } from "@/lib/wheel";
@@ -243,8 +245,8 @@ export default function WheelClient({
             disabled={isPending || spinning || balance < buyCost}
             className="w-full bg-dark-800 border border-dark-600 text-gray-200 rounded-xl py-3 text-sm disabled:opacity-40"
           >
-            Купить {buyQty} {buyQty === 1 ? "крутку" : "круток"} за{" "}
-            {buyCost.toLocaleString("ru-RU")} коинов
+            Купить {buyQty} {spinsAcc(buyQty)} за{" "}
+            {formatCoins(buyCost)}
           </button>
         </div>
       )}

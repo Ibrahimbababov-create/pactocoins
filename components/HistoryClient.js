@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins, plural } from "@/lib/plural";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import EmptyState from "@/components/EmptyState";
@@ -64,9 +66,14 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
         <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
           <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
           <span className="text-amber-300 font-semibold">
-            {pendingCount === 1
-              ? "1 заявка ожидает подтверждения"
-              : `${pendingCount} заявки ожидают подтверждения`}
+            {pendingCount}{" "}
+            {plural(
+              pendingCount,
+              "заявка ожидает",
+              "заявки ожидают",
+              "заявок ожидают"
+            )}{" "}
+            подтверждения
           </span>
         </div>
       )}
@@ -134,7 +141,7 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
                           )}
                         </p>
                         <p className="text-xs text-gray-500 tabular-nums">
-                          {p.price_coins.toLocaleString("ru-RU")} коинов ·{" "}
+                          {formatCoins(p.price_coins)} ·{" "}
                           {new Date(p.created_at).toLocaleTimeString("ru-RU", {
                             hour: "2-digit",
                             minute: "2-digit",

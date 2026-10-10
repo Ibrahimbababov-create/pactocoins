@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitBonusRequest } from "@/app/mop/bonus/actions";
@@ -92,7 +94,7 @@ export default function BonusRequestForm({ open, onOpenChange }) {
                   {m.spin
                     ? " — крутка на колесе"
                     : m.amount
-                    ? ` — ${m.amount} коинов`
+                    ? ` — ${formatCoins(m.amount)}`
                     : ""}
                 </option>
               ))}

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { notifyUser } from "@/lib/notifyUser";
+import { spinsAcc } from "@/lib/plural";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -110,7 +111,7 @@ async function addSpins(admin, userIds, count) {
       await notifyUser(
         admin,
         r.id,
-        `🎡 Тебе начислили ${n} ${n === 1 ? "крутку" : "крутки"} на колесо фортуны`,
+        `🎡 Тебе начислили ${n} ${spinsAcc(n)} на колесо фортуны`,
         "notify_shop"
       );
     }

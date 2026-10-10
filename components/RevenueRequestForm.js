@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
@@ -121,7 +123,7 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
         />
         {amount > 0 && (
           <p className="text-xs text-acid-400 mt-1">
-            = {coins} коинов (1000 ₸ = 1 коин)
+            = {formatCoins(coins)} (1000 ₸ = 1 коин)
           </p>
         )}
       </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useTransition, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import {
@@ -104,7 +106,7 @@ export default function RewardSuggestionsClient({ suggestions }) {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">
                   {s.title} —{" "}
-                  <span className="text-acid-400">{s.price_coins} коинов</span>
+                  <span className="text-acid-400">{formatCoins(s.price_coins)}</span>
                 </p>
                 <p className="text-xs text-gray-500">
                   {s.users?.name}
@@ -154,7 +156,7 @@ export default function RewardSuggestionsClient({ suggestions }) {
             >
               <div className="min-w-0">
                 <p className="font-semibold">
-                  {s.title} — {s.price_coins} коинов
+                  {s.title} — {formatCoins(s.price_coins)}
                 </p>
                 <p className="text-sm text-gray-500">
                   {s.users?.name}

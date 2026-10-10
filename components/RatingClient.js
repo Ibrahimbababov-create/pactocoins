@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useMemo, useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
@@ -276,7 +278,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                       <span className="text-[13px] font-black tabular-nums whitespace-nowrap">{fmt(u.value)}</span>
                       {prize != null && (
                         <span className="text-[11px] font-semibold text-gray-400 tabular-nums">
-                          +{Number(prize).toLocaleString("ru-RU")} коинов
+                          +{formatCoins(Number(prize))}
                         </span>
                       )}
                       <div

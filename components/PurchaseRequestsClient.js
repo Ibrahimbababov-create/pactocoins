@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useTransition, useState } from "react";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
@@ -87,7 +89,7 @@ export default function PurchaseRequestsClient({ purchases }) {
                     : p.users?.role === "observer"
                     ? " (наблюдатель)"
                     : ""}{" "}
-                  · {p.price_coins.toLocaleString("ru-RU")} коинов
+                  · {formatCoins(p.price_coins)}
                   {p.kzt_amount ? ` · ${p.kzt_amount.toLocaleString("ru-RU")} ₸` : ""}
                 </p>
                 <p className="text-xs text-gray-600">
