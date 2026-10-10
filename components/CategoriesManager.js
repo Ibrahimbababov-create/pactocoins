@@ -10,6 +10,9 @@ import {
 export default function CategoriesManager({ categories }) {
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState(categories);
+  // Свёрнуто по умолчанию: 18 категорий стояли над наградами, и до самих
+  // наград приходилось каждый раз листать.
+  const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [message, setMessage] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
@@ -64,8 +67,20 @@ export default function CategoriesManager({ categories }) {
 
   return (
     <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 text-left"
+        aria-expanded={open}
+      >
+        <span className="font-semibold">Категории · {items.length}</span>
+        <span className="text-xs text-gray-500">{open ? "Свернуть" : "Изменить"}</span>
+      </button>
+
+      {open && (
+      <>
       <p className="text-sm text-gray-500">
-        Категории — зажми и перетащи, чтобы поменять порядок
+        Зажми и перетащи, чтобы поменять порядок
       </p>
 
       {message && (
@@ -113,16 +128,18 @@ export default function CategoriesManager({ categories }) {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Новая категория"
-          className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+          className="flex-1 min-w-0 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
         />
         <button
           type="submit"
           disabled={isPending}
-          className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
+          className="shrink-0 bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm"
         >
           Добавить
         </button>
       </form>
+      </>
+      )}
     </div>
   );
 }

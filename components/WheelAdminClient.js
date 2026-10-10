@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCoins } from "@/lib/plural";
+import { spinsAcc, formatCoins } from "@/lib/plural";
 
 import { useState, useTransition } from "react";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
@@ -187,7 +187,8 @@ export default function WheelAdminClient({
   const ev = expectedPayoutCoins(segments);
 
   // выдача круток
-  const [singleId, setSingleId] = useState(employees[0]?.id ?? "");
+  // Никого не выбираем заранее, чтобы крутки не ушли первому по списку.
+  const [singleId, setSingleId] = useState("");
   const [singleN, setSingleN] = useState(1);
   const [bulkIds, setBulkIds] = useState([]);
   const [bulkN, setBulkN] = useState(1);
@@ -309,12 +310,18 @@ export default function WheelAdminClient({
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
           />
           <button
-            onClick={() =>
+            onClick={() => {
+              if (!singleId) {
+                setGrantMsg("Выбери сотрудника");
+                return;
+              }
+              const who = employees.find((x) => x.id === singleId)?.name ?? "сотруднику";
+              if (!window.confirm(`Выдать ${singleN || 0} ${spinsAcc(Number(singleN) || 0)}: ${who}?`)) return;
               startGrant(async () => {
                 const res = await grantSpins(singleId, singleN);
                 setGrantMsg(res?.error || `Выдано: ${res.count}`);
-              })
-            }
+              });
+            }}
             disabled={grantPending}
             className="w-full bg-acid-400 text-black font-bold rounded-lg py-2 text-sm disabled:opacity-50"
           >

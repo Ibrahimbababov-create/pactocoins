@@ -105,18 +105,24 @@ export default function PurchaseRequestsClient({ purchases }) {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {currentStatus !== "rejected" && (
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="₸ потрачено в магазине"
-                    defaultValue={p.actual_kzt_amount ?? ""}
-                    onBlur={(e) => {
-                      const raw = e.target.value;
-                      if (String(p.actual_kzt_amount ?? "") === raw) return;
-                      handleSpendSave(p.id, raw);
-                    }}
-                    className="w-36 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs"
-                  />
+                  // Подпись снаружи: подсказка внутри поля пропадала, как
+                  // только там появлялась сумма, и было непонятно, что за число.
+                  <label className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                    Потрачено, ₸
+                    <input
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      placeholder="0"
+                      defaultValue={p.actual_kzt_amount ?? ""}
+                      onBlur={(e) => {
+                        const raw = e.target.value;
+                        if (String(p.actual_kzt_amount ?? "") === raw) return;
+                        handleSpendSave(p.id, raw);
+                      }}
+                      className="w-28 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs text-white"
+                    />
+                  </label>
                 )}
                 <select
                   value={currentStatus}
