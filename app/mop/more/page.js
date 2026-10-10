@@ -69,6 +69,12 @@ export default async function MorePage() {
           label: "Материалы стажёрам",
           icon: "sparkle",
         },
+        // РОП сверяет таблицы своей команды с PactoCoins
+        role === "rop" && {
+          href: "/admin/reconcile",
+          label: "Сверка с таблицами",
+          icon: "check",
+        },
         {
           href: "/messages",
           label: "Сообщения",
