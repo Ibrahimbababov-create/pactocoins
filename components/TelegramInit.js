@@ -28,11 +28,20 @@ export default function TelegramInit({ bgColor = "#07080a" }) {
     if (typeof tg.disableVerticalSwipes === "function") {
       tg.disableVerticalSwipes();
     }
-    if (typeof tg.setHeaderColor === "function") {
+    // Шапку, фон окна и нижнюю системную полосу красим в фон темы. Без
+    // этого у тех, у кого Telegram в светлой теме, под тёмным приложением
+    // висела белая полоса снизу и белые вспышки при прокрутке за край.
+    const atLeast = (v) =>
+      typeof tg.isVersionAtLeast === "function" ? tg.isVersionAtLeast(v) : false;
+    const paint = (method, minVersion) => {
+      if (typeof tg[method] !== "function" || !atLeast(minVersion)) return;
       try {
-        tg.setHeaderColor(bgColor);
+        tg[method](bgColor);
       } catch {}
-    }
+    };
+    paint("setHeaderColor", "6.1");
+    paint("setBackgroundColor", "6.1");
+    paint("setBottomBarColor", "7.10");
   }, [bgColor]);
 
   return null;
