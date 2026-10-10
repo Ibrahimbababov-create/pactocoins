@@ -21,6 +21,15 @@ export async function updateMyName(formData) {
   if (name.length > 50) return { error: "Слишком длинное имя" };
 
   const admin = createAdminClient();
+
+  // Гость один на всех: переименуй его один посетитель — увидят остальные
+  // и админ в уведомлениях о покупках.
+  const { data: me } = await admin
+    .from("users")
+    .select("is_guest")
+    .eq("id", user.id)
+    .single();
+  if (me?.is_guest) return { error: "В гостевом режиме имя не меняется" };
   const { error } = await admin
     .from("users")
     .update({ name })
@@ -266,6 +275,15 @@ export async function markOnboardingBlockDone(blockId) {
     return { error: "Только для стажёров" };
   }
   const admin = createAdminClient();
+  // Тест засчитывается только сдачей (submitOnboardingTest), иначе его
+  // можно было «пройти» этим действием, не отвечая на вопросы.
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("kind")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.kind === "test") return { error: "Этот блок так не отмечается" };
+
   const { error } = await admin
     .from("onboarding_progress")
     .upsert({ user_id: p.id, block_id: blockId }, { onConflict: "user_id,block_id" });
@@ -292,15 +310,30 @@ export async function submitOnboardingTest(blockId, day, answers) {
 
   const { data: qs } = await admin
     .from("onboarding_questions")
-    .select("correct")
+    .select("id, correct")
     .eq("test_id", test.id)
-    .order("sort");
+    .order("sort")
+    .order("id");
   if (!qs?.length) return { error: "В тесте пока нет вопросов" };
 
+  // Блок должен быть тестом этого же дня — иначе «сдачей» можно было
+  // отметить пройденным любой блок.
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("kind, day")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.kind !== "test" || Number(block.day) !== Number(day)) {
+    return { error: "Тест не найден" };
+  }
+
+  // Новый клиент шлёт { [id вопроса]: ответ }, старый — массив по порядку.
+  const byId = answers && !Array.isArray(answers) && typeof answers === "object";
   const wrong = [];
   let correct = 0;
   qs.forEach((q, i) => {
-    if (Number(answers?.[i]) === q.correct) correct++;
+    const given = byId ? answers[q.id] : answers?.[i];
+    if (given !== undefined && given !== null && Number(given) === q.correct) correct++;
     else wrong.push(i);
   });
   const score = Math.round((correct / qs.length) * 100);

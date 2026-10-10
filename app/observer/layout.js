@@ -26,7 +26,7 @@ export default async function ObserverLayout({ children }) {
 
   return (
     <div className="relative min-h-screen bg-dark-900">
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(163,255,18,0.06),transparent_70%)]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgb(var(--c-accent)/0.06),transparent_70%)]" />
       {profile?.role === "admin" && (
         <div className="relative bg-acid-400/[0.08] border-b border-acid-400/20 text-acid-400 text-sm px-4 py-2 flex items-center justify-between gap-3 flex-wrap">
           <span className="font-semibold">Просмотр как Наблюдатель</span>

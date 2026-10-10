@@ -20,7 +20,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
   if (!user) return { error: "Не авторизован" };
 
   const meta = BONUS_CATEGORIES[category];
-  if (!meta) return { error: "Неизвестная категория" };
+  if (!meta || meta.hidden) return { error: "Такой бонус сейчас не начисляется" };
 
   let amount = meta.amount;
 

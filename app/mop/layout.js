@@ -36,7 +36,7 @@ export default async function MopLayout({ children }) {
   return (
     <div className="relative min-h-screen bg-dark-900 pb-28">
       {/* мягкое свечение сверху за шапкой */}
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(163,255,18,0.07),transparent_70%)]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgb(var(--c-accent)/0.07),transparent_70%)]" />
 
       <MopTopBar balance={profile?.balance ?? 0} />
 

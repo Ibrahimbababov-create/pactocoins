@@ -73,7 +73,13 @@ export default async function GamesPage() {
             .order("created_at"),
       admin
         .from("wheel_spins")
-        .select("id, segment_label, prize_amount, created_at, users(name, role)")
+        // Фильтруем в запросе, а не после limit(8): иначе пачка гостевых
+        // джекпотов вытесняла настоящие выигрыши, а сами гостевые
+        // попадали в витрину, которую видит вся команда.
+        .select("id, segment_label, prize_amount, created_at, users!inner(name, role, is_guest, email)")
+        .eq("users.is_guest", false)
+        .neq("users.role", "admin")
+        .not("users.email", "like", "%.test@pactocoins.local")
         .eq("prize_type", "coins")
         .gte("prize_amount", SHOWCASE_MIN_COINS)
         .gte("created_at", showcaseSince)
@@ -90,7 +96,7 @@ export default async function GamesPage() {
       amount: w.prize_amount,
       created_at: w.created_at,
     }))
-    .filter((w) => w.name && w.role !== "admin" && !w.name.startsWith("🤖"));
+    .filter((w) => w.name);
 
   return (
     <div className="space-y-4">

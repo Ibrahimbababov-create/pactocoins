@@ -9,6 +9,7 @@ import { getEffectivePrice } from "@/lib/rewardPricing";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { spendCoins } from "@/lib/spendCoins";
+import { addCoins } from "@/lib/addCoins";
 import { escapeHtml } from "@/lib/notifyUser";
 
 async function notifyPurchaseGroup(admin, purchaseId, employeeName, text) {
@@ -88,7 +89,11 @@ export async function purchaseReward(rewardId) {
     .select()
     .single();
 
-  if (purchaseError) return { error: "Ошибка создания заявки" };
+  if (purchaseError) {
+    // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
+    await addCoins(admin, user.id, effectivePrice);
+    return { error: "Не получилось оформить покупку — коины вернули на баланс" };
+  }
 
   await admin.from("transactions").insert({
     user_id: user.id,
@@ -170,7 +175,11 @@ export async function purchaseRewardVariant(variantId) {
     .select()
     .single();
 
-  if (purchaseError) return { error: "Ошибка создания заявки" };
+  if (purchaseError) {
+    // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
+    await addCoins(admin, user.id, price);
+    return { error: "Не получилось оформить покупку — коины вернули на баланс" };
+  }
 
   await admin.from("transactions").insert({
     user_id: user.id,
@@ -214,7 +223,8 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
 
   if (!user) return { error: "Не авторизован" };
 
-  const kzt = Number(kztAmount);
+  // Тенге целые: дробная сумма не влезала в колонку, заявка не создавалась.
+  const kzt = Math.round(Number(kztAmount));
   if (!Number.isFinite(kzt) || kzt <= 0) {
     return { error: "Укажи сумму больше нуля" };
   }
@@ -254,7 +264,11 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     .select()
     .single();
 
-  if (purchaseError) return { error: "Ошибка создания заявки" };
+  if (purchaseError) {
+    // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
+    await addCoins(admin, user.id, priceCoins);
+    return { error: "Не получилось оформить покупку — коины вернули на баланс" };
+  }
 
   await admin.from("transactions").insert({
     user_id: user.id,

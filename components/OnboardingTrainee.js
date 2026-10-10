@@ -151,7 +151,10 @@ function TestOverlay({ block, onClose, onPassed }) {
     if (!allAnswered || busy) return;
     setBusy(true);
     try {
-      const res = await submitOnboardingTest(block.id, block.test.day, answers);
+      // Ответы привязываем к id вопроса, а не к порядковому номеру: порядок
+      // на сервере мог разойтись с порядком на экране.
+      const byId = Object.fromEntries(qs.map((q, k) => [q.id, answers[k]]));
+      const res = await submitOnboardingTest(block.id, block.test.day, byId);
       if (res?.error) {
         setResult({ error: res.error });
       } else {
@@ -509,10 +512,10 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
                 else if (isTest)
                   cls +=
                     " border-2 border-amber-400/70 bg-amber-400/[0.06]" +
-                    (active ? " shadow-[0_0_0_4px_rgba(251,191,36,0.12)]" : "");
+                    (active ? " shadow-[0_0_0_4px_rgb(var(--c-warn)/0.12)]" : "");
                 else if (active)
                   cls +=
-                    " border-2 border-acid-400 bg-dark-800 shadow-[0_0_0_4px_rgba(163,255,18,0.10)]";
+                    " border-2 border-acid-400 bg-dark-800 shadow-[0_0_0_4px_rgb(var(--c-accent)/0.10)]";
                 else cls += " border-dark-600 bg-dark-800";
                 if (popped) cls += " ob-pop";
 

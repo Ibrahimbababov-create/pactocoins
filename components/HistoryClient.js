@@ -48,7 +48,7 @@ function groupByDay(items) {
   return groups;
 }
 
-export default function HistoryClient({ transactions, purchases, pendingCount }) {
+export default function HistoryClient({ transactions, purchases, pendingCount, truncated = false, limit = 300 }) {
   const [tab, setTab] = useState("all");
 
   const filteredTransactions = useMemo(() => {
@@ -190,6 +190,13 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
                 })}
           </div>
         ))}
+
+      {!isEmpty && truncated && (
+        <p className="text-xs text-gray-600 text-center pt-2">
+          Показаны последние {limit} записей. Если нужна старая операция —
+          спроси админа.
+        </p>
+      )}
     </div>
   );
 }
