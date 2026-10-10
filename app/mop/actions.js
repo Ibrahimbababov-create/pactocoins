@@ -301,15 +301,30 @@ export async function submitOnboardingTest(blockId, day, answers) {
 
   const { data: qs } = await admin
     .from("onboarding_questions")
-    .select("correct")
+    .select("id, correct")
     .eq("test_id", test.id)
-    .order("sort");
+    .order("sort")
+    .order("id");
   if (!qs?.length) return { error: "В тесте пока нет вопросов" };
 
+  // Блок должен быть тестом этого же дня — иначе «сдачей» можно было
+  // отметить пройденным любой блок.
+  const { data: block } = await admin
+    .from("onboarding_blocks")
+    .select("kind, day")
+    .eq("id", blockId)
+    .maybeSingle();
+  if (!block || block.kind !== "test" || Number(block.day) !== Number(day)) {
+    return { error: "Тест не найден" };
+  }
+
+  // Новый клиент шлёт { [id вопроса]: ответ }, старый — массив по порядку.
+  const byId = answers && !Array.isArray(answers) && typeof answers === "object";
   const wrong = [];
   let correct = 0;
   qs.forEach((q, i) => {
-    if (Number(answers?.[i]) === q.correct) correct++;
+    const given = byId ? answers[q.id] : answers?.[i];
+    if (given !== undefined && given !== null && Number(given) === q.correct) correct++;
     else wrong.push(i);
   });
   const score = Math.round((correct / qs.length) * 100);
