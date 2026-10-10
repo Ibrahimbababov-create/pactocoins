@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AdminNav from "@/components/AdminNav";
 import AdminSubNav from "@/components/AdminSubNav";
 import AdminSideMenu from "@/components/AdminSideMenu";
@@ -20,7 +21,8 @@ export default async function AdminLayout({ children }) {
     .single();
 
   const isMentor = profile?.role === "mentor";
-  if (profile?.role !== "admin" && !isMentor) redirect("/mop");
+  const isRop = profile?.role === "rop";
+  if (profile?.role !== "admin" && !isMentor && !isRop) redirect("/mop");
 
   const { count: unreadMessages } = await supabase
     .from("messages")
@@ -86,20 +88,28 @@ export default async function AdminLayout({ children }) {
             Pacto<span className="text-acid-400">Coins</span>{" "}
             <span className="text-gray-500 font-normal text-sm">admin</span>
           </h1>
-          <AdminSideMenu
-            unreadMessages={unreadMessages ?? 0}
-            unreadBotMessages={unreadBotMessages ?? 0}
-            pendingSuggestions={pendingSuggestions ?? 0}
-          />
+          {isRop ? (
+            // РОПу админское меню ни к чему — только дорога назад в кабинет.
+            <Link href="/mop" className="text-sm text-gray-400">
+              В кабинет
+            </Link>
+          ) : (
+            <AdminSideMenu
+              unreadMessages={unreadMessages ?? 0}
+              unreadBotMessages={unreadBotMessages ?? 0}
+              pendingSuggestions={pendingSuggestions ?? 0}
+            />
+          )}
         </div>
         <AdminNav
           pendingRequests={isMentor ? requestCounts.join : pendingRequests}
           pendingSuggestions={requestCounts.suggestions}
           onlyOnboarding={isMentor}
+          onlyReconcile={isRop}
         />
       </div>
       <div className="relative max-w-6xl mx-auto px-4 py-6">
-        {!isMentor && <AdminSubNav counts={requestCounts} />}
+        {!isMentor && !isRop && <AdminSubNav counts={requestCounts} />}
         <PageTransition>{children}</PageTransition>
       </div>
     </div>
