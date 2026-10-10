@@ -9,6 +9,7 @@ import { pickSegmentIndex, prizeText, isWheelOpen } from "@/lib/wheel";
 import { notifyUser } from "@/lib/notifyUser";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { spendCoins } from "@/lib/spendCoins";
+import { addCoins } from "@/lib/addCoins";
 
 async function currentUser() {
   const supabase = createClient();
@@ -105,8 +106,8 @@ export async function spinWheel() {
   let spins = profile?.wheel_spins ?? 0;
 
   if (seg.prize_type === "coins" && seg.prize_amount > 0) {
-    balance += seg.prize_amount;
-    await admin.from("users").update({ balance }).eq("id", user.id);
+    const credited = await addCoins(admin, user.id, seg.prize_amount);
+    balance = credited.balance ?? balance + seg.prize_amount;
     await admin.from("transactions").insert({
       user_id: user.id,
       type: "manual_add",

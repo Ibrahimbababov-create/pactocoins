@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
+import { addCoins } from "@/lib/addCoins";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -53,12 +54,7 @@ export async function mergeAccounts(oldUserId, newUserId) {
   }
 
   // Переносим баланс на новый аккаунт
-  await admin
-    .from("users")
-    .update({
-      balance: newUser.balance + oldUser.balance,
-    })
-    .eq("id", newUserId);
+  await addCoins(admin, newUserId, oldUser.balance);
 
   // Переносим всю историю и заявки на новый id — total_earned на обоих
   // аккаунтах пересчитывается сам, триггером на transactions, как только
