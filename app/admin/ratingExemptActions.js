@@ -9,6 +9,7 @@ import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { addCoins } from "@/lib/addCoins";
+import { bonusLabel } from "@/lib/bonusCategories";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -251,7 +252,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       user_id: request.user_id,
       type: "earn",
       amount_coins: coins,
-      description: `Бонус: ${request.category}`,
+      description: `Бонус: ${bonusLabel(request.category)}`,
       created_by: admin_user.id,
       // Бонусы в рейтинг не идут никогда — ни поштучно, ни пачкой.
       rating_exempt: true,
@@ -259,7 +260,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${formatCoins(coins)}`;
+    const bonusText = `✅ Бонус «${bonusLabel(request.category)}» одобрен: +${formatCoins(coins)}`;
     await notifyUser(
       admin,
       request.user_id,
