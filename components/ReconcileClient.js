@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { sendReconcileReminders, saveProjectSheet } from "@/app/admin/reconcileActions";
+import {
+  sendReconcileReminders,
+  saveProjectSheet,
+  listTabsForLink,
+  previewProjectSheet,
+} from "@/app/admin/reconcileActions";
 
 const kzt = (n) => `${Math.round(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
 const col = (i) => {
@@ -15,71 +20,210 @@ const col = (i) => {
   return s;
 };
 
-function SheetEditor({ project, source, failed, onSaved }) {
+const fieldCls =
+  "block w-16 mt-1 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white uppercase";
+
+function ColInput({ label, value, onChange, hint }) {
+  return (
+    <label className="text-[11px] text-gray-500">
+      {label}
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+        maxLength={2}
+        placeholder={hint}
+        className={fieldCls}
+      />
+    </label>
+  );
+}
+
+// Настройка таблицы проекта: ссылка → выбрать лист → колонки → проверить
+// (сервер показывает, как понял строки) → сохранить.
+function SheetEditor({ project, source, failed }) {
   const [link, setLink] = useState(
     source ? `https://docs.google.com/spreadsheets/d/${source.spreadsheetId}/edit` : ""
   );
-  const [dateCol, setDateCol] = useState(source ? col(source.dateCol) : "B");
+  const [tabs, setTabs] = useState(null);
+  const [layout, setLayout] = useState(source?.layout ?? "tabs");
+  const [tab, setTab] = useState(source?.tab ?? "");
+  const [nameCol, setNameCol] = useState(source?.nameCol != null ? col(source.nameCol) : "A");
+  const [dateCol, setDateCol] = useState(
+    source ? (source.dateCol != null ? col(source.dateCol) : "") : "B"
+  );
   const [amountCol, setAmountCol] = useState(source ? col(source.amountCol) : "I");
+  const [startRow, setStartRow] = useState(String(source?.startRow ?? 3));
+  const [preview, setPreview] = useState(null);
   const [msg, setMsg] = useState(null);
   const [pending, start] = useTransition();
+
+  const form = () => ({
+    projectId: project.id,
+    project: source?.project || project.name,
+    link,
+    layout,
+    tab,
+    nameCol,
+    dateCol,
+    amountCol,
+    startRow,
+  });
+
+  function findTabs() {
+    setMsg(null);
+    start(async () => {
+      const res = await listTabsForLink(project.id, link);
+      if (res?.error) return setMsg({ error: res.error });
+      setTabs(res.tabs);
+    });
+  }
+
+  function check() {
+    setMsg(null);
+    setPreview(null);
+    start(async () => {
+      const res = await previewProjectSheet(form());
+      if (res?.error) return setMsg({ error: res.error });
+      if (!res.ok) return setMsg({ error: `Не получилось: ${res.reason}` });
+      setPreview(res);
+    });
+  }
 
   function save() {
     setMsg(null);
     start(async () => {
-      const res = await saveProjectSheet({
-        projectId: project.id,
-        project: source?.project || project.name,
-        link,
-        dateCol,
-        amountCol,
-      });
-      setMsg(res?.error ? { error: res.error } : { ok: "Сохранено" });
-      if (!res?.error) onSaved?.();
+      const res = await saveProjectSheet(form());
+      setMsg(res?.error ? { error: res.error } : { ok: "Сохранено. Сверка пересчитается." });
     });
   }
 
+  const tabOptions = tabs ?? (source?.tab ? [source.tab] : []);
+
   return (
-    <div className="rounded-xl border border-dark-600 bg-dark-900/40 p-3 space-y-2">
+    <div className="rounded-xl border border-dark-600 bg-dark-900/40 p-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="font-semibold">{project.name}</p>
         {!source && <span className="text-[11px] text-gray-500">таблица не указана</span>}
         {source && failed && <span className="text-[11px] text-amber-400">не открылась</span>}
       </div>
-      <input
-        value={link}
-        onChange={(e) => setLink(e.target.value)}
-        placeholder="Ссылка на Google-таблицу этого месяца"
-        className="w-full min-w-0 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
-      />
-      <div className="flex flex-wrap items-end gap-2">
+
+      <div className="flex gap-2">
+        <input
+          value={link}
+          onChange={(e) => {
+            setLink(e.target.value);
+            setTabs(null);
+            setPreview(null);
+          }}
+          placeholder="Ссылка на Google-таблицу"
+          className="flex-1 min-w-0 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+        />
+        <button
+          type="button"
+          onClick={findTabs}
+          disabled={pending || !link.trim()}
+          className="shrink-0 border border-dark-600 rounded-lg px-3 py-2 text-sm text-gray-300 disabled:opacity-50"
+        >
+          Найти листы
+        </button>
+      </div>
+
+      <label className="block text-[11px] text-gray-500">
+        Какие листы считать
+        <select
+          value={layout === "tabs" ? "__tabs__" : tab}
+          onChange={(e) => {
+            setPreview(null);
+            if (e.target.value === "__tabs__") {
+              setLayout("tabs");
+            } else {
+              setLayout("sheet");
+              setTab(e.target.value);
+            }
+          }}
+          className="block w-full mt-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+        >
+          <option value="__tabs__">Каждый лист: отдельный менеджер</option>
+          {tabOptions.map((t) => (
+            <option key={t} value={t}>
+              Лист «{t}»: все продажи тут
+            </option>
+          ))}
+        </select>
+        {!tabs && !source?.tab && (
+          <span className="block mt-1 text-gray-600">
+            Нажми «Найти листы», чтобы выбрать конкретный лист.
+          </span>
+        )}
+      </label>
+
+      <div className="flex flex-wrap items-end gap-3">
+        {layout === "sheet" && (
+          <ColInput label="Имя" value={nameCol} onChange={setNameCol} hint="A" />
+        )}
+        <ColInput
+          label={layout === "sheet" ? "Дата (если есть)" : "Дата"}
+          value={dateCol}
+          onChange={setDateCol}
+          hint="B"
+        />
+        <ColInput label="Сумма" value={amountCol} onChange={setAmountCol} hint="I" />
         <label className="text-[11px] text-gray-500">
-          Колонка даты
+          Данные со строки
           <input
-            value={dateCol}
-            onChange={(e) => setDateCol(e.target.value.toUpperCase())}
-            maxLength={2}
-            className="block w-16 mt-1 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white uppercase"
+            value={startRow}
+            onChange={(e) => setStartRow(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            className="block w-16 mt-1 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white"
           />
         </label>
-        <label className="text-[11px] text-gray-500">
-          Колонка суммы
-          <input
-            value={amountCol}
-            onChange={(e) => setAmountCol(e.target.value.toUpperCase())}
-            maxLength={2}
-            className="block w-16 mt-1 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white uppercase"
-          />
-        </label>
+      </div>
+      {layout === "sheet" && !dateCol && (
+        <p className="text-[11px] text-gray-500">
+          Без колонки даты весь лист считается за текущий месяц.
+        </p>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={check}
+          disabled={pending || !link.trim()}
+          className="flex-1 border border-dark-600 rounded-lg py-2 text-sm text-gray-300 disabled:opacity-50"
+        >
+          Проверить
+        </button>
         <button
           type="button"
           onClick={save}
           disabled={pending || !link.trim()}
-          className="ml-auto bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm disabled:opacity-50"
+          className="flex-1 bg-acid-400 text-black font-bold rounded-lg py-2 text-sm disabled:opacity-50"
         >
           Сохранить
         </button>
       </div>
+
+      {preview && (
+        <div className="rounded-lg border border-dark-600 p-2 text-xs space-y-1">
+          <p className="text-gray-400">
+            За этот месяц: строк {preview.count} · людей {preview.people} · сумма{" "}
+            {kzt(preview.total)}
+            {preview.otherMonths > 0 && ` (ещё ${preview.otherMonths} строк за другие месяцы не считаю)`}
+          </p>
+          {preview.sample.length === 0 && (
+            <p className="text-amber-400">
+              Ни одной строки с суммой. Проверь колонки и строку начала.
+            </p>
+          )}
+          {preview.sample.map((r, i) => (
+            <div key={i} className="flex justify-between gap-2 text-gray-300 tabular-nums">
+              <span className="truncate">{r.name}</span>
+              <span className="shrink-0 text-gray-500">{r.day.split("-").reverse().join(".")}</span>
+              <span className="shrink-0">{kzt(r.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {msg?.error && <p className="text-xs text-red-400">{msg.error}</p>}
       {msg?.ok && <p className="text-xs text-acid-400">{msg.ok}</p>}
     </div>
@@ -132,8 +276,9 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
         {editorOpen && (
           <>
             <p className="text-xs text-gray-500">
-              Каждый месяц вставляй сюда ссылку на новую таблицу проекта. Таблица должна
-              открываться по ссылке. Вкладка = менеджер, данные с 3-й строки.
+              Таблица поменялась? Вставь ссылку, нажми «Найти листы», выбери лист и буквы
+              колонок, потом «Проверить» и «Сохранить». Доступ к таблице: «Все, у кого есть
+              ссылка».
             </p>
             {projects.length === 0 && (
               <p className="text-sm text-gray-500">
@@ -205,13 +350,13 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
                   <p className="font-semibold truncate">{r.user?.name ?? r.sheetName}</p>
                   <p className="text-xs text-gray-500">
                     {r.project}
-                    {r.user && r.user.name !== r.sheetName && ` · во вкладке «${r.sheetName}»`}
+                    {r.user && r.user.name !== r.sheetName && ` · в таблице «${r.sheetName}»`}
                   </p>
                   {!r.user && (
                     <p className="text-xs text-amber-400 mt-0.5">
                       {r.ambiguous.length
                         ? `Не понял, кто это: ${r.ambiguous.join(", ")}`
-                        : "Не нашёл в PactoCoins — переименуй вкладку как в приложении"}
+                        : "Не нашёл в PactoCoins. Напиши имя в таблице как в приложении"}
                     </p>
                   )}
                 </div>

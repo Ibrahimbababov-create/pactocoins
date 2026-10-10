@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { getReconcile, reconcileReminderText, REMIND_MIN_KZT } from "@/lib/reconcile";
 import { getSheetSources, saveSheetSources, spreadsheetIdFrom, colToIndex } from "@/lib/sheetConfig";
 import { notifyUser } from "@/lib/notifyUser";
+import { listSheetTabs, previewSource } from "@/lib/sheetsRevenue";
+import { currentMonthKeyAlmaty } from "@/lib/timezone";
 
 // Кто смотрит сверку. Админ — все проекты (projectIds = null). РОП — только
 // свои проекты (project_rops): видит своих людей, меняет ссылку на таблицу
@@ -54,30 +56,77 @@ export async function sendReconcileReminders(monthKey, userIds = []) {
   return { sent: targets.length };
 }
 
-// Сохранить ссылку на таблицу проекта и буквы колонок (дата, сумма).
-export async function saveProjectSheet({ projectId, project, link, dateCol, amountCol }) {
+// Разобрать настройки из формы в источник. Ошибка — { error }.
+function buildSource({ projectId, project, link, layout, tab, nameCol, dateCol, amountCol, startRow }) {
+  const spreadsheetId = spreadsheetIdFrom(link);
+  if (!spreadsheetId) return { error: "Не похоже на ссылку на Google-таблицу" };
+  const isSheet = layout === "sheet";
+  if (isSheet && !String(tab || "").trim()) return { error: "Выбери лист" };
+  const a = colToIndex(amountCol);
+  if (a == null) return { error: "Колонка суммы — буквой, например I" };
+  const n = isSheet ? colToIndex(nameCol) : null;
+  if (isSheet && n == null) return { error: "Колонка имени — буквой, например A" };
+  const dateEmpty = !String(dateCol || "").trim();
+  const d = dateEmpty ? null : colToIndex(dateCol);
+  if (!dateEmpty && d == null) return { error: "Колонка даты — буквой, например B, или оставь пустой" };
+  if (!isSheet && d == null) return { error: "Когда каждый лист — менеджер, нужна колонка даты" };
+  const row = Math.max(1, Math.min(50, Number(startRow) || 3));
+  return {
+    source: {
+      project: String(project || "").trim() || "Проект",
+      projectId,
+      spreadsheetId,
+      layout: isSheet ? "sheet" : "tabs",
+      tab: isSheet ? String(tab).trim() : null,
+      nameCol: n,
+      dateCol: d,
+      amountCol: a,
+      startRow: row,
+      savedMonth: currentMonthKeyAlmaty(),
+    },
+  };
+}
+
+async function viewerFor(projectId) {
   const viewer = await reconcileViewer();
   if (!viewer) return { error: "Нет доступа" };
   if (viewer.projectIds && !viewer.projectIds.includes(projectId)) {
     return { error: "Это не твой проект" };
   }
+  return { viewer };
+}
 
-  const spreadsheetId = spreadsheetIdFrom(link);
-  if (!spreadsheetId) return { error: "Не похоже на ссылку на Google-таблицу" };
-  const d = colToIndex(dateCol);
-  const a = colToIndex(amountCol);
-  if (d == null || a == null) return { error: "Колонки — буквами, например B и I" };
+// Список листов таблицы — чтобы выбрать нужный, а не вспоминать название.
+export async function listTabsForLink(projectId, link) {
+  const v = await viewerFor(projectId);
+  if (v.error) return v;
+  const id = spreadsheetIdFrom(link);
+  if (!id) return { error: "Не похоже на ссылку на Google-таблицу" };
+  const tabs = await listSheetTabs(id);
+  if (!tabs.length) return { error: "Таблица не открылась. Включи доступ «Все, у кого есть ссылка»." };
+  return { tabs };
+}
+
+// Проверить настройки: как сервер понял строки — до сохранения.
+export async function previewProjectSheet(form) {
+  const v = await viewerFor(form.projectId);
+  if (v.error) return v;
+  const built = buildSource(form);
+  if (built.error) return built;
+  return previewSource(built.source);
+}
+
+// Сохранить таблицу проекта.
+export async function saveProjectSheet(form) {
+  const v = await viewerFor(form.projectId);
+  if (v.error) return v;
+  const built = buildSource(form);
+  if (built.error) return built;
 
   const admin = createAdminClient();
   const { sources } = await getSheetSources(admin);
-  const next = sources.filter((s) => s.projectId !== projectId);
-  next.push({
-    project: String(project || "").trim() || "Проект",
-    projectId,
-    spreadsheetId,
-    dateCol: d,
-    amountCol: a,
-  });
+  const next = sources.filter((s) => s.projectId !== form.projectId);
+  next.push(built.source);
 
   const res = await saveSheetSources(admin, next);
   if (res.error) return { error: res.error };
