@@ -59,6 +59,11 @@ export default async function MorePage() {
       title: "Работа",
       items: [
         role !== "trainee" && {
+          href: "/mop/sales",
+          label: "Аналитика отдела",
+          icon: "chart",
+        },
+        role !== "trainee" && {
           href: "/mop/materials",
           label: "Регламенты и обучение",
           icon: "sparkle",
