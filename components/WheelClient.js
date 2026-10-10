@@ -151,6 +151,9 @@ export default function WheelClient({
               const end = (i + 1) * slice;
               const mid = start + slice / 2;
               const [lx, ly] = polar(mid, R * 0.62);
+              const normalizedMid = ((mid % 360) + 360) % 360;
+              const labelRotation =
+                normalizedMid > 90 && normalizedMid < 270 ? mid + 180 : mid;
               return (
                 <g key={seg.id}>
                   <path
@@ -167,7 +170,7 @@ export default function WheelClient({
                     fontWeight="700"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    transform={`rotate(${mid}, ${lx}, ${ly})`}
+                    transform={`rotate(${labelRotation}, ${lx}, ${ly})`}
                   >
                     {seg.label.length > 16
                       ? seg.label.slice(0, 15) + "…"
