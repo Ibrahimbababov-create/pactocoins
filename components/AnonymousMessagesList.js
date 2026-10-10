@@ -39,6 +39,7 @@ export default function AnonymousMessagesList({ messages, canDelete }) {
               <button
                 onClick={() => handleDelete(m.id)}
                 disabled={isPending && deletingId === m.id}
+                aria-label="Удалить сообщение"
                 className="text-red-400 text-xs shrink-0 disabled:opacity-50"
               >
                 {isPending && deletingId === m.id ? (

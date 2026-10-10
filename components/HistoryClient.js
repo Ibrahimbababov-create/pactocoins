@@ -28,6 +28,7 @@ function dayLabel(dateStr) {
   if (key === todayKey) return "Сегодня";
   if (key === yestKey) return "Вчера";
   return new Date(dateStr).toLocaleDateString("ru-RU", {
+    timeZone: "Asia/Almaty",
     day: "numeric",
     month: "long",
   });
@@ -143,6 +144,7 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
                         <p className="text-xs text-gray-500 tabular-nums">
                           {formatCoins(p.price_coins)} ·{" "}
                           {new Date(p.created_at).toLocaleTimeString("ru-RU", {
+                            timeZone: "Asia/Almaty",
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
@@ -169,6 +171,7 @@ export default function HistoryClient({ transactions, purchases, pendingCount })
                         </p>
                         <p className="text-xs text-gray-600">
                           {new Date(t.created_at).toLocaleTimeString("ru-RU", {
+                            timeZone: "Asia/Almaty",
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
