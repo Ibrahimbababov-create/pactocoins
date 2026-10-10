@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { assignMopToMe, unassignMop, graduateTrainee } from "@/app/mop/actions";
 import Icon from "@/components/Icon";
+import { plural } from "@/lib/plural";
 
 function TraineeProgress({ ob }) {
   if (!ob) return null;
@@ -30,7 +31,19 @@ function TraineeProgress({ ob }) {
   );
 }
 
-export default function TeamManageClient({ mine = [], others = [] }) {
+const kzt = (n) => `${(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
+
+function lastPaidLabel(days) {
+  if (days == null) return "за 4 месяца оплат нет";
+  if (days === 0) return "последняя оплата сегодня";
+  if (days === 1) return "последняя оплата вчера";
+  return `последняя оплата ${days} ${plural(days, "день", "дня", "дней")} назад`;
+}
+
+// Неделя без оплат — повод РОПу поговорить с человеком.
+const QUIET_DAYS = 7;
+
+export default function TeamManageClient({ mine = [], others = [], monthLabel = "" }) {
   const [isPending, start] = useTransition();
   const [msg, setMsg] = useState(null);
   const [pick, setPick] = useState("");
@@ -59,7 +72,8 @@ export default function TeamManageClient({ mine = [], others = [] }) {
     });
   }
 
-  function remove(id) {
+  function remove(id, name) {
+    if (!window.confirm(`Убрать ${name} из команды?`)) return;
     setMsg(null);
     start(async () => {
       const res = await unassignMop(id);
@@ -69,6 +83,30 @@ export default function TeamManageClient({ mine = [], others = [] }) {
 
   return (
     <div className="space-y-5">
+      {mine.length > 0 && (
+        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+          <p className="text-xs text-gray-500">Выручка команды · {monthLabel}</p>
+          <p className="font-display text-3xl font-bold tabular-nums mt-1">
+            {kzt(mine.reduce((s, m) => s + (m.month_kzt ?? 0), 0))}
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            Оплаты есть у {mine.filter((m) => m.month_kzt > 0).length} из {mine.length}
+            {(() => {
+              const quiet = mine.filter(
+                (m) => m.role !== "trainee" && (m.days_since_paid == null || m.days_since_paid >= QUIET_DAYS)
+              ).length;
+              return quiet > 0 ? ` · неделю без оплат: ${quiet}` : "";
+            })()}
+          </p>
+          {mine.some((m) => m.pending > 0) && (
+            <p className="text-xs text-amber-400 mt-2">
+              Ждут одобрения: {mine.reduce((s, m) => s + m.pending, 0)}{" "}
+              {plural(mine.reduce((s, m) => s + m.pending, 0), "заявка", "заявки", "заявок")}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
         <p className="text-xs text-gray-400">
           В команде ({mine.length})
@@ -76,7 +114,10 @@ export default function TeamManageClient({ mine = [], others = [] }) {
         {mine.length === 0 && (
           <p className="text-sm text-gray-500">Пока никого.</p>
         )}
-        {mine.map((m) => (
+        {mine.map((m) => {
+          const quiet =
+            m.role !== "trainee" && (m.days_since_paid == null || m.days_since_paid >= QUIET_DAYS);
+          return (
           <div
             key={m.id}
             className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between gap-3"
@@ -90,9 +131,21 @@ export default function TeamManageClient({ mine = [], others = [] }) {
                   </span>
                 )}
               </p>
+              <p className="text-sm tabular-nums mt-0.5">
+                <span className="font-bold">{kzt(m.month_kzt)}</span>
+                <span className="text-gray-500"> за месяц</span>
+                {m.month_deals > 0 && (
+                  <span className="text-gray-500">
+                    {" "}· {m.month_deals} {plural(m.month_deals, "оплата", "оплаты", "оплат")}
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-gray-500 tabular-nums">
-                за месяц: {(m.month_earned ?? 0).toLocaleString("ru-RU")} ·
-                всего: {(m.total_earned ?? 0).toLocaleString("ru-RU")}
+                за неделю: {kzt(m.week_kzt)}
+              </p>
+              <p className={`text-xs mt-0.5 ${quiet ? "text-amber-400" : "text-gray-600"}`}>
+                {lastPaidLabel(m.days_since_paid)}
+                {m.pending > 0 && ` · ждёт одобрения: ${m.pending}`}
               </p>
               {m.role === "trainee" && <TraineeProgress ob={m.onboarding} />}
             </div>
@@ -108,7 +161,7 @@ export default function TeamManageClient({ mine = [], others = [] }) {
                 </button>
               )}
               <button
-                onClick={() => remove(m.id)}
+                onClick={() => remove(m.id, m.name)}
                 disabled={isPending}
                 className="text-red-400 text-sm px-2 py-1"
               >
@@ -116,7 +169,8 @@ export default function TeamManageClient({ mine = [], others = [] }) {
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
