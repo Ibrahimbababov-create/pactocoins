@@ -5,6 +5,8 @@ import RulesAccordion from "@/components/RulesAccordion";
 import ReminderSettings from "@/components/ReminderSettings";
 import NotificationSettings from "@/components/NotificationSettings";
 import RopPicker from "@/components/RopPicker";
+import ThemePicker from "@/components/ThemePicker";
+import { themeOrDefault } from "@/lib/themes";
 
 export default async function SettingsPage() {
   const supabase = createClient();
@@ -15,7 +17,7 @@ export default async function SettingsPage() {
   const { data: profile } = await supabase
     .from("users")
     .select(
-      "name, role, rop_id, reminder_enabled, reminder_time, notify_requests, notify_shop, notify_goal, notify_rating"
+      "name, role, rop_id, theme, reminder_enabled, reminder_time, notify_requests, notify_shop, notify_goal, notify_rating"
     )
     .eq("id", user.id)
     .single();
@@ -44,6 +46,8 @@ export default async function SettingsPage() {
       {(profile?.role === "mop" || profile?.role === "trainee") && (
         <RopPicker rops={rops} currentRopId={profile?.rop_id} />
       )}
+
+      <ThemePicker current={themeOrDefault(profile?.theme)} />
 
       <NotificationSettings prefs={profile ?? {}} />
 

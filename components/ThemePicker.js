@@ -81,9 +81,7 @@ export default function ThemePicker({ current = "brass" }) {
         })}
       </div>
 
-      <p className="text-xs text-gray-600 mt-3">
-        Меняется только у тебя. Сотрудникам темы откроем со второго уровня.
-      </p>
+      <p className="text-xs text-gray-600 mt-3">Меняется только у тебя.</p>
 
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
     </div>
