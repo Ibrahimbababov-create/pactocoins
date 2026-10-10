@@ -238,6 +238,7 @@ export default async function MopDashboard() {
         goal={currentGoal}
         balance={profile?.balance ?? 0}
         coinRate={profile?.coin_rate_multiplier ?? 1}
+        monthKzt={monthTier?.value ?? 0}
         suggestion={nextReward}
       />
 
@@ -252,7 +253,10 @@ export default async function MopDashboard() {
       )}
 
       {/* Записать выручку / Бонус */}
-      <RequestActions />
+      <RequestActions
+        multiplier={profile?.coin_rate_multiplier ?? 1}
+        monthKzt={monthTier?.value ?? 0}
+      />
 
       {/* Заявки в ожидании — янтарная точка вместо цветной плашки */}
       {hasPending && (
