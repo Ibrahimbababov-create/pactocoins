@@ -238,6 +238,7 @@ export default async function MopDashboard() {
         goal={currentGoal}
         balance={profile?.balance ?? 0}
         coinRate={profile?.coin_rate_multiplier ?? 1}
+        monthKzt={monthTier?.value ?? 0}
         suggestion={nextReward}
       />
 
