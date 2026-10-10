@@ -8,7 +8,7 @@ import { useState } from "react";
 export default function CancelWithReason({
   onCancel,
   disabled = false,
-  placeholder = "💬 Причина отмены сотруднику (необязательно)",
+  placeholder = "Причина отмены сотруднику (необязательно)",
   label = "Отменить одобрение",
 }) {
   const [reason, setReason] = useState("");

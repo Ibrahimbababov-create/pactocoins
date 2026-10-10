@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { deleteAnonymousMessage } from "@/app/messages/anonymousActions";
+import Icon from "@/components/Icon";
 
 export default function AnonymousMessagesList({ messages, canDelete }) {
   const [isPending, startTransition] = useTransition();
@@ -40,7 +41,11 @@ export default function AnonymousMessagesList({ messages, canDelete }) {
                 disabled={isPending && deletingId === m.id}
                 className="text-red-400 text-xs shrink-0 disabled:opacity-50"
               >
-                {isPending && deletingId === m.id ? "..." : "🗑"}
+                {isPending && deletingId === m.id ? (
+                  "..."
+                ) : (
+                  <Icon name="trash" className="w-4 h-4" />
+                )}
               </button>
             )}
           </div>

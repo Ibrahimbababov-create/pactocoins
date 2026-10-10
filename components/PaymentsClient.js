@@ -171,7 +171,7 @@ export default function PaymentsClient({ employees, initialRows }) {
                 оплата от {formatDateTimeAlmaty(r.earned_at || r.created_at)}
               </p>
               {r.comment && (
-                <p className="text-xs text-gray-500 mt-1">💬 {r.comment}</p>
+                <p className="text-xs text-gray-500 mt-1">{r.comment}</p>
               )}
             </div>
 

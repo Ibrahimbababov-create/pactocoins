@@ -442,8 +442,9 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                     {u.month_earned.toLocaleString("ru-RU")}
                   </p>
                   {u.goal ? (
-                    <span className="inline-block mt-1.5 text-xs bg-acid-400/10 text-acid-400 px-2 py-0.5 rounded-full">
-                      🎯 {u.goal.rewards?.title ?? "награда"} ·{" "}
+                    <span className="inline-flex items-center gap-1 mt-1.5 text-xs bg-acid-400/10 text-acid-400 px-2 py-0.5 rounded-full">
+                      <Icon name="target" className="w-3 h-3 shrink-0" />
+                      {u.goal.rewards?.title ?? "награда"} ·{" "}
                       {Math.min(
                         100,
                         Math.round((u.balance / u.goal.target_amount) * 100)
@@ -481,9 +482,10 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                     <button
                       onClick={() => handleGraduate(u.id, u.name)}
                       disabled={isPending}
-                      className="text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
+                      className="flex items-center gap-1 text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
                     >
-                      🎓 Допустить
+                      <Icon name="award" className="w-3.5 h-3.5" />
+                      Допустить
                     </button>
                   )}
                   <button
