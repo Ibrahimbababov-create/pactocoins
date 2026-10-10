@@ -23,6 +23,7 @@ import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { lastWeekRangeAlmaty, lastMonthRangeAlmaty } from "@/lib/timezone";
 import { renderRevenueCommand } from "@/lib/revenueTop";
+import { syncBotCommands } from "@/lib/botCommands";
 
 export const maxDuration = 30;
 
@@ -504,6 +505,26 @@ export async function POST(request) {
     }
     if (REPORT_CMDS.has(cmd)) {
       await handleReportCommand(msg, cmd);
+      return NextResponse.json({ ok: true });
+    }
+    // Админ обновляет меню команд бота сразу, не дожидаясь ночного крона.
+    if (cmd === "/syncmenu") {
+      const { data: caller } = await createAdminClient()
+        .from("users")
+        .select("role")
+        .eq("telegram_id", msg.from?.id)
+        .maybeSingle();
+      if (caller?.role === "admin") {
+        const res = await syncBotCommands();
+        await sendTelegramMessage(
+          msg.chat.id,
+          res?.ok
+            ? `Меню обновлено: ${res.after.map((c) => "/" + c).join(", ")}`
+            : `Не получилось обновить меню: ${escapeHtml(res?.error || "Telegram не ответил")}`,
+          undefined,
+          msg.message_thread_id
+        );
+      }
       return NextResponse.json({ ok: true });
     }
     // Админ проверяет, как выглядит приветствие новичка: бот шлёт его

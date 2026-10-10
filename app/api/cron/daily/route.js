@@ -6,6 +6,7 @@ import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { sendTelegramDocument } from "@/lib/telegramBot";
 import { cleanupOldWelcomes } from "@/lib/groupWelcome";
 import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
+import { syncBotCommands } from "@/lib/botCommands";
 import { createAdminClient } from "@/lib/supabase-admin";
 import {
   isMondayInAlmaty,
@@ -42,6 +43,13 @@ export async function GET(request) {
     summary.welcomesDeleted = await cleanupOldWelcomes(20);
   } catch (err) {
     console.error("[cron] welcome cleanup failed:", err);
+  }
+
+  // Меню команд бота держим в актуальном виде (lib/botCommands.js).
+  try {
+    summary.botCommands = (await syncBotCommands())?.ok ?? false;
+  } catch (err) {
+    console.error("[cron] bot commands sync failed:", err);
   }
 
   try {
