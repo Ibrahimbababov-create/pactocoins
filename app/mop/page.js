@@ -16,7 +16,7 @@ import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 import { getMonthEarned } from "@/lib/earnings";
 import EarningsMiniChart from "@/components/EarningsMiniChart";
-import { recentDaysAlmaty, almatyDayKey } from "@/lib/timezone";
+import { recentDaysAlmaty, almatyDayKey, formatPaymentDay } from "@/lib/timezone";
 import Icon from "@/components/Icon";
 import { effectiveRole } from "@/lib/viewAs";
 import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
@@ -267,9 +267,10 @@ export default async function MopDashboard() {
                 <p className="font-semibold truncate">
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ ожидает подтверждения
                 </p>
-                {r.comment && (
-                  <p className="text-xs text-gray-500 truncate">{r.comment}</p>
-                )}
+                <p className="text-xs text-gray-500 truncate">
+                  оплата за {formatPaymentDay(r.earned_at || r.created_at)}
+                  {r.comment ? ` · ${r.comment}` : ""}
+                </p>
               </div>
             </div>
           ))}
