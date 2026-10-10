@@ -4,6 +4,7 @@ import Link from "next/link";
 import RequestActions from "@/components/RequestActions";
 import BirthdayProfile from "@/components/BirthdayProfile";
 import GoalWidget from "@/components/GoalWidget";
+import WithdrawRequestButton from "@/components/WithdrawRequestButton";
 import FlashSaleCard from "@/components/FlashSaleCard";
 import TeamFeed from "@/components/TeamFeed";
 import LiveBalance from "@/components/LiveBalance";
@@ -276,6 +277,7 @@ export default async function MopDashboard() {
                   {r.comment ? ` · ${r.comment}` : ""}
                 </p>
               </div>
+              <WithdrawRequestButton kind="revenue" id={r.id} />
             </div>
           ))}
 
@@ -296,6 +298,7 @@ export default async function MopDashboard() {
                   {r.comment ? ` · ${r.comment}` : ""}
                 </p>
               </div>
+              <WithdrawRequestButton kind="bonus" id={r.id} />
             </div>
           ))}
         </div>
