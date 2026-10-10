@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useTransition, useState } from "react";
 import { formatDateTimeAlmaty, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 import CancelWithReason from "@/components/CancelWithReason";
@@ -228,7 +230,7 @@ export default function RevenueRequestsClient({
                 <p className="text-sm">
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ →{" "}
                   <span className="text-acid-400 font-bold">
-                    {r.calculated_coins.toLocaleString("ru-RU")} коинов
+                    {formatCoins(r.calculated_coins)}
                   </span>
                 </p>
                 {r.comment && (
@@ -340,7 +342,7 @@ export default function RevenueRequestsClient({
                   </p>
                   <p className="text-sm text-gray-500">
                     {r.amount_kzt.toLocaleString("ru-RU")} ₸ ·{" "}
-                    {r.calculated_coins.toLocaleString("ru-RU")} коинов
+                    {formatCoins(r.calculated_coins)}
                   </p>
                   <p className="text-xs text-gray-600">
                     оплата {formatPaymentDay(r.earned_at || r.created_at)} ·

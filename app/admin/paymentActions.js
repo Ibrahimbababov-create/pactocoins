@@ -1,5 +1,7 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
@@ -111,7 +113,7 @@ export async function cancelPayment(requestId, reason) {
   }
 
   let text = `⚠️ Оплата ${money(request.amount_kzt)} ₸ отменена${
-    coins ? ` — ${coins} коинов списаны обратно` : ""
+    coins ? ` — ${formatCoins(coins)} списаны обратно` : ""
   }`;
   if (reason?.trim()) text += `\n\n💬 ${escapeHtml(reason.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");
@@ -195,7 +197,7 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
 
   let text = `✏️ Оплата ${money(request.amount_kzt)} ₸ исправлена на ${money(newAmount)} ₸`;
   if (diff !== 0) {
-    text += diff > 0 ? ` — начислили ещё ${diff} коинов` : ` — списали ${-diff} коинов`;
+    text += diff > 0 ? ` — начислили ещё ${formatCoins(diff)}` : ` — списали ${formatCoins(-diff)}`;
   }
   if (reason?.trim()) text += `\n\n💬 ${escapeHtml(reason.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");

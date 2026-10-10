@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState } from "react";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
@@ -65,7 +67,7 @@ export default function RulesAccordion() {
                       ? "крутка колеса"
                       : meta.amount === null
                       ? "по ситуации"
-                      : `${meta.amount.toLocaleString("ru-RU")} коинов`}
+                      : `${formatCoins(meta.amount)}`}
                   </span>
                 </div>
               ))}

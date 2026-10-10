@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import { contributeToFund } from "@/app/funds/actions";
 
@@ -113,7 +115,7 @@ export default function FundsClient({ funds, contributions, balance }) {
               </div>
               <p className="text-xs text-gray-500 tabular-nums">
                 {current.toLocaleString("ru-RU")} /{" "}
-                {fund.goal_coins.toLocaleString("ru-RU")} коинов ({pct}%)
+                {formatCoins(fund.goal_coins)} ({pct}%)
               </p>
             </div>
 

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { sendTelegramMessage } from "@/lib/telegramBot";
+import { escapeHtml } from "@/lib/notifyUser";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { paymentDateToIso, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 
@@ -37,6 +38,12 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed,
     .eq("id", user.id)
     .single();
 
+  // Гость — общий демо-аккаунт: его заявки ушли бы в настоящую очередь
+  // одобрения и в рабочую группу.
+  if (profile?.is_guest) {
+    return { error: "В гостевом режиме заявки на выручку не отправляются" };
+  }
+
   // Это только оценка для отображения — итоговая сумма коинов
   // пересчитывается заново в момент одобрения (на случай если
   // множитель поменяется, пока заявка висит на рассмотрении).
@@ -63,13 +70,13 @@ export async function submitRevenueRequest(amountKzt, comment, receiptConfirmed,
   if (groupChatId) {
     const text =
       `💰 <b>Новая заявка на выручку</b>\n\n` +
-      `От: <b>${profile?.name ?? "МОП"}</b>\n` +
+      `От: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n` +
       `Сумма: ${amountKzt.toLocaleString("ru-RU")} ₸\n` +
       `Коинов: ${coins}\n` +
       `Дата оплаты: ${formatPaymentDay(earnedAt)}` +
       (isBackdated ? " ⚠️ задним числом" : "") +
       `\n` +
-      (comment ? `Комментарий: ${comment}\n` : "");
+      (comment ? `Комментарий: ${escapeHtml(comment)}\n` : "");
 
     const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID
       ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)

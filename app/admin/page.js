@@ -1,3 +1,4 @@
+import { formatCoins } from "@/lib/plural";
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import ResetButton from "@/components/ResetButton";
@@ -159,7 +160,7 @@ export default async function AdminOverview({ searchParams }) {
       created_at: nextRevenue[0].created_at,
       name: nextRevenue[0].users?.name,
       title: `${nextRevenue[0].amount_kzt.toLocaleString("ru-RU")} ₸`,
-      sub: `→ ${nextRevenue[0].calculated_coins ?? "?"} коинов`,
+      sub: `→ ${formatCoins(nextRevenue[0].calculated_coins ?? "?")}`,
       comment: nextRevenue[0].comment,
     },
     nextBonus?.[0] && {
@@ -168,7 +169,7 @@ export default async function AdminOverview({ searchParams }) {
       created_at: nextBonus[0].created_at,
       name: nextBonus[0].users?.name,
       title: BONUS_CATEGORIES[nextBonus[0].category]?.label ?? nextBonus[0].category,
-      sub: nextBonus[0].amount_coins ? `${nextBonus[0].amount_coins} коинов` : null,
+      sub: nextBonus[0].amount_coins ? `${formatCoins(nextBonus[0].amount_coins)}` : null,
       comment: nextBonus[0].comment,
     },
     nextPurchase?.[0] && {
@@ -177,7 +178,7 @@ export default async function AdminOverview({ searchParams }) {
       created_at: nextPurchase[0].created_at,
       name: nextPurchase[0].users?.name,
       title: nextPurchase[0].rewards?.title ?? "награда",
-      sub: `${nextPurchase[0].price_coins.toLocaleString("ru-RU")} коинов${
+      sub: `${formatCoins(nextPurchase[0].price_coins)}${
         nextPurchase[0].variant_label ? ` — ${nextPurchase[0].variant_label}` : ""
       }`,
       comment: nextPurchase[0].comment,

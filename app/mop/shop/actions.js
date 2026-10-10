@@ -1,5 +1,7 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
@@ -19,7 +21,7 @@ async function notifyPurchaseGroup(admin, purchaseId, employeeName, text) {
 
   const tgResult = await sendTelegramMessage(
     groupChatId,
-    `🛍 <b>Новая покупка</b>\n\nОт: <b>${employeeName}</b>\n${text}`,
+    `🛍 <b>Новая покупка</b>\n\nОт: <b>${escapeHtml(employeeName)}</b>\n${text}`,
     {
       inline_keyboard: [
         [
@@ -110,7 +112,7 @@ export async function purchaseReward(rewardId) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title}\nЦена: ${effectivePrice} коинов`
+    `Награда: ${reward.title}\nЦена: ${formatCoins(effectivePrice)}`
   );
 
   revalidatePath("/mop");
@@ -192,7 +194,7 @@ export async function purchaseRewardVariant(variantId) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title} — ${variant.label}\nЦена: ${price} коинов`
+    `Награда: ${reward.title} — ${variant.label}\nЦена: ${formatCoins(price)}`
   );
 
   revalidatePath("/mop");
@@ -276,7 +278,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${priceCoins} коинов`
+    `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${formatCoins(priceCoins)}`
   );
 
   revalidatePath("/mop");
@@ -327,7 +329,7 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
       : undefined;
     await sendTelegramMessage(
       groupChatId,
-      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${price} коинов${
+      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${formatCoins(price)}${
         description ? `\n${escapeHtml(description)}` : ""
       }\n\nПосмотреть: https://pactocoins.vercel.app/admin/reward-suggestions`,
       undefined,

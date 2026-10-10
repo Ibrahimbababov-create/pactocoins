@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition, useRef } from "react";
 import {
   createFund,
@@ -226,7 +228,7 @@ export default function AdminFundsClient({ funds, contributions }) {
                       <p className="font-semibold truncate">{fund.title}</p>
                       <p className="text-xs text-gray-500">
                         {current.toLocaleString("ru-RU")} /{" "}
-                        {fund.goal_coins.toLocaleString("ru-RU")} коинов
+                        {formatCoins(fund.goal_coins)}
                       </p>
                     </div>
                   </div>

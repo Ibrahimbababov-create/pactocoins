@@ -1,3 +1,4 @@
+import { formatCoins, spinsNom } from "@/lib/plural";
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import RequestActions from "@/components/RequestActions";
@@ -193,7 +194,7 @@ export default async function MopDashboard() {
           <div>
             <p className="font-bold text-acid-400">
               У тебя {profile.wheel_spins}{" "}
-              {profile.wheel_spins === 1 ? "крутка" : "крутки"} на колесе фортуны
+              {spinsNom(profile.wheel_spins)} на колесе фортуны
             </p>
             <p className="text-sm text-gray-400 mt-0.5">Нажми, чтобы крутить →</p>
           </div>
@@ -267,7 +268,7 @@ export default async function MopDashboard() {
                 <p className="text-xs text-gray-500 truncate">
                   {BONUS_CATEGORIES[r.category]?.spin
                     ? "крутка на колесе"
-                    : `${r.amount_coins} коинов`}
+                    : `${formatCoins(r.amount_coins)}`}
                   {r.comment ? ` · ${r.comment}` : ""}
                 </p>
               </div>

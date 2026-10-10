@@ -41,6 +41,13 @@ export async function sendAnonymousMessage(content) {
   if (!user) return { error: "Не авторизован" };
   if (!content || !content.trim()) return { error: "Пустое сообщение" };
 
+  const { data: me } = await supabase
+    .from("users")
+    .select("is_guest")
+    .eq("id", user.id)
+    .single();
+  if (me?.is_guest) return { error: "В гостевом режиме сообщения не отправляются" };
+
   const { error } = await supabase.from("anonymous_messages").insert({
     sender_id: user.id,
     content: content.trim(),

@@ -695,7 +695,7 @@ export async function POST(request) {
     await editTelegramMessage(
       chatId,
       messageId,
-      `${callback.message.text}\n\n<b>${resultLabel}</b> (${actorName})`
+      `${escapeHtml(callback.message.text ?? "")}\n\n<b>${resultLabel}</b> (${escapeHtml(actorName)})`
     );
 
     await answerCallbackQuery(callback.id, resultLabel);

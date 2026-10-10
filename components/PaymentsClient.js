@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
@@ -164,7 +166,7 @@ export default function PaymentsClient({ employees, initialRows }) {
                 {money(r.amount_kzt)} ₸
                 <span className="text-sm text-gray-500 font-sans">
                   {" "}
-                  · {r.credited_coins ?? r.calculated_coins ?? 0} коинов
+                  · {formatCoins(r.credited_coins ?? r.calculated_coins ?? 0)}
                 </span>
               </p>
               <p className="text-xs text-gray-600">

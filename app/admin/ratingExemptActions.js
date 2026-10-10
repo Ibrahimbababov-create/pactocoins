@@ -1,5 +1,7 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
@@ -72,7 +74,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
     await notifyUser(
       admin,
       userId,
-      `🏆 ${reason || `Бонус за топ ${periodPhrase}`} — +${amt} коинов`,
+      `🏆 ${reason || `Бонус за топ ${periodPhrase}`} — +${formatCoins(amt)}`,
       "notify_requests"
     );
 
@@ -91,7 +93,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
       ? Number(process.env.TELEGRAM_ANNOUNCE_THREAD_ID)
       : undefined;
     const lines = awarded
-      .map((a) => `${a.medal} <b>${a.name}</b> — +${a.amt} коинов`)
+      .map((a) => `${a.medal} <b>${escapeHtml(a.name)}</b> — +${formatCoins(a.amt)}`)
       .join("\n");
     try {
       await sendTelegramMessage(
@@ -256,7 +258,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${coins} коинов`;
+    const bonusText = `✅ Заявка на бонус одобрена — +${formatCoins(coins)}`;
     await notifyUser(
       admin,
       request.user_id,

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import {
@@ -207,7 +209,7 @@ export default function WheelAdminClient({
         <p className="font-bold">Экономика колеса</p>
         <p className="text-sm mt-1">
           В среднем одна крутка стоит компании{" "}
-          <span className="text-acid-400 font-bold">{ev} коинов</span>. Держи это
+          <span className="text-acid-400 font-bold">{formatCoins(ev)}</span>. Держи это
           ниже ценности действия, за которое выдаёшь крутку.
         </p>
         <div className="mt-3 flex flex-wrap items-end gap-3">

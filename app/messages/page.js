@@ -23,7 +23,7 @@ export default async function MessagesListPage() {
 
   const { data: allUsers } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, email, is_active, is_guest")
     .neq("id", user.id);
 
   const { data: messages } = await supabase
@@ -43,7 +43,15 @@ export default async function MessagesListPage() {
     }
   });
 
+  // Тестовые аккаунты и гостя не показываем никогда; уволенных — только
+  // если с ними уже была переписка, чтобы не потерять историю.
   const contacts = (allUsers ?? [])
+    .filter(
+      (u) =>
+        !u.is_guest &&
+        !u.email?.endsWith(".test@pactocoins.local") &&
+        (u.is_active || threads[u.id])
+    )
     .map((u) => ({
       ...u,
       lastMessage: threads[u.id]?.lastMessage ?? null,

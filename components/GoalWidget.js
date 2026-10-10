@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import AnimatedNumber from "@/components/AnimatedNumber";
@@ -105,7 +107,7 @@ export default function GoalWidget({ goal, balance }) {
             </span>
             <span className="text-gray-500">
               {" "}
-              / {goal.target_amount.toLocaleString("ru-RU")} коинов
+              / {formatCoins(goal.target_amount)}
             </span>
           </p>
         </div>
@@ -123,7 +125,7 @@ export default function GoalWidget({ goal, balance }) {
         <p className="text-xs text-gray-500">
           {achieved
             ? "Можно выбрать новую цель"
-            : `Осталось: ${remaining.toLocaleString("ru-RU")} коинов`}
+            : `Осталось: ${formatCoins(remaining)}`}
         </p>
         <Link
           href="/mop/shop"

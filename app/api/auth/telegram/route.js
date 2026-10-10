@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { validateTelegramInitData, derivePassword } from "@/lib/telegram";
 import { sendTelegramMessage } from "@/lib/telegramBot";
+import { escapeHtml } from "@/lib/notifyUser";
 
 // Отдельная группа/топик, куда падают заявки на регистрацию новых
 // аккаунтов — не то же самое, что общая группа заявок на выручку.
@@ -111,9 +112,9 @@ export async function POST(request) {
 
     const tgResult = await sendTelegramMessage(
       JOIN_REQUEST_CHAT_ID,
-      `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${name}</b>\nTelegram: ${
+      `🙋 <b>Заявка на регистрацию</b>\n\nИмя: <b>${escapeHtml(name)}</b>\nTelegram: ${
         tgUser.username ? `@${tgUser.username}` : `id ${tgUser.id}`
-      }${leadName ? `\n${leadRole === "mentor" ? "Наставник" : "Руководитель"}: ${leadName}` : ""}${
+      }${leadName ? `\n${leadRole === "mentor" ? "Наставник" : "Руководитель"}: ${escapeHtml(leadName)}` : ""}${
         cleanBirthday ? `\nДР: ${cleanBirthday}` : ""
       }`,
       {

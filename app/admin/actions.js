@@ -1,5 +1,7 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
@@ -273,7 +275,7 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   await checkAndApplyLevelUp(request.user_id, admin);
 
-  const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} коинов`;
+  const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${formatCoins(coins)}`;
   await notifyUser(
     admin,
     request.user_id,
@@ -384,7 +386,7 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
 
   let text = `⚠️ Заявка на выручку ${request.amount_kzt.toLocaleString(
     "ru-RU"
-  )} ₸ отменена (одобрена по ошибке)${coins ? ` — ${coins} коинов списаны обратно` : ""}`;
+  )} ₸ отменена (одобрена по ошибке)${coins ? ` — ${formatCoins(coins)} списаны обратно` : ""}`;
   if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");
 
@@ -459,13 +461,13 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
       .eq("id", purchase.reward_id)
       .single();
     const title = reward?.title ?? "награда";
-    const priceStr = purchase.price_coins?.toLocaleString("ru-RU") ?? "";
-
     let text =
       newStatus === "approved"
         ? `✅ Покупка «${title}» одобрена`
         : `❌ Покупка «${title}» отклонена${
-            priceStr ? ` — ${priceStr} коинов вернулись на баланс` : ""
+            purchase.price_coins
+              ? ` — ${formatCoins(purchase.price_coins)} вернулись на баланс`
+              : ""
           }`;
     if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
 
@@ -681,7 +683,7 @@ export async function approveBonusRequest(requestId, comment) {
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${coins} коинов`;
+    const bonusText = `✅ Заявка на бонус одобрена — +${formatCoins(coins)}`;
     await notifyUser(
       admin,
       request.user_id,
@@ -815,7 +817,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
   let text = spinOnly
     ? "⚠️ Заявка на бонус отменена (одобрена по ошибке) — крутка на колесе списана обратно"
     : `⚠️ Заявка на бонус отменена (одобрена по ошибке)${
-        coins ? ` — ${coins} коинов списаны обратно` : ""
+        coins ? ` — ${formatCoins(coins)} списаны обратно` : ""
       }`;
   if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");

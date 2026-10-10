@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useTransition, useState } from "react";
 import CancelWithReason from "@/components/CancelWithReason";
 import { loadRequestHistory } from "@/app/admin/historyActions";
@@ -401,7 +403,7 @@ export default function BonusRequestsClient({
                 <p className="text-sm">
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category} →{" "}
                   <span className="text-acid-400 font-bold">
-                    {r.amount_coins.toLocaleString("ru-RU")} коинов
+                    {formatCoins(r.amount_coins)}
                   </span>
                 </p>
                 {r.comment && (
@@ -456,7 +458,7 @@ export default function BonusRequestsClient({
                   </p>
                   <p className="text-sm text-gray-500">
                     {BONUS_CATEGORIES[r.category]?.label ?? r.category} ·{" "}
-                    {r.amount_coins.toLocaleString("ru-RU")} коинов
+                    {formatCoins(r.amount_coins)}
                   </p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>

@@ -1,10 +1,13 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { sendTelegramMessage } from "@/lib/telegramBot";
+import { escapeHtml } from "@/lib/notifyUser";
 
 const MAX_CUSTOM_AMOUNT = 20000;
 
@@ -27,7 +30,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
       return { error: "Укажи количество коинов" };
     }
     if (parsed > MAX_CUSTOM_AMOUNT) {
-      return { error: `Максимум ${MAX_CUSTOM_AMOUNT} коинов за раз` };
+      return { error: `Максимум ${formatCoins(MAX_CUSTOM_AMOUNT)} за раз` };
     }
     amount = Math.floor(parsed);
 
@@ -38,9 +41,13 @@ export async function submitBonusRequest(category, comment, customAmount) {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name")
+    .select("name, is_guest")
     .eq("id", user.id)
     .single();
+
+  if (profile?.is_guest) {
+    return { error: "В гостевом режиме бонусы не запрашиваются" };
+  }
 
   const { data: inserted, error } = await supabase
     .from("bonus_requests")
@@ -61,10 +68,10 @@ export async function submitBonusRequest(category, comment, customAmount) {
   if (groupChatId) {
     const text =
       `🎯 <b>Новая заявка на бонус</b>\n\n` +
-      `От: <b>${profile?.name ?? "МОП"}</b>\n` +
+      `От: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n` +
       `Повод: ${meta.label}\n` +
       (meta.spin ? `Награда: 🎡 крутка на колесе\n` : `Коинов: ${amount}\n`) +
-      (comment ? `Комментарий: ${comment}\n` : "");
+      (comment ? `Комментарий: ${escapeHtml(comment)}\n` : "");
 
     const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID
       ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)
