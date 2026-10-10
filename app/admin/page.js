@@ -21,9 +21,10 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { forecastRevenueCoins } from "@/lib/revenueForecast";
 
 const QUEUE_LINKS = [
-  { key: "revenue", label: "Заявки на выручку", href: "/admin/revenue-requests" },
-  { key: "bonus", label: "Заявки на бонусы", href: "/admin/bonus-requests" },
-  { key: "purchases", label: "Заявки на покупки", href: "/admin/purchase-requests" },
+  // Коротко: на телефоне три плитки в ряд, «Заявки на выручку» обрезалось.
+  { key: "revenue", label: "Выручка", href: "/admin/revenue-requests" },
+  { key: "bonus", label: "Бонусы", href: "/admin/bonus-requests" },
+  { key: "purchases", label: "Покупки", href: "/admin/purchase-requests" },
 ];
 
 export default async function AdminOverview({ searchParams }) {
