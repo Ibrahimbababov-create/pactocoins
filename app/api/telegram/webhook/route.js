@@ -437,6 +437,102 @@ async function handleCancelCommand(msg) {
   );
 }
 
+// /потрачено 45000 в ответ на заявку на покупку — записывает, во сколько
+// покупка обошлась на самом деле. Та же сумма, что в админке в поле
+// «Потрачено, ₸»: из неё считается бюджет и стоимость программы.
+const SPEND_CMDS = new Set(["/потрачено", "/сумма", "/spent"]);
+
+// «45 000», «45000», «45к», «45k» — всё это 45000. Пустое значение, 0 или
+// прочерк стирают ранее записанную сумму.
+function parseSpendAmount(raw) {
+  const text = String(raw ?? "").trim().toLowerCase().replace(/\s|_/g, "");
+  if (!text || text === "-" || text === "0") return { value: null };
+
+  const m = text.match(/^(\d+(?:[.,]\d+)?)(к|k|тыс|k₸)?₸?$/);
+  if (!m) return { error: true };
+
+  let value = Number(m[1].replace(",", "."));
+  if (m[2]) value *= 1000;
+  if (!Number.isFinite(value) || value < 0) return { error: true };
+  return { value: Math.round(value) };
+}
+
+async function handleSpendCommand(msg) {
+  const chatId = msg.chat?.id;
+  const threadId = msg.is_topic_message ? msg.message_thread_id : undefined;
+  const say = (text) =>
+    sendTelegramMessage(chatId, text, undefined, threadId, msg.message_id);
+
+  if (!(await isTelegramAdmin(msg.from?.id))) {
+    await say("Записывать потраченное может только админ.");
+    return;
+  }
+
+  const repliedId = msg.reply_to_message?.message_id;
+  if (!repliedId) {
+    await say("Ответь этой командой на заявку на покупку и напиши сумму: /потрачено 45000");
+    return;
+  }
+
+  const arg = String(msg.text || "").trim().split(/\s+/).slice(1).join(" ");
+  if (!arg) {
+    await say(
+      "Напиши сумму после команды: /потрачено 45000 (можно 45к). Стереть записанное — /потрачено -"
+    );
+    return;
+  }
+
+  const parsed = parseSpendAmount(arg);
+  if (parsed.error) {
+    await say("Не понял сумму. Пиши так: /потрачено 45000 (можно 45к).");
+    return;
+  }
+
+  const admin = createAdminClient();
+  const { data: purchase } = await admin
+    .from("purchase_requests")
+    .select("id, status, price_coins, variant_label, user_id, rewards(title)")
+    .eq("admin_chat_id", chatId)
+    .eq("admin_message_id", repliedId)
+    .maybeSingle();
+
+  if (!purchase) {
+    await say("Это сообщение не про покупку. Ответь на заявку на награду.");
+    return;
+  }
+
+  if (purchase.status === "rejected") {
+    await say("Эта покупка отклонена — денег на неё не ушло, записывать нечего.");
+    return;
+  }
+
+  const { error } = await admin
+    .from("purchase_requests")
+    .update({ actual_kzt_amount: parsed.value })
+    .eq("id", purchase.id);
+
+  if (error) {
+    await say("Не получилось записать сумму, попробуй ещё раз.");
+    return;
+  }
+
+  const { data: person } = await admin
+    .from("users")
+    .select("name")
+    .eq("id", purchase.user_id)
+    .maybeSingle();
+
+  const title = purchase.rewards?.title ?? "награда";
+  const who = person?.name ?? "сотрудник";
+
+  await say(
+    parsed.value === null
+      ? `Сумма по «${escapeHtml(title)}» (${escapeHtml(who)}) стёрта.`
+      : `💸 Записал: «${escapeHtml(title)}» для ${escapeHtml(who)} — ` +
+          `${parsed.value.toLocaleString("ru-RU")} ₸. Ушло в бюджет.`
+  );
+}
+
 // id админа в нашей базе — чтобы в истории было видно, кто отменил.
 async function adminUserId(telegramId) {
   if (!telegramId) return null;
@@ -601,6 +697,10 @@ export async function POST(request) {
     }
     if (CANCEL_CMDS.has(cmd)) {
       await handleCancelCommand(msg);
+      return NextResponse.json({ ok: true });
+    }
+    if (SPEND_CMDS.has(cmd)) {
+      await handleSpendCommand(msg);
       return NextResponse.json({ ok: true });
     }
     // Админ обновляет меню команд бота сразу, не дожидаясь ночного крона.
