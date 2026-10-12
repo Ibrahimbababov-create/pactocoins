@@ -16,7 +16,7 @@ export default async function AdminLayout({ children }) {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("role")
+    .select("role, name")
     .eq("id", user.id)
     .single();
 
@@ -87,6 +87,11 @@ export default async function AdminLayout({ children }) {
           <h1 className="font-black text-lg">
             Pacto<span className="text-acid-400">Coins</span>{" "}
             <span className="text-gray-500 font-normal text-sm">admin</span>
+            {/* Под каким аккаунтом сидишь. У каждого своя тема оформления,
+                и без подписи непонятно, почему цвета «вдруг» другие. */}
+            <span className="text-gray-600 font-normal text-sm">
+              {" "}· {profile?.name ?? "—"}
+            </span>
           </h1>
           {isRop ? (
             // РОПу админское меню ни к чему — только дорога назад в кабинет.
