@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cancelApprovedRevenue } from "@/lib/cancelRevenue";
 import {
   approveRevenueRequestInternal,
   rejectRevenueRequestInternal,
@@ -361,6 +362,92 @@ async function telegramRole(fromId) {
   return data?.role ?? null;
 }
 
+// /отменить в ответ на сообщение о подтверждённой оплате. Ибрагим правит
+// ошибки прямо в группе, не заходя в приложение: ответил на заявку, написал
+// команду — оплата снята, коины списаны, из рейтинга ушла.
+const CANCEL_CMDS = new Set(["/отменить", "/отмена", "/cancel"]);
+
+async function handleCancelCommand(msg) {
+  const chatId = msg.chat?.id;
+  const threadId = msg.is_topic_message ? msg.message_thread_id : undefined;
+  const say = (text) =>
+    sendTelegramMessage(chatId, text, undefined, threadId, msg.message_id);
+
+  if (!(await isTelegramAdmin(msg.from?.id))) {
+    await say("Отменять оплаты может только админ.");
+    return;
+  }
+
+  const repliedId = msg.reply_to_message?.message_id;
+  if (!repliedId) {
+    await say(
+      "Ответь этой командой на сообщение с оплатой, которую нужно отменить."
+    );
+    return;
+  }
+
+  const admin = createAdminClient();
+  const { data: request } = await admin
+    .from("revenue_requests")
+    .select("id, status, amount_kzt, user_id")
+    .eq("admin_chat_id", chatId)
+    .eq("admin_message_id", repliedId)
+    .maybeSingle();
+
+  if (!request) {
+    await say(
+      "Это сообщение не про оплату. Ответь на заявку на выручку — ту, где были кнопки «Подтвердить» и «Отклонить»."
+    );
+    return;
+  }
+
+  // Комментарий после команды уходит человеку вместе с уведомлением.
+  const comment = String(msg.text || "").trim().split(/\s+/).slice(1).join(" ");
+
+  const res = await cancelApprovedRevenue(admin, request.id, {
+    byUserId: await adminUserId(msg.from?.id),
+    comment,
+  });
+
+  if (res.error) {
+    await say(res.error);
+    return;
+  }
+
+  const { data: person } = await admin
+    .from("users")
+    .select("name")
+    .eq("id", res.request.user_id)
+    .maybeSingle();
+
+  const sum = res.request.amount_kzt.toLocaleString("ru-RU");
+  await say(
+    `❌ Оплата отменена: ${escapeHtml(person?.name ?? "сотрудник")} — ${sum} ₸` +
+      (res.coins ? `, списано ${res.coins} коинов` : "")
+  );
+
+  // Перечёркиваем исходное сообщение, чтобы в группе не осталось
+  // «✅ Подтверждено» рядом с уже отменённой оплатой.
+  await editTelegramMessage(
+    chatId,
+    repliedId,
+    `❌ <b>Оплата отменена</b>\n\n<s>${escapeHtml(
+      person?.name ?? "сотрудник"
+    )} — ${sum} ₸</s>`
+  );
+}
+
+// id админа в нашей базе — чтобы в истории было видно, кто отменил.
+async function adminUserId(telegramId) {
+  if (!telegramId) return null;
+  const { data } = await createAdminClient()
+    .from("users")
+    .select("id")
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 async function isTelegramAdmin(fromId) {
   return (await telegramRole(fromId)) === "admin";
 }
@@ -510,6 +597,10 @@ export async function POST(request) {
     }
     if (REPORT_CMDS.has(cmd)) {
       await handleReportCommand(msg, cmd);
+      return NextResponse.json({ ok: true });
+    }
+    if (CANCEL_CMDS.has(cmd)) {
+      await handleCancelCommand(msg);
       return NextResponse.json({ ok: true });
     }
     // Админ обновляет меню команд бота сразу, не дожидаясь ночного крона.

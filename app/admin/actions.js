@@ -1,6 +1,7 @@
 "use server";
 
 import { formatCoins } from "@/lib/plural";
+import { cancelApprovedRevenue } from "@/lib/cancelRevenue";
 
 import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
@@ -357,60 +358,11 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
-  const { data: request } = await admin
-    .from("revenue_requests")
-    .select("*")
-    .eq("id", requestId)
-    .single();
-
-  if (!request || request.status !== "approved") {
-    return { error: "Заявка не в статусе «одобрено»" };
-  }
-
-  const coins = request.credited_coins ?? 0;
-
-  // Сначала статус (только если ещё «одобрено»), потом списание — иначе
-  // двойной клик списал бы коины дважды.
-  const { data: claimed } = await admin
-    .from("revenue_requests")
-    .update({
-      status: "rejected",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin_user.id,
-    })
-    .eq("id", requestId)
-    .eq("status", "approved")
-    .select("id");
-  if (!claimed?.length) return { error: "Заявка уже отменена" };
-
-  // Вместе с оплатой уходит и процент, начисленный наставнику.
-  await revokeMentorBonus(admin, requestId);
-
-  const { data: profile } = await admin
-    .from("users")
-    .select("balance")
-    .eq("id", request.user_id)
-    .single();
-
-  await addCoins(admin, request.user_id, -coins);
-
-  if (coins) {
-    await admin.from("transactions").insert({
-      user_id: request.user_id,
-      type: "manual_subtract",
-      amount_coins: -coins,
-      description: `Отменено (одобрено по ошибке): выручка ${request.amount_kzt.toLocaleString(
-        "ru-RU"
-      )} ₸`,
-      created_by: admin_user.id,
-    });
-  }
-
-  let text = `⚠️ Заявка на выручку ${request.amount_kzt.toLocaleString(
-    "ru-RU"
-  )} ₸ отменена (одобрена по ошибке)${coins ? ` — ${formatCoins(coins)} списаны обратно` : ""}`;
-  if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
-  await notifyUser(admin, request.user_id, text, "notify_requests");
+  const res = await cancelApprovedRevenue(admin, requestId, {
+    byUserId: admin_user.id,
+    comment,
+  });
+  if (res.error) return { error: res.error };
 
   revalidatePath("/admin/revenue-requests");
   revalidatePath("/admin");
