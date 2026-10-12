@@ -19,17 +19,33 @@ async function currentProfile() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return { theme: DEFAULT_THEME, deactivated: false };
-    const { data } = await supabase
+    if (!user) {
+      console.log("[theme] запрос без входа — отдаём тему по умолчанию");
+      return { theme: DEFAULT_THEME, deactivated: false };
+    }
+    const { data, error } = await supabase
       .from("users")
       .select("theme, is_active")
       .eq("id", user.id)
       .single();
+
+    // Временная запись в лог: ищем, почему у админа цвета меняются при
+    // обновлении страницы. Пишем только кусок id — имён и почты тут нет.
+    console.log(
+      "[theme]",
+      JSON.stringify({
+        u: user.id.slice(0, 8),
+        db: data?.theme ?? null,
+        err: error?.message ?? null,
+      })
+    );
+
     return {
       theme: themeOrDefault(data?.theme),
       deactivated: data?.is_active === false,
     };
-  } catch {
+  } catch (e) {
+    console.log("[theme] сбой чтения профиля:", e?.message ?? e);
     return { theme: DEFAULT_THEME, deactivated: false };
   }
 }
