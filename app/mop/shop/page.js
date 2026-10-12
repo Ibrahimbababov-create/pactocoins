@@ -2,12 +2,17 @@ import { createClient } from "@/lib/supabase-server";
 import ShopClient from "@/components/ShopClient";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { CURRENT_ANNOUNCEMENT } from "@/lib/announcement";
+import { resolveViewer } from "@/lib/viewAs";
 
 export default async function ShopPage() {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Баланс в магазине — всегда свой: смотреть можно чужими глазами, а
+  // платить всё равно своими коинами.
+  const { watching } = await resolveViewer(supabase, user.id);
 
   const [{ data: profile }, { data: categories }, { data: rewards }, { data: variants }] =
     await Promise.all([
@@ -55,6 +60,13 @@ export default async function ShopPage() {
           text={CURRENT_ANNOUNCEMENT.text}
           dismissible={false}
         />
+      )}
+
+      {watching && (
+        <p className="text-xs text-gray-500 border border-dark-600 rounded-xl px-3 py-2">
+          Ты смотришь кабинет чужими глазами, но баланс здесь твой и покупка
+          спишется с тебя.
+        </p>
       )}
 
       <ShopClient grouped={grouped} balance={profile?.balance ?? 0} />
