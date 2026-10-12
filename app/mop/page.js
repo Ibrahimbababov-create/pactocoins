@@ -19,7 +19,7 @@ import { getMonthEarned } from "@/lib/earnings";
 import EarningsMiniChart from "@/components/EarningsMiniChart";
 import { recentDaysAlmaty, almatyDayKey, formatPaymentDay } from "@/lib/timezone";
 import Icon from "@/components/Icon";
-import { effectiveRole } from "@/lib/viewAs";
+import { effectiveRole, effectiveUserId } from "@/lib/viewAs";
 import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
 import { WeekPlaceCard, TeamMonthCard, MonthTierCard } from "@/components/DashboardPulse";
 
@@ -37,6 +37,15 @@ export default async function MopDashboard() {
     `${chartDays[0].key}T00:00:00+05:00`
   ).toISOString();
 
+  // Чей кабинет открыт: свой или, в режиме просмотра, выбранного человека.
+  const { data: me } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const viewId = effectiveUserId(me?.role, user.id);
+  const watching = viewId !== user.id;
+
   const [
     { data: profile },
     { data: pendingRevenue },
@@ -50,23 +59,23 @@ export default async function MopDashboard() {
     { data: shopPrices },
     monthTier,
   ] = await Promise.all([
-    supabase.from("users").select("*").eq("id", user.id).single(),
+    supabase.from("users").select("*").eq("id", viewId).single(),
     supabase
       .from("revenue_requests")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
     supabase
       .from("bonus_requests")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
     supabase
       .from("user_goals")
       .select("*, rewards(title, image_url)")
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .eq("status", "active")
       .maybeSingle(),
     supabase
@@ -83,20 +92,20 @@ export default async function MopDashboard() {
       .not("user_name", "like", "🤖%")
       .order("created_at", { ascending: false })
       .limit(8),
-    getMonthEarned(supabase, user.id),
+    getMonthEarned(supabase, viewId),
     supabase
       .from("transactions")
       .select("amount_coins, created_at")
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .gt("amount_coins", 0)
       .gte("created_at", chartStartIso),
-    getMyWeekPlace(supabase, user.id),
+    getMyWeekPlace(supabase, viewId),
     supabase
       .from("rewards")
       .select("id, title, price_coins, image_url")
       .eq("is_active", true)
       .order("price_coins", { ascending: true }),
-    getMyMonthTier(supabase, user.id),
+    getMyMonthTier(supabase, viewId),
   ]);
 
   const hasPending =
@@ -111,9 +120,9 @@ export default async function MopDashboard() {
 
   // Для админа роль может быть подменена режимом просмотра: он смотрит
   // кабинет глазами стажёра или РОПа. В базе роль при этом не меняется.
-  const role = effectiveRole(profile?.role);
+  const role = effectiveRole(me?.role);
   const isTrainee = role === "trainee";
-  const teamMonth = role === "rop" ? await getMyTeamMonth(supabase, user.id) : null;
+  const teamMonth = role === "rop" ? await getMyTeamMonth(supabase, viewId) : null;
   let ropName = null;
   let onboardingDays = null;
   if (isTrainee) {
@@ -135,7 +144,7 @@ export default async function MopDashboard() {
       profile?.rop_id
         ? supabase.from("users").select("name").eq("id", profile.rop_id).single()
         : Promise.resolve({ data: null }),
-      getTraineeOnboarding(createAdminClient(), user.id, projectId),
+      getTraineeOnboarding(createAdminClient(), viewId, projectId),
     ]);
     ropName = rop?.name ?? null;
     onboardingDays = days;
@@ -147,7 +156,7 @@ export default async function MopDashboard() {
     (shopPrices ?? []).find((r) => r.price_coins > (profile?.balance ?? 0)) ?? null;
 
   let currentGoal = fetchedGoal;
-  if (currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
+  if (!watching && currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
     const { data: achievedGoal } = await supabase
       .from("user_goals")
       .update({ status: "achieved", updated_at: new Date().toISOString() })
@@ -219,7 +228,7 @@ export default async function MopDashboard() {
 
       {/* Баланс — крупная цифра, обновляется онлайн */}
       <LiveBalance
-        userId={user.id}
+        userId={viewId}
         initialBalance={profile?.balance ?? 0}
         initialTotalEarned={profile?.total_earned ?? 0}
         initialMonthEarned={monthEarned}

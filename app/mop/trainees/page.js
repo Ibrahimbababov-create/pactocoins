@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { effectiveUserId } from "@/lib/viewAs";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import Icon from "@/components/Icon";
@@ -51,12 +52,16 @@ export default async function TraineesPage() {
   // новичков увидит любой, кто наберёт адрес руками.
   if (me?.role !== "mentor" && me?.role !== "admin") redirect("/mop");
 
+  // Если админ смотрит глазами наставника — показываем его стажёров,
+  // а не пустой список: своих стажёров у админа нет.
+  const mentorId = effectiveUserId(me?.role, user.id);
+
   const all = trainees ?? [];
-  const learning = all.filter((t) => t.role === "trainee" && t.mentor_id === user.id);
-  const graduated = all.filter((t) => t.role !== "trainee" && t.mentor_id === user.id);
+  const learning = all.filter((t) => t.role === "trainee" && t.mentor_id === mentorId);
+  const graduated = all.filter((t) => t.role !== "trainee" && t.mentor_id === mentorId);
   // Новички, которых ведёт кто-то другой или никто: при регистрации легко
   // промахнуться, поэтому наставник может забрать такого себе.
-  const others = all.filter((t) => t.role === "trainee" && t.mentor_id !== user.id);
+  const others = all.filter((t) => t.role === "trainee" && t.mentor_id !== mentorId);
 
   const traineeIds = new Set(all.map((t) => t.id));
   const dayOfBlock = Object.fromEntries((blocks ?? []).map((b) => [b.id, b.day]));

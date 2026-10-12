@@ -3,7 +3,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LogoutButton from "@/components/LogoutButton";
-import { effectiveRole } from "@/lib/viewAs";
+import { effectiveRole, effectiveUserId } from "@/lib/viewAs";
 import { WhatsNewButton } from "@/components/WhatsNew";
 
 // Длинные подписи — только для этого экрана, короткие живут в lib/roles.js
@@ -22,11 +22,19 @@ export default async function MorePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: me } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  // В режиме просмотра показываем карточку того, чьими глазами смотрим.
+  const viewId = effectiveUserId(me?.role, user.id);
+
   const [{ data: profile }, { count: unreadCount }] = await Promise.all([
     supabase
       .from("users")
       .select("name, role, rop_id, is_guest")
-      .eq("id", user.id)
+      .eq("id", viewId)
       .single(),
     supabase
       .from("messages")
@@ -35,7 +43,7 @@ export default async function MorePage() {
       .is("read_at", null),
   ]);
 
-  const role = effectiveRole(profile?.role);
+  const role = effectiveRole(me?.role);
 
   const { data: rop } = profile?.rop_id
     ? await supabase.from("users").select("name").eq("id", profile.rop_id).single()

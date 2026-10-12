@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { redirect } from "next/navigation";
 import TeamManageClient from "@/components/TeamManageClient";
 import { getMonthEarnedMap } from "@/lib/earnings";
+import { effectiveUserId } from "@/lib/viewAs";
 import {
   monthRangeAlmaty,
   currentMonthKeyAlmaty,
@@ -27,6 +28,11 @@ export default async function TeamPage() {
     redirect("/mop");
   }
 
+  // Своей команды у админа нет, поэтому «Моя команда» у него пустая. Если
+  // он смотрит глазами РОПа — показываем команду того РОПа.
+  const ownerId = effectiveUserId(profile?.role, profile.id);
+  const watching = ownerId !== profile.id;
+
   const admin = createAdminClient();
   const [{ data: mops }, { data: obBlocks }, { data: obProgress }] = await Promise.all([
     admin
@@ -44,7 +50,7 @@ export default async function TeamPage() {
     admin.from("onboarding_progress").select("user_id, block_id"),
   ]);
 
-  const mineIds = (mops ?? []).filter((m) => m.rop_id === profile.id).map((m) => m.id);
+  const mineIds = (mops ?? []).filter((m) => m.rop_id === ownerId).map((m) => m.id);
   const month = monthRangeAlmaty(currentMonthKeyAlmaty());
   const week = thisWeekRangeAlmaty();
   // Последнюю оплату ищем за 120 дней: кто молчит дольше — и так «давно».
@@ -124,13 +130,17 @@ export default async function TeamPage() {
   // Сверху — кто больше принёс за месяц: РОПу так сразу видно, кого
   // подтянуть.
   const mine = (mops ?? [])
-    .filter((m) => m.rop_id === profile.id)
+    .filter((m) => m.rop_id === ownerId)
     .map(withProgress)
     .sort((a, b) => b.month_kzt - a.month_kzt);
   // РОП может добавить только свободного МОПа. Админ — любого.
-  const others = (mops ?? []).filter((m) =>
-    profile.role === "admin" ? m.rop_id !== profile.id : !m.rop_id
-  );
+  // В чужих глазах команду не перекраивают: добавлять некого, чтобы не
+  // записать человека себе по случайности.
+  const others = watching
+    ? []
+    : (mops ?? []).filter((m) =>
+        profile.role === "admin" ? m.rop_id !== profile.id : !m.rop_id
+      );
 
   return (
     <div className="space-y-6">

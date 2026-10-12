@@ -4,7 +4,7 @@ import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import PageTransition from "@/components/PageTransition";
 import MopTopBar from "@/components/MopTopBar";
-import { effectiveRole } from "@/lib/viewAs";
+import { effectiveRole, effectiveUserId } from "@/lib/viewAs";
 import { roleTitle } from "@/lib/roles";
 import { clearViewAs } from "@/app/admin/viewAsActions";
 import WhatsNew from "@/components/WhatsNew";
@@ -17,15 +17,29 @@ export default async function MopLayout({ children }) {
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
+  const { data: me } = await supabase
     .from("users")
     .select("role, balance")
     .eq("id", user.id)
     .single();
 
-  // Админ может смотреть кабинет глазами роли — меняется только вид,
-  // права остаются админскими.
-  const role = effectiveRole(profile?.role);
+  // Админ может смотреть кабинет глазами роли или конкретного человека —
+  // меняется только вид, права остаются админскими.
+  const role = effectiveRole(me?.role);
+  const viewId = effectiveUserId(me?.role, user.id);
+  const watching = viewId !== user.id;
+
+  const { data: watched } = watching
+    ? await supabase
+        .from("users")
+        .select("name, balance")
+        .eq("id", viewId)
+        .single()
+    : { data: null };
+
+  const profile = watching
+    ? { role: me?.role, balance: watched?.balance ?? 0 }
+    : me;
 
   const { count: unreadCount } = await supabase
     .from("messages")
@@ -43,10 +57,12 @@ export default async function MopLayout({ children }) {
       {profile?.role === "admin" && (
         <div className="relative bg-acid-400/[0.08] border-b border-acid-400/20 text-acid-400 text-sm px-4 py-2 flex items-center justify-between gap-3 flex-wrap">
           <span className="font-semibold">
-            Просмотр как {roleTitle(role === "admin" ? "mop" : role)}
+            {watching
+              ? `Смотришь глазами: ${watched?.name ?? "сотрудник"}`
+              : `Просмотр как ${roleTitle(role === "admin" ? "mop" : role)}`}
           </span>
           <div className="flex items-center gap-3">
-            {role !== profile.role && (
+            {(watching || role !== me?.role) && (
               <form action={clearViewAs}>
                 <button type="submit" className="underline underline-offset-2">
                   Выйти из просмотра

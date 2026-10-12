@@ -14,7 +14,7 @@ import {
 } from "@/lib/timezone";
 import { getEarnedMap } from "@/lib/earnings";
 import ViewAsSwitch from "@/components/ViewAsSwitch";
-import { viewAsRole, isViewableRole } from "@/lib/viewAs";
+import { viewAsRole, viewAsUserId, isViewableRole } from "@/lib/viewAs";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getProgramCost, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
 import { createAdminClient } from "@/lib/supabase-admin";
@@ -112,16 +112,23 @@ export default async function AdminOverview({ searchParams }) {
     // просмотра. Заведём завтра новую роль — кнопка появится сама.
     supabase
       .from("users")
-      .select("role")
+      .select("id, name, role")
       .eq("is_active", true)
       .eq("is_guest", false)
-      .not("email", "like", "%.test@pactocoins.local"),
+      .not("email", "like", "%.test@pactocoins.local")
+      .order("name"),
   ]);
 
   const viewRoles = [...new Set((roleRows ?? []).map((r) => r.role))].filter(
     isViewableRole
   );
+  // Глазами человека смотрим тех, у кого за спиной своя работа с людьми:
+  // РОПы, наставники, менеджеры. Стажёры и наблюдатели — только ролью.
+  const viewPeople = (roleRows ?? []).filter((r) =>
+    ["rop", "mentor", "mop"].includes(r.role)
+  );
   const viewingAs = viewAsRole();
+  const viewingUserId = viewAsUserId();
 
   const { data: myProfile } = me
     ? await supabase.from("users").select("theme").eq("id", me.id).single()
@@ -211,7 +218,12 @@ export default async function AdminOverview({ searchParams }) {
           <p className="text-[11px] text-gray-500 mb-1.5">
             Посмотреть кабинет глазами
           </p>
-          <ViewAsSwitch roles={viewRoles} current={viewingAs} />
+          <ViewAsSwitch
+            roles={viewRoles}
+            current={viewingAs}
+            people={viewPeople}
+            currentUserId={viewingUserId}
+          />
         </div>
       </div>
 
