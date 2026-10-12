@@ -19,7 +19,7 @@ import { getMonthEarned } from "@/lib/earnings";
 import EarningsMiniChart from "@/components/EarningsMiniChart";
 import { recentDaysAlmaty, almatyDayKey, formatPaymentDay } from "@/lib/timezone";
 import Icon from "@/components/Icon";
-import { effectiveRole, effectiveUserId } from "@/lib/viewAs";
+import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
 import { WeekPlaceCard, TeamMonthCard, MonthTierCard } from "@/components/DashboardPulse";
 
@@ -38,13 +38,7 @@ export default async function MopDashboard() {
   ).toISOString();
 
   // Чей кабинет открыт: свой или, в режиме просмотра, выбранного человека.
-  const { data: me } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  const viewId = effectiveUserId(me?.role, user.id);
-  const watching = viewId !== user.id;
+  const { viewId, watching } = await resolveViewer(supabase, user.id);
 
   const [
     { data: profile },
@@ -120,7 +114,7 @@ export default async function MopDashboard() {
 
   // Для админа роль может быть подменена режимом просмотра: он смотрит
   // кабинет глазами стажёра или РОПа. В базе роль при этом не меняется.
-  const role = effectiveRole(me?.role);
+  const role = effectiveRole(watching ? "admin" : profile?.role);
   const isTrainee = role === "trainee";
   const teamMonth = role === "rop" ? await getMyTeamMonth(supabase, viewId) : null;
   let ropName = null;

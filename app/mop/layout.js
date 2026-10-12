@@ -4,7 +4,7 @@ import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import PageTransition from "@/components/PageTransition";
 import MopTopBar from "@/components/MopTopBar";
-import { effectiveRole, effectiveUserId } from "@/lib/viewAs";
+import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { roleTitle } from "@/lib/roles";
 import { clearViewAs } from "@/app/admin/viewAsActions";
 import WhatsNew from "@/components/WhatsNew";
@@ -26,8 +26,7 @@ export default async function MopLayout({ children }) {
   // Админ может смотреть кабинет глазами роли или конкретного человека —
   // меняется только вид, права остаются админскими.
   const role = effectiveRole(me?.role);
-  const viewId = effectiveUserId(me?.role, user.id);
-  const watching = viewId !== user.id;
+  const { viewId, watching } = await resolveViewer(supabase, user.id);
 
   const { data: watched } = watching
     ? await supabase
