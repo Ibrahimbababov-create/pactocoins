@@ -10,6 +10,7 @@ import {
   spreadsheetIdFrom,
   colToIndex,
   upsertSource,
+  upsertAlias,
 } from "@/lib/sheetConfig";
 import { notifyUser } from "@/lib/notifyUser";
 import { listSheetTabs, previewSource } from "@/lib/sheetsRevenue";
@@ -98,6 +99,37 @@ async function viewerFor(projectId) {
     return { error: "Это не твой проект" };
   }
   return { viewer };
+}
+
+// Привязать имя из таблицы к человеку в PactoCoins. Нужно там, где имена
+// не совпадают и совпасть не могут: у Армана продавец записан «Султан РОП»,
+// а в приложении он «Sula ROP»; у Шолпан строка называется просто «РОП».
+// userId пустой — привязку снимаем.
+export async function linkSheetName(projectId, sheetName, userId) {
+  const v = await viewerFor(projectId);
+  if (v.error) return v;
+  if (!sheetName) return { error: "Нет имени из таблицы" };
+
+  const admin = createAdminClient();
+
+  if (userId) {
+    const { data: person } = await admin
+      .from("users")
+      .select("id")
+      .eq("id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!person) return { error: "Человек не найден" };
+  }
+
+  const { sources, aliases } = await getSheetSources(admin);
+  const next = upsertAlias(aliases, { projectId, sheetName, userId: userId || null });
+
+  const res = await saveSheetSources(admin, sources, next);
+  if (res?.error) return { error: res.error };
+
+  revalidatePath("/admin/reconcile");
+  return { ok: true };
 }
 
 // Список листов таблицы — чтобы выбрать нужный, а не вспоминать название.

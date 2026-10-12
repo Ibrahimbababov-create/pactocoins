@@ -6,6 +6,7 @@ import {
   saveProjectSheet,
   listTabsForLink,
   previewProjectSheet,
+  linkSheetName,
 } from "@/app/admin/reconcileActions";
 
 const kzt = (n) => `${Math.round(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
@@ -262,12 +263,62 @@ function SheetEditor({ project, month, source, failedReason }) {
   );
 }
 
+// Имя в таблице и имя в приложении совпадают не всегда: «Султан РОП» у
+// Армана — это «Sula ROP», а строка «РОП» у Шолпан — это Сари. Угадать
+// такое нельзя, поэтому даём выбрать человека руками. Выбор запоминается
+// и дальше работает сам.
+function LinkName({ row, people, disabled, onPick }) {
+  if (!row.sheetName) return null;
+
+  // Сначала люди того же проекта — обычно нужный там.
+  const sorted = [...people].sort((a, b) => {
+    const mine = (p) => (p.projectId === row.projectId ? 0 : 1);
+    return mine(a) - mine(b) || a.name.localeCompare(b.name);
+  });
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className="text-[11px] text-gray-500">
+        {row.user ? "Привязано вручную:" : "Это в PactoCoins:"}
+      </span>
+      <select
+        disabled={disabled}
+        value={row.linked && row.user ? row.user.id : ""}
+        onChange={(e) => onPick(row, e.target.value)}
+        className="bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-xs text-white max-w-[200px]"
+      >
+        <option value="">выбрать человека</option>
+        {sorted.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+            {p.projectId === row.projectId ? "" : " · другой проект"}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
   const month = { key: monthKey, label: data.monthLabel };
   const [pending, start] = useTransition();
   const [reminded, setReminded] = useState(() => new Set());
   const [msg, setMsg] = useState(null);
   const failed = new Set(data.failedSheets ?? []);
+
+  function pickPerson(row, userId) {
+    setMsg(null);
+    start(async () => {
+      const res = await linkSheetName(row.projectId, row.sheetName, userId);
+      setMsg(
+        res?.error
+          ? res.error
+          : userId
+          ? `Запомнил: «${row.sheetName}» — это выбранный человек`
+          : `Привязка для «${row.sheetName}» снята`
+      );
+    });
+  }
   const sourceByProject = Object.fromEntries((data.sources ?? []).map((s) => [s.projectId, s]));
   const [editorOpen, setEditorOpen] = useState(
     () =>
@@ -400,8 +451,16 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
                     <p className="text-xs text-amber-400 mt-0.5">
                       {r.ambiguous.length
                         ? `Не понял, кто это: ${r.ambiguous.join(", ")}`
-                        : "Не нашёл в PactoCoins. Напиши имя в таблице как в приложении"}
+                        : "Не нашёл в PactoCoins — выбери человека ниже, и я запомню"}
                     </p>
+                  )}
+                  {(!r.user || r.linked) && (
+                    <LinkName
+                      row={r}
+                      people={data.people ?? []}
+                      disabled={pending}
+                      onPick={pickPerson}
+                    />
                   )}
                 </div>
                 {r.missing > 0 ? (
