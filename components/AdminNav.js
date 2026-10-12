@@ -17,6 +17,7 @@ const SECTIONS = [
       "/admin/purchase-requests",
       "/admin/join-requests",
       "/admin/payments",
+      "/admin/reconcile",
     ],
     badgeKey: "pendingRequests",
   },
@@ -46,6 +47,11 @@ const SECTIONS = [
 
 // Наставнику открыты ровно два раздела, и ведут они прямо на нужные
 // страницы — общий «Заявки» ему не подходит, там всё остальное закрыто.
+// РОПу из админки доступна только сверка с таблицами его проектов.
+const ROP_SECTIONS = [
+  { href: "/admin/reconcile", label: "Сверка с таблицами", owns: ["/admin/reconcile"] },
+];
+
 const MENTOR_SECTIONS = [
   {
     href: "/admin/join-requests",
@@ -60,10 +66,15 @@ export default function AdminNav({
   pendingRequests = 0,
   pendingSuggestions = 0,
   onlyOnboarding = false,
+  onlyReconcile = false,
 }) {
   const pathname = usePathname();
   const badges = { pendingRequests, pendingSuggestions };
-  const sections = onlyOnboarding ? MENTOR_SECTIONS : SECTIONS;
+  const sections = onlyReconcile
+    ? ROP_SECTIONS
+    : onlyOnboarding
+    ? MENTOR_SECTIONS
+    : SECTIONS;
 
   return (
     <div className="max-w-6xl mx-auto px-4 overflow-x-auto no-scrollbar">
