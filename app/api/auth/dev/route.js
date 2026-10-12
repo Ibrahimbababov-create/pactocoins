@@ -7,14 +7,19 @@ import { createAdminClient } from "@/lib/supabase-admin";
 // Полностью выключен, пока в окружении не задан DEV_LOGIN_SECRET.
 // Работает исключительно с аккаунтами *.test@pactocoins.local, реальных
 // пользователей не трогает.
+//
+// Админа тут нет намеренно. Секрет ходит в адресной строке, а она оседает
+// в логах, истории браузера и ссылках — утечка такой строки не должна
+// открывать админку, где начисляют коины и меняют роли. Нужен админ —
+// входи своим аккаунтом.
 
 export const dynamic = "force-dynamic";
 
 const ROLE_HOME = {
   mop: "/mop",
   rop: "/mop",
-  admin: "/admin",
   observer: "/observer",
+  trainee: "/mop",
 };
 
 function devPassword() {
@@ -49,7 +54,7 @@ export async function GET(request) {
     return new NextResponse("forbidden", { status: 403 });
   }
   if (!ROLE_HOME[role]) {
-    return new NextResponse("bad role (mop|rop|admin|observer)", {
+    return new NextResponse("bad role (mop|rop|observer|trainee)", {
       status: 400,
     });
   }

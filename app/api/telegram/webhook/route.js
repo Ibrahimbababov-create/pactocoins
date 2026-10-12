@@ -450,12 +450,17 @@ export async function POST(request) {
   // мы задали в setWebhook. Без этой проверки адрес вебхука — просто
   // открытая дверь: кто угодно может прислать поддельное «нажатие кнопки».
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (expectedSecret) {
-    const given = request.headers.get("x-telegram-bot-api-secret-token");
-    if (given !== expectedSecret) {
-      console.warn("[webhook] отклонён запрос с неверным секретом");
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+  // Нет секрета в окружении — значит проверять нечем, и дверь закрыта.
+  // Раньше в этом случае проверка просто пропускалась: стоило переменной
+  // потеряться при переносе, и вебхук молча становился открытым.
+  if (!expectedSecret) {
+    console.error("[webhook] TELEGRAM_WEBHOOK_SECRET не задан — запрос отклонён");
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  const given = request.headers.get("x-telegram-bot-api-secret-token");
+  if (given !== expectedSecret) {
+    console.warn("[webhook] отклонён запрос с неверным секретом");
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const update = await request.json();
