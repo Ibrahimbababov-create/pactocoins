@@ -279,11 +279,15 @@ function LinkName({ row, people, disabled, onPick }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <span className="text-[11px] text-gray-500">
-        {row.user ? "Привязано вручную:" : "Это в PactoCoins:"}
+        {row.linked
+          ? "Привязано вручную:"
+          : row.user
+          ? "Определил по имени:"
+          : "Это в PactoCoins:"}
       </span>
       <select
         disabled={disabled}
-        value={row.linked && row.user ? row.user.id : ""}
+        value={row.user ? row.user.id : ""}
         onChange={(e) => onPick(row, e.target.value)}
         className="bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-xs text-white max-w-[200px]"
       >
@@ -454,14 +458,17 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
                         : "Не нашёл в PactoCoins — выбери человека ниже, и я запомню"}
                     </p>
                   )}
-                  {(!r.user || r.linked) && (
-                    <LinkName
-                      row={r}
-                      people={data.people ?? []}
-                      disabled={pending}
-                      onPick={pickPerson}
-                    />
-                  )}
+                  {/* Список показываем всегда, когда строка пришла из
+                      таблицы: совпадение по имени бывает ошибочным. Строка
+                      «РОП» у Шолпан сама прилипла к «Sula ROP», потому что
+                      слово «РОП» есть в его имени, — и переназначить её
+                      было нечем. */}
+                  <LinkName
+                    row={r}
+                    people={data.people ?? []}
+                    disabled={pending}
+                    onPick={pickPerson}
+                  />
                 </div>
                 {r.missing > 0 ? (
                   <span className="shrink-0 text-sm font-bold text-amber-400 tabular-nums">
