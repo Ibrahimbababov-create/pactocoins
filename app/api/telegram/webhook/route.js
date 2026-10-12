@@ -611,12 +611,27 @@ export async function POST(request) {
         .eq("telegram_id", msg.from?.id)
         .maybeSingle();
       if (caller?.role === "admin") {
-        const res = await syncBotCommands();
+        // Набрали в группе — эта группа и получает расширенный список.
+        const res = await syncBotCommands({
+          chatId: msg.chat?.type === "private" ? null : msg.chat?.id,
+        });
+        let text;
+        if (res?.ok) {
+          text = `Меню обновлено: ${res.after.map((c) => "/" + c).join(", ")}`;
+          if (res.group) {
+            text += `\n\nВ этой группе дополнительно: ${res.group
+              .filter((c) => !res.after.includes(c))
+              .map((c) => "/" + c)
+              .join(", ")}`;
+          }
+        } else {
+          text = `Не получилось обновить меню: ${escapeHtml(
+            res?.error || "Telegram не ответил"
+          )}`;
+        }
         await sendTelegramMessage(
           msg.chat.id,
-          res?.ok
-            ? `Меню обновлено: ${res.after.map((c) => "/" + c).join(", ")}`
-            : `Не получилось обновить меню: ${escapeHtml(res?.error || "Telegram не ответил")}`,
+          text,
           undefined,
           msg.message_thread_id
         );
