@@ -61,9 +61,15 @@ export default function PaymentsClient({ employees, initialRows }) {
     startTransition(async () => {
       const res = await adjustPayment(row.id, { amountKzt: amount, earnedAt, reason });
       if (res?.error) return say(res.error, "error");
-      say("Оплата исправлена");
+      say(`Исправлено: ${money(row.amount_kzt)} → ${money(amount)} ₸`);
       setEditingId(null);
-      search();
+
+      // Поиск по сумме сбрасываем: искали «100000», исправили на «10000» —
+      // и строка пропадала с экрана, будто всё сломалось. Остальные фильтры
+      // (человек, даты) оставляем как есть.
+      const next = { ...filters, query: "" };
+      setFilters(next);
+      search(next);
       router.refresh();
     });
   }

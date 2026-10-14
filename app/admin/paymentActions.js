@@ -187,6 +187,23 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
   if (diff !== 0) {
     await addCoins(admin, request.user_id, diff);
 
+    // «Всего заработано» поднимается триггером на каждом начислении, но на
+    // списании не опускается. Уменьшили оплату — уменьшаем и её, иначе в
+    // профиле навсегда останутся коины за сумму, которой не было.
+    if (diff < 0) {
+      const { data: earned } = await admin
+        .from("users")
+        .select("total_earned")
+        .eq("id", request.user_id)
+        .single();
+      if (earned) {
+        await admin
+          .from("users")
+          .update({ total_earned: Math.max(0, (earned.total_earned ?? 0) + diff) })
+          .eq("id", request.user_id);
+      }
+    }
+
     await admin.from("transactions").insert({
       user_id: request.user_id,
       type: diff > 0 ? "manual_add" : "manual_subtract",
