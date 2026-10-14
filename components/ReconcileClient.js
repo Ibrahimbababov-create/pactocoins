@@ -268,7 +268,24 @@ function SheetEditor({ project, month, source, failedReason }) {
 // такое нельзя, поэтому даём выбрать человека руками. Выбор запоминается
 // и дальше работает сам.
 function LinkName({ row, people, disabled, onPick }) {
+  // Человека нашли — списка не показываем, иначе под каждой строкой висит
+  // выпадашка и экран превращается в кашу. Вместо неё тихая ссылка: она
+  // нужна редко, но без неё ошибочное совпадение не исправить.
+  const [open, setOpen] = useState(!row.user);
+
   if (!row.sheetName) return null;
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-1 text-[11px] text-gray-600 underline underline-offset-2"
+      >
+        {row.linked ? "привязано вручную · изменить" : "это другой человек?"}
+      </button>
+    );
+  }
 
   // Сначала люди того же проекта — обычно нужный там.
   const sorted = [...people].sort((a, b) => {
@@ -278,20 +295,14 @@ function LinkName({ row, people, disabled, onPick }) {
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <span className="text-[11px] text-gray-500">
-        {row.linked
-          ? "Привязано вручную:"
-          : row.user
-          ? "Определил по имени:"
-          : "Это в PactoCoins:"}
-      </span>
       <select
+        autoFocus
         disabled={disabled}
         value={row.user ? row.user.id : ""}
         onChange={(e) => onPick(row, e.target.value)}
         className="bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-xs text-white max-w-[200px]"
       >
-        <option value="">выбрать человека</option>
+        <option value="">никто — не считать строку</option>
         {sorted.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}
@@ -299,6 +310,15 @@ function LinkName({ row, people, disabled, onPick }) {
           </option>
         ))}
       </select>
+      {row.user && (
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-[11px] text-gray-500"
+        >
+          Отмена
+        </button>
+      )}
     </div>
   );
 }
