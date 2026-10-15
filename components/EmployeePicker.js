@@ -49,6 +49,9 @@ export default function EmployeePicker({
   onToggle,
   placeholder = "Найти сотрудника…",
   describe,
+  // Фильтры хотят состояние «никто не выбран» — там это значит «все».
+  clearLabel,
+  onClear,
 }) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
@@ -143,12 +146,26 @@ export default function EmployeePicker({
   return (
     <div>
       {!multiple && (
-        <p className="mb-1 text-xs text-gray-500 truncate">
-          {selectedOne
-            ? `Выбран: ${selectedOne.name}${
-                describe ? ` — ${describe(selectedOne)}` : ""
-              }`
-            : "Никто не выбран"}
+        <p className="mb-1 text-xs text-gray-500 truncate flex items-center gap-2">
+          <span className="truncate">
+            {selectedOne
+              ? `Выбран: ${selectedOne.name}${
+                  describe ? ` — ${describe(selectedOne)}` : ""
+                }`
+              : clearLabel ?? "Никто не выбран"}
+          </span>
+          {onClear && selectedOne && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                onClear();
+              }}
+              className="shrink-0 text-gray-500 underline underline-offset-2"
+            >
+              сбросить
+            </button>
+          )}
         </p>
       )}
       {multiple && (

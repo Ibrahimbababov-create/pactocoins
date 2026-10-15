@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import EmployeePicker from "@/components/EmployeePicker";
 import {
   sendReconcileReminders,
   saveProjectSheet,
@@ -294,31 +295,25 @@ function LinkName({ row, people, disabled, onPick }) {
   });
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <select
-        autoFocus
-        disabled={disabled}
+    <div className="mt-2 max-w-sm space-y-1">
+      <EmployeePicker
+        employees={sorted}
         value={row.user ? row.user.id : ""}
-        onChange={(e) => onPick(row, e.target.value)}
-        className="bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-xs text-white max-w-[200px]"
+        onChange={(id) => onPick(row, id)}
+        placeholder="Начни писать имя…"
+        clearLabel="Никто не выбран — строка не считается"
+        onClear={() => onPick(row, "")}
+        describe={(p) =>
+          p.projectId === row.projectId ? undefined : "другой проект"
+        }
+      />
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-[11px] text-gray-500"
       >
-        <option value="">никто — не считать строку</option>
-        {sorted.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-            {p.projectId === row.projectId ? "" : " · другой проект"}
-          </option>
-        ))}
-      </select>
-      {row.user && (
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="text-[11px] text-gray-500"
-        >
-          Отмена
-        </button>
-      )}
+        свернуть
+      </button>
     </div>
   );
 }

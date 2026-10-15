@@ -112,7 +112,7 @@ export default async function AdminOverview({ searchParams }) {
     // просмотра. Заведём завтра новую роль — кнопка появится сама.
     supabase
       .from("users")
-      .select("id, name, role")
+      .select("id, name, role, rop_id")
       .eq("is_active", true)
       .eq("is_guest", false)
       .not("email", "like", "%.test@pactocoins.local")
