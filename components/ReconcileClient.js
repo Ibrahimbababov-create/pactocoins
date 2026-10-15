@@ -8,6 +8,8 @@ import {
   listTabsForLink,
   previewProjectSheet,
   linkSheetName,
+  sendExtraNotice,
+  setReconcileSkip,
 } from "@/app/admin/reconcileActions";
 
 const kzt = (n) => `${Math.round(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
@@ -325,6 +327,32 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
   const [msg, setMsg] = useState(null);
   const failed = new Set(data.failedSheets ?? []);
 
+  // «В PactoCoins больше» — отдельное письмо, спокойное: человек должен
+  // проверить, а не оправдываться.
+  function askAboutExtra(row) {
+    setMsg(null);
+    start(async () => {
+      const res = await sendExtraNotice(monthKey, row.user.id);
+      if (res?.error) return setMsg(res.error);
+      setReminded((prev) => new Set(prev).add(row.user.id));
+      setMsg(`Написал ${res.name ?? "сотруднику"} про разницу`);
+    });
+  }
+
+  // Кого в таблицах нет по смыслу — например, оплаты с мастер-классов.
+  function skipPerson(user, skip) {
+    setMsg(null);
+    start(async () => {
+      const res = await setReconcileSkip(user.id, skip);
+      if (res?.error) return setMsg(res.error);
+      setMsg(
+        skip
+          ? `${user.name} больше не участвует в сверке`
+          : `${user.name} снова в сверке`
+      );
+    });
+  }
+
   function pickPerson(row, userId) {
     setMsg(null);
     start(async () => {
@@ -454,6 +482,9 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
         {data.rows.map((r) => {
           const recorded = r.approved + r.pending;
           const canRemind = r.user?.hasTelegram && r.missing >= 5000;
+          // В PactoCoins больше, чем в таблице: тоже повод написать, но
+          // спокойно — чаще это дырка в таблице, а не приписка.
+          const canAsk = r.user?.hasTelegram && r.extra >= 5000;
           return (
             <div
               key={`${r.projectId}|${r.sheetName ?? r.user?.id}`}
@@ -512,20 +543,64 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
                   )}
                 </p>
               </div>
-              {canRemind && (
-                <button
-                  type="button"
-                  onClick={() => remind([r.user.id])}
-                  disabled={pending || reminded.has(r.user.id)}
-                  className="mt-2 text-xs font-semibold text-acid-400 disabled:text-gray-500"
-                >
-                  {reminded.has(r.user.id) ? "Напомнил" : "Напомнить в личку"}
-                </button>
-              )}
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                {canRemind && (
+                  <button
+                    type="button"
+                    onClick={() => remind([r.user.id])}
+                    disabled={pending || reminded.has(r.user.id)}
+                    className="text-xs font-semibold text-acid-400 disabled:text-gray-500"
+                  >
+                    {reminded.has(r.user.id) ? "Напомнил" : "Напомнить в личку"}
+                  </button>
+                )}
+                {canAsk && (
+                  <button
+                    type="button"
+                    onClick={() => askAboutExtra(r)}
+                    disabled={pending || reminded.has(r.user.id)}
+                    className="text-xs font-semibold text-amber-400 disabled:text-gray-500"
+                  >
+                    {reminded.has(r.user.id)
+                      ? "Написал"
+                      : "Спросить про разницу"}
+                  </button>
+                )}
+                {r.user && (
+                  <button
+                    type="button"
+                    onClick={() => skipPerson(r.user, true)}
+                    disabled={pending}
+                    className="text-xs text-gray-600 underline underline-offset-2"
+                  >
+                    не сверять его
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {(data.excluded ?? []).length > 0 && (
+        <p className="text-xs text-gray-600">
+          Не сверяются:{" "}
+          {data.excluded.map((p, i) => (
+            <span key={p.id}>
+              {i > 0 && ", "}
+              {p.name}{" "}
+              <button
+                type="button"
+                onClick={() => skipPerson(p, false)}
+                disabled={pending}
+                className="underline underline-offset-2"
+              >
+                вернуть
+              </button>
+            </span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }

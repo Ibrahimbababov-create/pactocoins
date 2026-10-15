@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { getReconcile, reconcileReminderText, REMIND_MIN_KZT } from "@/lib/reconcile";
+import {
+  getReconcile,
+  reconcileReminderText,
+  reconcileExtraText,
+  REMIND_MIN_KZT,
+} from "@/lib/reconcile";
 import {
   getSheetSources,
   saveSheetSources,
@@ -11,6 +16,7 @@ import {
   colToIndex,
   upsertSource,
   upsertAlias,
+  toggleExcluded,
 } from "@/lib/sheetConfig";
 import { notifyUser } from "@/lib/notifyUser";
 import { listSheetTabs, previewSource } from "@/lib/sheetsRevenue";
@@ -99,6 +105,59 @@ async function viewerFor(projectId) {
     return { error: "Это не твой проект" };
   }
   return { viewer };
+}
+
+// Обратная сторона сверки: в PactoCoins записано больше, чем в таблице.
+// Шлём адресно, по одному человеку — массовой рассылки тут быть не должно,
+// такие письма разбирают поимённо.
+export async function sendExtraNotice(monthKey, userId) {
+  const viewer = await reconcileViewer();
+  if (!viewer) return { error: "Нет доступа" };
+  if (!/^\d{4}-\d{2}$/.test(String(monthKey))) return { error: "Неверный месяц" };
+  if (!userId) return { error: "Не выбран человек" };
+
+  const admin = createAdminClient();
+  const data = await getReconcile(admin, monthKey, { projectIds: viewer.projectIds });
+  if (!data.ok) return { error: "Таблицы не открылись, попробуй позже" };
+
+  const row = data.rows.find((r) => r.user?.id === userId && r.extra >= REMIND_MIN_KZT);
+  if (!row) return { error: "У этого человека нет расхождения в плюс" };
+  if (!row.user.hasTelegram) return { error: "У него не привязан Telegram" };
+
+  await notifyUser(admin, row.user.id, reconcileExtraText(row, data.monthLabel));
+  return { sent: 1, name: row.user.name };
+}
+
+// Убрать человека из сверки совсем (или вернуть). Нужно тем, чьи оплаты
+// в таблицы команд не попадают по смыслу — например, оплаты с
+// мастер-классов. Иначе такой человек вечно висит расхождением.
+export async function setReconcileSkip(userId, skip) {
+  const viewer = await reconcileViewer();
+  if (!viewer) return { error: "Нет доступа" };
+  if (!userId) return { error: "Не выбран человек" };
+
+  const admin = createAdminClient();
+
+  // РОП распоряжается только своими людьми.
+  if (viewer.projectIds) {
+    const { data: person } = await admin
+      .from("users")
+      .select("project_id")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!person || !viewer.projectIds.includes(person.project_id)) {
+      return { error: "Это не твой человек" };
+    }
+  }
+
+  const { sources, aliases, excluded } = await getSheetSources(admin);
+  const next = toggleExcluded(excluded, userId, skip);
+
+  const res = await saveSheetSources(admin, sources, aliases, next);
+  if (res?.error) return { error: res.error };
+
+  revalidatePath("/admin/reconcile");
+  return { ok: true };
 }
 
 // Привязать имя из таблицы к человеку в PactoCoins. Нужно там, где имена
