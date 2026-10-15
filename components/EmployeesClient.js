@@ -5,6 +5,7 @@ import { roleLabel } from "@/lib/roles";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import {
+  grantWheelSpins,
   createMop,
   updateMop,
   manualAdjustBalance,
@@ -42,6 +43,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [adjustingId, setAdjustingId] = useState(null);
+  const [adjustSpins, setAdjustSpins] = useState("");
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [message, setMessage] = useState(null);
@@ -100,6 +102,25 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
         showMessage("Обновлено");
         setEditingId(null);
       }
+    });
+  }
+
+  // Крутки живут отдельно от коинов: баланс не трогают, поэтому и
+  // выдаются своей кнопкой, а не через «Начислить».
+  function handleSpins(userId, sign) {
+    const count = Number(adjustSpins) * sign;
+    if (!count) return showMessage("Сколько круток?", "error");
+
+    startTransition(async () => {
+      const res = await grantWheelSpins(userId, count, adjustReason);
+      if (res?.error) return showMessage(res.error, "error");
+      showMessage(
+        sign > 0
+          ? `Крутки выданы, теперь у него ${res.spins}`
+          : `Крутки сняты, осталось ${res.spins}`
+      );
+      setAdjustSpins("");
+      setAdjustReason("");
     });
   }
 
@@ -555,6 +576,37 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                   >
                     − Списать
                   </button>
+                </div>
+
+                <div className="border-t border-dark-700 pt-2 space-y-2">
+                  <p className="text-[11px] text-gray-500">
+                    Крутки колеса — отдельно от коинов. Сейчас у него:{" "}
+                    <span className="text-gray-300">{u.wheel_spins ?? 0}</span>
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={adjustSpins}
+                      onChange={(e) => setAdjustSpins(e.target.value)}
+                      placeholder="Сколько круток"
+                      className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                    />
+                    <button
+                      onClick={() => handleSpins(u.id, 1)}
+                      disabled={isPending}
+                      className="bg-acid-400/15 text-acid-400 font-bold rounded-lg px-3 py-2 text-sm"
+                    >
+                      + Выдать
+                    </button>
+                    <button
+                      onClick={() => handleSpins(u.id, -1)}
+                      disabled={isPending}
+                      className="bg-red-500/10 text-red-400 rounded-lg px-3 py-2 text-sm"
+                    >
+                      −
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

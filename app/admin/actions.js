@@ -1,6 +1,6 @@
 "use server";
 
-import { formatCoins } from "@/lib/plural";
+import { formatCoins, spinsAcc } from "@/lib/plural";
 import { cancelApprovedRevenue } from "@/lib/cancelRevenue";
 
 import { createAdminClient } from "@/lib/supabase-admin";
@@ -190,6 +190,42 @@ export async function manualAdjustBalance(userId, amount, description) {
   revalidatePath("/admin/employees");
   revalidatePath("/admin");
   return { success: true };
+}
+
+// Выдать (или забрать) крутки колеса руками. Крутка — не коины: баланс
+// она не трогает, поэтому и считается отдельно. Человеку приходит
+// сообщение, иначе крутки появляются молча и о них не узнают.
+export async function grantWheelSpins(userId, count, reason) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const delta = Math.trunc(Number(count) || 0);
+  if (!delta) return { error: "Сколько круток?" };
+  if (Math.abs(delta) > 50) return { error: "Не больше 50 за раз" };
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("name, wheel_spins")
+    .eq("id", userId)
+    .single();
+  if (!profile) return { error: "Сотрудник не найден" };
+
+  const next = Math.max(0, (profile.wheel_spins ?? 0) + delta);
+  const { error } = await admin
+    .from("users")
+    .update({ wheel_spins: next })
+    .eq("id", userId);
+  if (error) return { error: error.message };
+
+  if (delta > 0) {
+    let text = `🎡 Тебе начислили ${delta} ${spinsAcc(delta)} на колесе фортуны. Крути в разделе «Игры».`;
+    if (reason?.trim()) text += `\n\n💬 ${escapeHtml(reason.trim())}`;
+    await notifyUser(admin, userId, text, "notify_requests");
+  }
+
+  revalidatePath("/admin/employees");
+  revalidatePath("/mop/games");
+  return { success: true, spins: next };
 }
 
 // ---------- Заявки на выручку ----------
