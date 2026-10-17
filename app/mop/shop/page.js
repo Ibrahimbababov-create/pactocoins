@@ -56,8 +56,10 @@ export default async function ShopPage() {
       {CURRENT_ANNOUNCEMENT && (
         <AnnouncementBanner
           storageKey={CURRENT_ANNOUNCEMENT.storageKey}
+          icon={CURRENT_ANNOUNCEMENT.icon}
           title={CURRENT_ANNOUNCEMENT.title}
           text={CURRENT_ANNOUNCEMENT.text}
+          href={CURRENT_ANNOUNCEMENT.href}
           dismissible={false}
         />
       )}
