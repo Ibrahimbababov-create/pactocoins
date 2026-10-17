@@ -26,11 +26,16 @@ export default function AdminTournamentForm({ tournament = null }) {
     max_players: t?.max_players ?? "",
     min_players: t?.min_players ?? 4,
     registration_ends_at: toLocal(t?.registration_ends_at),
-    round_hours: t?.round_hours ?? 24,
-    confirm_hours: t?.confirm_hours ?? 6,
+    round_hours: t?.round_hours ?? 6,
+    confirm_hours: t?.confirm_hours ?? 2,
     clan_tag: t?.clan_tag ?? "",
     is_test: t?.is_test ?? false,
+    format: t?.format ?? "league",
+    playoff_size: t?.playoff_size ?? 4,
+    playoff_wins: t?.playoff_wins ?? 1,
+    league_ends_at: toLocal(t?.league_ends_at),
   });
+  const isLeague = form.format === "league";
   const [msg, setMsg] = useState(null);
   const [pending, start] = useTransition();
   const feeLocked = t && t.status !== "draft";
@@ -59,6 +64,42 @@ export default function AdminTournamentForm({ tournament = null }) {
         Описание (необязательно)
         <textarea value={form.description} onChange={set("description")} rows={2} className={input} />
       </label>
+      <label className="block text-xs text-gray-500">
+        Формат
+        <select value={form.format} onChange={set("format")} className={input}>
+          <option value="league">Лига, потом плей-офф</option>
+          <option value="single_elim">Сразу плей-офф</option>
+        </select>
+        <span className="block mt-1 text-gray-600">
+          {isLeague
+            ? "Сначала каждый играет с каждым, лучшие выходят в плей-офф. Подходит для любого числа игроков."
+            : "Сразу сетка на вылет. Если игроков не 2, 4, 8 или 16, часть проходит первый раунд без игры."}
+        </span>
+      </label>
+      {isLeague && (
+        <>
+          <label className="block text-xs text-gray-500">
+            В плей-офф выходят
+            <select value={form.playoff_size} onChange={set("playoff_size")} className={input}>
+              <option value={2}>2 лучших (сразу финал)</option>
+              <option value={4}>4 лучших (полуфиналы и финал)</option>
+              <option value={8}>8 лучших (с 1/4 финала)</option>
+            </select>
+          </label>
+          <label className="block text-xs text-gray-500">
+            Лига до (Алматы), например вечер вторника
+            <input type="datetime-local" value={form.league_ends_at} onChange={set("league_ends_at")} className={input} />
+          </label>
+        </>
+      )}
+      <label className="block text-xs text-gray-500">
+        Матч плей-офф
+        <select value={form.playoff_wins} onChange={set("playoff_wins")} className={input}>
+          <option value={1}>Один бой</option>
+          <option value={2}>До 2 побед</option>
+          <option value={3}>До 3 побед</option>
+        </select>
+      </label>
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-xs text-gray-500">
           Взнос, коинов
@@ -83,7 +124,7 @@ export default function AdminTournamentForm({ tournament = null }) {
           <input value={form.min_players} onChange={set("min_players")} inputMode="numeric" className={input} />
         </label>
         <label className="block text-xs text-gray-500">
-          Часов на матч
+          {isLeague ? "Часов на матч плей-офф" : "Часов на матч"}
           <input value={form.round_hours} onChange={set("round_hours")} inputMode="numeric" className={input} />
         </label>
         <label className="block text-xs text-gray-500">

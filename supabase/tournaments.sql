@@ -50,6 +50,15 @@ create table if not exists public.tournaments (
   created_at timestamptz not null default now()
 );
 
+-- Лига + плей-офф (format = 'league'): матчи лиги — round 0, каждый с
+-- каждым до league_ends_at; потом лучшие playoff_size идут в плей-офф
+-- (round 1..), матч плей-офф — до playoff_wins побед. Добавлено 17.10.2026.
+alter table public.tournaments add column if not exists playoff_size integer
+  check (playoff_size is null or playoff_size between 2 and 16);
+alter table public.tournaments add column if not exists playoff_wins integer not null default 1
+  check (playoff_wins between 1 and 3);
+alter table public.tournaments add column if not exists league_ends_at timestamptz;
+
 create table if not exists public.tournament_entries (
   tournament_id uuid not null references public.tournaments (id) on delete cascade,
   user_id uuid not null references public.users (id) on delete restrict,
@@ -261,6 +270,13 @@ begin
   if not found then return jsonb_build_object('error', 'already'); end if;
 
   loser := case when m.player_a = p_winner then m.player_b else m.player_a end;
+
+  -- Матч лиги (round 0): очко победителю, никто не вылетает, банк не трогаем.
+  if m.round = 0 then
+    return jsonb_build_object('ok', true, 'tournament', m.tournament_id, 'match', m.id,
+      'winner', p_winner, 'loser', loser, 'final', false, 'league', true);
+  end if;
+
   if loser is not null then
     update public.tournament_entries set status = 'eliminated'
      where tournament_id = m.tournament_id and user_id = loser and status = 'active';

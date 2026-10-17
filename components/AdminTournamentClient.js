@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatCoins } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
-import { roundLabel } from "@/lib/tournamentRounds";
+import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
 import AdminTournamentForm from "@/components/AdminTournamentForm";
 import {
   openRegistration,
   startTournamentAction,
+  startPlayoffAction,
   cancelTournament,
   removeEntry,
   decideMatch,
@@ -126,6 +127,10 @@ export default function AdminTournamentClient({ data, now }) {
     });
   };
 
+  const isLeague = t.format === "league";
+  const leagueStage = isLeague && t.status === "running" && !matches.some((m) => m.round > 0);
+  const table = isLeague ? leagueStandings(entries.map((e) => e.userId), matches) : [];
+  const leftLeague = matches.filter((m) => m.round === 0 && ["ready", "reported", "disputed"].includes(m.status)).length;
   const needs = matches.filter(
     (m) => m.status === "disputed" || (m.status === "ready" && m.play_by && new Date(m.play_by).getTime() < now)
   );
@@ -165,12 +170,30 @@ export default function AdminTournamentClient({ data, now }) {
               type="button"
               disabled={pending}
               onClick={() =>
-                window.confirm(`Закрыть запись и собрать сетку из ${entries.length} игроков? Бот напишет каждому его соперника.`) &&
-                run(() => startTournamentAction(t.id))
+                window.confirm(
+                  isLeague
+                    ? `Закрыть запись и начать лигу из ${entries.length} игроков? Бот пришлёт каждому список соперников.`
+                    : `Закрыть запись и собрать сетку из ${entries.length} игроков? Бот напишет каждому его соперника.`
+                ) && run(() => startTournamentAction(t.id))
               }
               className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm disabled:opacity-50"
             >
-              Запустить сетку
+              {isLeague ? "Запустить лигу" : "Запустить сетку"}
+            </button>
+          )}
+          {leagueStage && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                window.confirm(
+                  (leftLeague ? `В лиге не сыграно матчей: ${leftLeague}, они не засчитаются. ` : "") +
+                    `Запустить плей-офф для лучших ${Math.min(t.playoff_size ?? 4, entries.length)}?`
+                ) && run(() => startPlayoffAction(t.id))
+              }
+              className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm disabled:opacity-50"
+            >
+              Запустить плей-офф
             </button>
           )}
           {["draft", "registration", "seeding", "running"].includes(t.status) && (
@@ -189,6 +212,31 @@ export default function AdminTournamentClient({ data, now }) {
         {msg?.error && <p className="text-xs text-red-400">{msg.error}</p>}
         {msg?.ok && <p className="text-xs text-acid-400">{msg.ok}</p>}
       </div>
+
+      {leagueStage && (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-500 px-1">
+            Таблица лиги · осталось матчей {leftLeague}
+          </p>
+          <div className="divide-y divide-dark-700 rounded-2xl border border-dark-600 bg-dark-800">
+            {table.map((r) => (
+              <div
+                key={r.userId}
+                className={`flex items-center justify-between gap-2 px-4 py-2 text-sm ${
+                  r.place <= (t.playoff_size ?? 4) ? "" : "text-gray-500"
+                }`}
+              >
+                <span className="truncate">
+                  {r.place}. {people[r.userId]?.name ?? "—"}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {r.wins} : {r.losses}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {needs.length > 0 && (
         <div className="space-y-2">
