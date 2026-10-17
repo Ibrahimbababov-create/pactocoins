@@ -21,7 +21,7 @@ async function requireAdmin() {
   return user;
 }
 
-const PRIZE_TYPES = ["nothing", "coins", "spins", "custom"];
+const PRIZE_TYPES = ["nothing", "coins", "spins", "custom", "chips"];
 
 export async function saveWheelSegment(input) {
   await requireAdmin();
@@ -67,6 +67,7 @@ export async function deleteWheelSegment(id) {
 
 export async function saveWheelConfig({
   spin_price_coins,
+  spin_price_chips,
   buy_enabled,
   is_open,
   opens_at,
@@ -76,8 +77,10 @@ export async function saveWheelConfig({
 
   const patch = {
     spin_price_coins: Math.max(1, Math.round(Number(spin_price_coins) || 150)),
-    // Покупка круток выключена насовсем, см. app/mop/wheel/actions.js.
+    // Покупка круток за коины выключена насовсем, см. app/mop/wheel/actions.js.
+    // Крутки покупают за фишки, цена — spin_price_chips.
     buy_enabled: false,
+    spin_price_chips: Math.max(1, Math.min(1000, Math.round(Number(spin_price_chips) || 10))),
     is_open: !!is_open,
   };
   // opens_at: строка из <input type="datetime-local"> по Алматы, либо пусто

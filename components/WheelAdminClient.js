@@ -177,6 +177,7 @@ export default function WheelAdminClient({
 
   const [cfg, setCfg] = useState({
     spin_price_coins: config?.spin_price_coins ?? 150,
+    spin_price_chips: config?.spin_price_chips ?? 10,
     buy_enabled: config?.buy_enabled ?? true,
     is_open: config?.is_open ?? true,
     opens_at: isoToAlmatyLocal(config?.opens_at),
@@ -184,7 +185,7 @@ export default function WheelAdminClient({
   const [cfgPending, startCfg] = useTransition();
   const [cfgMsg, setCfgMsg] = useState(null);
 
-  const ev = expectedPayoutCoins(segments);
+  const ev = expectedPayoutCoins(segments, Number(cfg.spin_price_chips) || 10);
 
   // выдача круток
   // Никого не выбираем заранее, чтобы крутки не ушли первому по списку.
@@ -209,14 +210,26 @@ export default function WheelAdminClient({
       <div className="rounded-2xl border border-acid-400/25 bg-gradient-to-br from-acid-400/10 to-dark-800 p-5">
         <p className="font-bold">Экономика колеса</p>
         <p className="text-sm mt-1">
-          В среднем одна крутка стоит компании{" "}
-          <span className="text-acid-400 font-bold">{formatCoins(ev)}</span>. Держи это
-          ниже ценности действия, за которое выдаёшь крутку.
+          В среднем одна выданная крутка стоит компании{" "}
+          <span className="text-acid-400 font-bold">{formatCoins(ev)}</span>, вместе с теми
+          крутками, которые человек потом купит за выпавшие фишки. Держи это ниже ценности
+          действия, за которое выдаёшь крутку.
         </p>
+        <label className="mt-3 block text-xs text-gray-500">
+          Цена крутки, фишек
+          <input
+            type="number"
+            min="1"
+            value={cfg.spin_price_chips}
+            onChange={(e) => setCfg((c) => ({ ...c, spin_price_chips: e.target.value }))}
+            className="mt-0.5 block w-32 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white"
+          />
+        </label>
         <p className="mt-2 text-xs text-gray-500">
           Купить крутки за коины нельзя: платная крутка со случайным выигрышем похожа на ставку, а
-          розыгрыши в Казахстане проводит только государственный оператор лотерей. Крутки выдаются за
-          работу: бонусы «Приход вовремя» и «На линии», места в турнире, вручную ниже.
+          розыгрыши в Казахстане проводит только государственный оператор лотерей. Крутки покупают за
+          фишки: они выпадают на колесе, их нельзя купить за коины и обменять на коины. Сами крутки
+          выдаются за работу: бонусы «Приход вовремя» и «На линии», места в турнире, вручную ниже.
         </p>
 
         <div className="mt-3 flex flex-wrap items-end gap-3 pt-3 border-t border-dark-600/60">
