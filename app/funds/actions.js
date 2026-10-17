@@ -281,6 +281,9 @@ export async function refundContribution(fundId, userId) {
     amount_coins: total,
     description: `Возврат взноса в копилку: ${fund?.title ?? ""}`,
     rating_exempt: true,
+    // Возврат своих же коинов — не заработок: не растит «всего заработано»,
+    // уровни и стоимость программы (без этого строка считалась «manual»).
+    source: "refund",
   });
 
   revalidatePath("/funds");
