@@ -198,7 +198,7 @@ export default async function MopDashboard() {
 
       {(profile?.wheel_spins ?? 0) > 0 && (
         <Link
-          href="/mop/games"
+          href="/mop/games/wheel"
           className="flex items-center gap-3 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4"
         >
           <Icon name="wheel" className="w-8 h-8 text-acid-400 shrink-0" />

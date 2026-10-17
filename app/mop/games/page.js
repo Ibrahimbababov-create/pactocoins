@@ -1,36 +1,45 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
-import { createAdminClient } from "@/lib/supabase-admin";
-import WheelClient from "@/components/WheelClient";
 import Icon from "@/components/Icon";
 import { isWheelOpen, formatOpensAt } from "@/lib/wheel";
+import { formatCoins, spinsNom } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
 
-// Крупные выигрыши других — для витрины внизу. Последние 7 дней,
-// без админов (тестовые прокрутки не должны выглядеть как призы игроков).
-const SHOWCASE_MIN_COINS = 300;
-const SHOWCASE_DAYS = 7;
+// Вкладка «Игры» — сначала список игр, каждая открывается своим экраном.
+// Новая игра = новая карточка здесь и свой экран в app/mop/games/<игра>.
 
-function DailyChestTeaser() {
+function GameCard({ href, icon, title, text, badge }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-dark-600 bg-dark-800 p-4 opacity-70">
-      <div className="flex items-center gap-3">
-        <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-dark-700 text-gray-500">
-          <Icon name="chest" className="w-6 h-6" />
+    <Link
+      href={href}
+      className="flex items-center gap-3.5 rounded-2xl border border-dark-600 bg-dark-800 p-4 active:bg-dark-700 transition"
+    >
+      <span className="flex items-center justify-center w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br from-acid-400/25 to-acid-400/5 border border-acid-400/30 text-acid-400">
+        <Icon name={icon} className="w-6 h-6" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="font-bold truncate">{title}</span>
+          {badge && (
+            <span className="shrink-0 rounded-full bg-acid-400 text-black text-[10px] font-bold px-2 py-0.5">
+              {badge}
+            </span>
+          )}
         </span>
-        <div>
-          <p className="font-bold text-gray-300">Сундук дня</p>
-          <p className="text-xs text-gray-500">Скоро — заходи каждый день за призом</p>
-        </div>
-      </div>
-    </div>
+        <span className="block text-sm text-gray-500 mt-0.5">{text}</span>
+      </span>
+      <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
+    </Link>
   );
 }
 
-function MoreGamesTeaser() {
+function SoonTile({ icon, title, text }) {
   return (
-    <div className="rounded-2xl border border-dashed border-dark-600 p-4 text-center">
-      <p className="text-sm text-gray-500">Здесь появятся мини-игры</p>
+    <div className="rounded-2xl border border-dashed border-dark-600 p-3.5">
+      <Icon name={icon} className="w-6 h-6 text-gray-500" />
+      <p className="mt-2 font-semibold text-gray-300 text-sm">{title}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{text}</p>
     </div>
   );
 }
@@ -41,89 +50,50 @@ export default async function GamesPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: config } = await supabase
-    .from("wheel_config")
-    .select("spin_price_coins, buy_enabled, is_open, opens_at")
-    .eq("id", true)
-    .maybeSingle();
+  const [{ data: config }, { data: profile }] = await Promise.all([
+    supabase
+      .from("wheel_config")
+      .select("spin_price_coins, buy_enabled, is_open, opens_at")
+      .eq("id", true)
+      .maybeSingle(),
+    supabase.from("users").select("wheel_spins").eq("id", user.id).single(),
+  ]);
 
-  const wheelClosed = !isWheelOpen(config);
-
-  const admin = createAdminClient();
-  const showcaseSince = new Date(
-    Date.now() - SHOWCASE_DAYS * 86400000
-  ).toISOString();
-
-  const [{ data: profile }, { data: segments }, { data: wins }] =
-    await Promise.all([
-      wheelClosed
-        ? Promise.resolve({ data: null })
-        : supabase
-            .from("users")
-            .select("balance, wheel_spins")
-            .eq("id", user.id)
-            .single(),
-      wheelClosed
-        ? Promise.resolve({ data: [] })
-        : supabase
-            .from("wheel_segments")
-            .select("id, label, weight, prize_type, prize_amount, color, sort_order")
-            .eq("is_active", true)
-            .order("sort_order")
-            .order("created_at"),
-      admin
-        .from("wheel_spins")
-        // Фильтруем в запросе, а не после limit(8): иначе пачка гостевых
-        // джекпотов вытесняла настоящие выигрыши, а сами гостевые
-        // попадали в витрину, которую видит вся команда.
-        .select("id, segment_label, prize_amount, created_at, users!inner(name, role, is_guest, email)")
-        .eq("users.is_guest", false)
-        .neq("users.role", "admin")
-        .not("users.email", "like", "%.test@pactocoins.local")
-        .eq("prize_type", "coins")
-        .gte("prize_amount", SHOWCASE_MIN_COINS)
-        .gte("created_at", showcaseSince)
-        .order("created_at", { ascending: false })
-        .limit(8),
-    ]);
-
-  const bigWins = (wins ?? [])
-    .map((w) => ({
-      id: w.id,
-      name: w.users?.name ?? null,
-      role: w.users?.role,
-      label: w.segment_label,
-      amount: w.prize_amount,
-      created_at: w.created_at,
-    }))
-    .filter((w) => w.name);
+  const spins = profile?.wheel_spins ?? 0;
+  const wheelOpen = isWheelOpen(config);
+  const opensAt = formatOpensAt(config?.opens_at);
+  const wheelText = !wheelOpen
+    ? opensAt
+      ? `Закрыто, откроется ${opensAt}`
+      : "Закрыто, скоро откроем"
+    : spins > 0
+      ? "Крути и забирай призы"
+      : config?.buy_enabled
+        ? `Крутка за ${formatCoins(config.spin_price_coins)}`
+        : "Крутки дают за работу и достижения";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <h1 className="text-2xl font-display font-bold">Игры</h1>
 
-      {wheelClosed ? (
-        <div className="rounded-2xl border border-dark-600 bg-dark-800 text-center py-10 px-4">
-          <Icon name="wheel" className="w-10 h-10 mx-auto text-gray-500" />
-          <h2 className="mt-3 font-bold">Колесо фортуны закрыто</h2>
-          <p className="text-gray-500 text-sm mt-1">
-            {formatOpensAt(config?.opens_at)
-              ? `Откроется ${formatOpensAt(config.opens_at)}.`
-              : "Скоро откроем."}
-          </p>
-        </div>
-      ) : (
-        <WheelClient
-          segments={segments ?? []}
-          spins={profile?.wheel_spins ?? 0}
-          balance={profile?.balance ?? 0}
-          config={config ?? { spin_price_coins: 150, buy_enabled: false }}
-          bigWins={bigWins}
+      <div className="space-y-2.5">
+        <GameCard
+          href="/mop/games/wheel"
+          icon="wheel"
+          title="Колесо фортуны"
+          text={wheelText}
+          badge={wheelOpen && spins > 0 ? `${spins} ${spinsNom(spins)}` : null}
         />
-      )}
+      </div>
 
-      <DailyChestTeaser />
-      <MoreGamesTeaser />
+      <div className="space-y-2">
+        <p className="text-sm text-gray-500 px-1">Скоро</p>
+        <div className="grid grid-cols-2 gap-2.5">
+          <SoonTile icon="trophy" title="Турнир Clash Royale" text="Общий банк забирает победитель" />
+          <SoonTile icon="chest" title="Сундук дня" text="Заходи каждый день за призом" />
+          <SoonTile icon="target" title="Морской бой" text="Один на один с коллегой" />
+        </div>
+      </div>
     </div>
   );
 }

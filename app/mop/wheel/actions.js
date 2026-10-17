@@ -64,6 +64,7 @@ export async function buySpin(count = 1) {
   });
 
   revalidatePath("/mop/games");
+  revalidatePath("/mop/games/wheel");
   return { success: true, spins: newSpins, cost };
 }
 
@@ -150,6 +151,7 @@ export async function spinWheel() {
   }
 
   revalidatePath("/mop/games");
+  revalidatePath("/mop/games/wheel");
   revalidatePath("/mop");
 
   return {

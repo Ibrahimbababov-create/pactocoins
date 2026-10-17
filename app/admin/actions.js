@@ -225,6 +225,7 @@ export async function grantWheelSpins(userId, count, reason) {
 
   revalidatePath("/admin/employees");
   revalidatePath("/mop/games");
+  revalidatePath("/mop/games/wheel");
   return { success: true, spins: next };
 }
 
