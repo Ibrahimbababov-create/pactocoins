@@ -270,3 +270,29 @@ button:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) {
   .ob-pop { animation: none; }
 }
+
+/* Экран «Наблюдать за игрой» (components/TournamentLive.js) */
+@keyframes live-flash {
+  0% { background-color: rgb(var(--c-accent) / 0.45); }
+  100% { background-color: transparent; }
+}
+.live-flash { animation: live-flash 2.4s ease-out; }
+@keyframes live-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+.live-in { animation: live-in 0.5s ease-out both; }
+@keyframes live-toast {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  8%, 90% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(12px); }
+}
+.live-toast { animation: live-toast 6s ease-out both; }
+@keyframes live-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--c-accent) / 0); }
+  50% { box-shadow: 0 0 60px 4px rgb(var(--c-accent) / 0.35); }
+}
+.live-glow { animation: live-glow 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .live-flash, .live-in, .live-toast, .live-glow { animation: none; }
+}

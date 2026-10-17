@@ -365,3 +365,9 @@ grant execute on function public.tournament_cancel(uuid, uuid) to service_role;
 -- tournament_ping2, tournament_t1, tournament_t3 остались от отладки:
 -- тела пустые, вызов закрыт; удалить: drop function public.tournament_ping(),
 -- public.tournament_ping2(uuid), public.tournament_t1(uuid, uuid), public.tournament_t3(uuid);
+
+-- ---------- Живой экран «Наблюдать за игрой» ----------
+-- Экран для телевизора подписывается на изменения турнира через Realtime
+-- (права те же: читать может любой вошедший, см. политики выше).
+-- Применено 2026-10-17.
+alter publication supabase_realtime add table public.tournament_matches, public.tournament_entries, public.tournaments;

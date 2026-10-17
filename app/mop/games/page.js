@@ -48,9 +48,11 @@ function TournamentCard({ t }) {
           : "Участие бесплатное"
       : t.status === "finished"
         ? `Победитель: ${t.winnerName ?? "определён"}`
-        : myTurn
-          ? "Твой матч ждёт итога"
-          : "Идёт турнир, следи за сеткой";
+        : t.waitingMe
+          ? "Соперник отметил итог, ждёт твоего ответа"
+          : myTurn
+            ? "Твой матч ждёт итога"
+            : "Идёт турнир, следи за сеткой";
   const badge =
     t.status === "registration" ? "Запись" : t.status === "finished" ? "Итоги" : myTurn ? "Твой матч" : "Идёт";
   return (
@@ -139,7 +141,19 @@ export default async function GamesPage() {
       {/* Все игры одним списком, по порядку: турнир, колесо, дальше новые. */}
       <div className="space-y-2.5">
         {tournament ? (
-          <TournamentCard t={tournament} />
+          <>
+            <TournamentCard t={tournament} />
+            {tournament.status === "running" && (
+              <Link
+                href={`/mop/games/tournament/${tournament.id}/live`}
+                className="flex items-center gap-2.5 rounded-xl border border-dark-600 px-4 py-2.5 text-sm text-gray-300 active:bg-dark-700 transition"
+              >
+                <Icon name="eye" className="w-4 h-4 shrink-0 text-acid-400" />
+                <span className="flex-1">Смотреть игру онлайн</span>
+                <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
+              </Link>
+            )}
+          </>
         ) : (
           <SoonRow icon="trophy" title="Турнир Clash Royale" text="Общий банк забирает победитель" />
         )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Icon from "@/components/Icon";
 import { formatCoins } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
@@ -29,24 +30,34 @@ const when = (v) => formatDateTimeAlmaty(v).replace(/\.\d{4},/, ",");
 // Во время турнира шапка компактная: главное на экране — твой матч.
 function HeroCompact({ t, players, stage }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800 px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-acid-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-acid-400 animate-pulse" />
-          {t.format === "league" ? (stage === "league" ? "Идёт лига" : "Плей-офф") : "Идёт турнир"}
-          {t.playoff_wins > 1 && stage === "playoff" ? ` · до ${t.playoff_wins} побед` : ""}
-        </p>
-        <p className="text-[11px] text-gray-500 mt-1 truncate">
-          Взнос {Number(t.entry_fee || 0).toLocaleString("ru-RU")}
-          {t.bonus_coins > 0 ? ` · Pacto +${Number(t.bonus_coins).toLocaleString("ru-RU")}` : ""} · игроков {players}
-        </p>
+    <div className="rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-acid-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-acid-400 animate-pulse" />
+            {t.format === "league" ? (stage === "league" ? "Идёт лига" : "Плей-офф") : "Идёт турнир"}
+            {t.playoff_wins > 1 && stage === "playoff" ? ` · до ${t.playoff_wins} побед` : ""}
+          </p>
+          <p className="text-[11px] text-gray-500 mt-1 truncate">
+            Взнос {Number(t.entry_fee || 0).toLocaleString("ru-RU")}
+            {t.bonus_coins > 0 ? ` · Pacto +${Number(t.bonus_coins).toLocaleString("ru-RU")}` : ""} · игроков {players}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-[10px] text-gray-500">Банк</p>
+          <p className="font-display font-bold text-2xl text-acid-400 tabular-nums leading-none">
+            {Number(t.pot || 0).toLocaleString("ru-RU")}
+          </p>
+        </div>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="text-[10px] text-gray-500">Банк</p>
-        <p className="font-display font-bold text-2xl text-acid-400 tabular-nums leading-none">
-          {Number(t.pot || 0).toLocaleString("ru-RU")}
-        </p>
-      </div>
+      <Link
+        href={`/mop/games/tournament/${t.id}/live`}
+        className="flex items-center gap-2 border-t border-acid-400/20 px-4 py-2 text-xs text-gray-300 active:opacity-70"
+      >
+        <Icon name="eye" className="w-4 h-4 text-acid-400" />
+        <span className="flex-1">Смотреть игру онлайн: таблица, туры, кто когда нажал</span>
+        <Icon name="chevronRight" className="w-3.5 h-3.5 text-gray-600" />
+      </Link>
     </div>
   );
 }
