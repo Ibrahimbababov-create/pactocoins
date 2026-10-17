@@ -323,33 +323,81 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
     entries.map((e) => e.userId),
     matches
   );
-  const cut = t.playoff_size ?? 4;
-  const played = matches.filter((m) => m.round === 0 && m.status === "done").length;
-  const total = matches.filter((m) => m.round === 0 && m.status !== "void").length;
-  const body = (
-    <div className="rounded-2xl border border-dark-600 bg-dark-800 overflow-hidden">
-      <div className="grid grid-cols-[28px_1fr_36px_36px] gap-2 px-4 py-2 text-[11px] text-gray-500 border-b border-dark-700">
-        <span>#</span>
-        <span>Игрок</span>
-        <span className="text-right">Поб.</span>
-        <span className="text-right">Пор.</span>
-      </div>
-      {table.map((r) => (
-        <div
-          key={r.userId}
-          className={`grid grid-cols-[28px_1fr_36px_36px] gap-2 px-4 py-2 text-sm ${
-            r.place === cut ? "border-b border-dashed border-acid-400/40" : ""
-          } ${r.userId === viewer.id ? "text-acid-400" : ""}`}
+  const cut = Math.min(t.playoff_size ?? 4, table.length);
+  const league = matches.filter((m) => m.round === 0 && m.status !== "void");
+  const played = league.filter((m) => m.status === "done").length;
+  const total = league.length;
+  const perPlayer = Math.max(1, table.length - 1);
+
+  const row = (r) => {
+    const inZone = r.place <= cut;
+    const mine = r.userId === viewer.id;
+    const medal = r.place <= 3 && r.wins > 0;
+    return (
+      <div
+        key={r.userId}
+        className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl ${
+          mine ? "ring-1 ring-acid-400/60" : ""
+        } ${inZone ? "bg-acid-400/[0.07]" : ""}`}
+      >
+        <span
+          className={`flex items-center justify-center w-7 h-7 shrink-0 rounded-full text-xs font-bold tabular-nums ${
+            medal
+              ? r.place === 1
+                ? "bg-acid-400 text-black"
+                : "bg-acid-400/30 text-acid-400"
+              : inZone
+                ? "bg-dark-700 text-gray-200"
+                : "bg-dark-700/60 text-gray-500"
+          }`}
         >
-          <span className="tabular-nums text-gray-500">{r.place}</span>
-          <span className="truncate">{people[r.userId]?.name ?? "Игрок"}</span>
-          <span className="text-right tabular-nums">{r.wins}</span>
-          <span className="text-right tabular-nums text-gray-500">{r.losses}</span>
+          {r.place}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className={`block truncate text-sm ${mine ? "text-acid-400 font-semibold" : inZone ? "font-semibold" : "text-gray-400"}`}>
+            {people[r.userId]?.name ?? "Игрок"}
+            {mine && <span className="ml-1.5 text-[10px] font-normal">ты</span>}
+          </span>
+          {/* сколько из своих матчей уже сыграно и выиграно */}
+          <span className="mt-1 flex h-1 rounded-full bg-dark-700 overflow-hidden">
+            <span className="bg-acid-400" style={{ width: `${(r.wins / perPlayer) * 100}%` }} />
+            <span className="bg-gray-600" style={{ width: `${(r.losses / perPlayer) * 100}%` }} />
+          </span>
+        </span>
+        <span className="shrink-0 text-right">
+          <span className="block font-display font-bold tabular-nums text-base leading-none">{r.wins}</span>
+          <span className="block text-[10px] text-gray-500 mt-0.5 tabular-nums">
+            {r.wins}–{r.losses}
+          </span>
+        </span>
+      </div>
+    );
+  };
+
+  const body = (
+    <div className="rounded-2xl border border-dark-600 bg-dark-800 p-2">
+      <div className="px-2 pt-1.5 pb-3">
+        <div className="flex items-center justify-between text-[11px] text-gray-500">
+          <span>
+            Сыграно {played} из {total}
+          </span>
+          <span>победы · счёт</span>
         </div>
-      ))}
-      <p className="px-4 py-2 text-[11px] text-gray-500 border-t border-dark-700">
-        Выше черты — в плей-офф. Сыграно матчей: {played} из {total}.
-      </p>
+        <div className="mt-1.5 h-1.5 rounded-full bg-dark-700 overflow-hidden">
+          <div className="h-full bg-acid-400 rounded-full" style={{ width: total ? `${(played / total) * 100}%` : 0 }} />
+        </div>
+      </div>
+      <div className="space-y-1">{table.slice(0, cut).map(row)}</div>
+      {cut < table.length && (
+        <>
+          <div className="flex items-center gap-2 px-2 py-2 text-[10px] font-semibold text-acid-400">
+            <span className="h-px flex-1 bg-acid-400/40" />
+            выше черты — в плей-офф
+            <span className="h-px flex-1 bg-acid-400/40" />
+          </div>
+          <div className="space-y-1">{table.slice(cut).map(row)}</div>
+        </>
+      )}
     </div>
   );
   if (collapsed) {
@@ -370,42 +418,52 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
 
 function MyLeague({ t, list, people, viewer, pending, run }) {
   if (!list.length) return null;
-  const left = list.filter((m) => m.status !== "done").length;
+  const open = list.filter((m) => m.status !== "done");
+  const done = list.filter((m) => m.status === "done");
+  const wins = done.filter((m) => m.winner_id === viewer.id).length;
+  const card = (m) => {
+    const oppId = m.player_a === viewer.id ? m.player_b : m.player_a;
+    const opp = people[oppId] ?? { name: "Соперник" };
+    return (
+      <div
+        key={m.id}
+        className={`rounded-xl border bg-dark-800 p-3 space-y-2 ${
+          m.status === "done" ? "border-dark-700" : m.status === "reported" && m.reported_by !== viewer.id ? "border-acid-400/50" : "border-dark-600"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold truncate">{opp.name}</span>
+          {opp.tag && (
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(opp.tag)}
+              className="shrink-0 text-[11px] text-gray-500 tabular-nums"
+            >
+              {opp.tag}
+            </button>
+          )}
+        </div>
+        <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} compact />
+      </div>
+    );
+  };
   return (
     <div className="space-y-2">
       <p className="text-sm text-gray-500 px-1">
-        Твои матчи в лиге · осталось {left} из {list.length}
+        {open.length ? `Твои матчи в лиге · осталось ${open.length} из ${list.length}` : "Все твои матчи в лиге сыграны"}
       </p>
-      {t.clan_tag && <p className="text-xs text-gray-500 px-1">Играйте дружеский бой в клане {t.clan_tag}.</p>}
-      {list
-        .slice()
-        .sort((a, b) => (a.status === "done") - (b.status === "done"))
-        .map((m) => {
-          const oppId = m.player_a === viewer.id ? m.player_b : m.player_a;
-          const opp = people[oppId] ?? { name: "Соперник" };
-          return (
-            <div
-              key={m.id}
-              className={`rounded-xl border bg-dark-800 p-3 space-y-2 ${
-                m.status === "done" ? "border-dark-700 opacity-70" : "border-dark-600"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold truncate">{opp.name}</span>
-                {opp.tag && (
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard?.writeText(opp.tag)}
-                    className="shrink-0 text-[11px] text-gray-500 tabular-nums"
-                  >
-                    {opp.tag}
-                  </button>
-                )}
-              </div>
-              <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} compact />
-            </div>
-          );
-        })}
+      {open.length > 0 && t.clan_tag && (
+        <p className="text-xs text-gray-500 px-1">Играйте дружеский бой в клане {t.clan_tag}.</p>
+      )}
+      {open.map(card)}
+      {done.length > 0 && (
+        <details className="space-y-2">
+          <summary className="text-sm text-gray-500 px-1 cursor-pointer">
+            Сыгранные · {done.length}, побед {wins}
+          </summary>
+          <div className="space-y-2 pt-2">{done.map(card)}</div>
+        </details>
+      )}
     </div>
   );
 }
