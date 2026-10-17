@@ -1,10 +1,10 @@
 "use client";
 
-import { formatCoins, spinsNom } from "@/lib/plural";
+import { spinsNom, chipsNom } from "@/lib/plural";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { spinWheel } from "@/app/mop/wheel/actions";
+import { spinWheel, buySpinsWithChips } from "@/app/mop/wheel/actions";
 import { segmentColor, segmentTextColor } from "@/lib/wheel";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { PLACE_SPINS } from "@/lib/tournamentRounds";
@@ -49,6 +49,7 @@ function rarity(weight, total) {
 function segmentFace(seg, isTop) {
   if (seg.prize_type === "coins") return { big: Number(seg.prize_amount).toLocaleString("ru-RU"), small: isTop ? "джекпот" : "коинов" };
   if (seg.prize_type === "spins") return { big: `+${seg.prize_amount}`, small: spinsNom(seg.prize_amount) };
+  if (seg.prize_type === "chips") return { big: String(seg.prize_amount), small: chipsNom(seg.prize_amount) };
   if (seg.prize_type === "custom") return { big: "приз", small: seg.label.slice(0, 12) };
   return { big: "мимо", small: "" };
 }
@@ -78,9 +79,10 @@ function Confetti() {
   );
 }
 
-function ResultModal({ result, spins, jackpotAmount, onClose, onAgain }) {
+function ResultModal({ result, spins, chips, chipPrice, jackpotAmount, onClose, onAgain, onBuyAndSpin }) {
   const coins = result.prizeType === "coins";
   const extra = result.prizeType === "spins";
+  const chipWin = result.prizeType === "chips";
   const jackpot = coins && jackpotAmount > 0 && result.prizeAmount >= jackpotAmount;
   const big = coins && result.prizeAmount >= 100;
   return createPortal(
@@ -96,9 +98,9 @@ function ResultModal({ result, spins, jackpotAmount, onClose, onAgain }) {
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {(big || jackpot || extra) && <Confetti />}
+        {(big || jackpot || extra || (chipWin && result.prizeAmount >= 25)) && <Confetti />}
         <span className="mx-auto flex items-center justify-center w-16 h-16 rounded-full bg-acid-400/15 border border-acid-400/40 text-acid-400">
-          <Icon name={jackpot ? "trophy" : extra ? "wheel" : "sparkle"} className="w-8 h-8" />
+          <Icon name={jackpot ? "trophy" : extra ? "wheel" : chipWin ? "coin" : "sparkle"} className="w-8 h-8" />
         </span>
         <p className="mt-4 text-sm text-gray-400">{jackpot ? "Джекпот!" : extra ? "Бонус" : "Твой выигрыш"}</p>
         {coins && (
@@ -117,6 +119,16 @@ function ResultModal({ result, spins, jackpotAmount, onClose, onAgain }) {
             <p className="mt-2 text-sm text-gray-400">Крути ещё раз</p>
           </>
         )}
+        {chipWin && (
+          <>
+            <p className="mt-1 font-display font-bold text-5xl text-acid-400 tabular-nums leading-none">
+              +{result.prizeAmount}
+            </p>
+            <p className="mt-2 text-sm text-gray-400">
+              {chipsNom(result.prizeAmount)} · теперь у тебя {chips}, крутка стоит {chipPrice}
+            </p>
+          </>
+        )}
         {result.prizeType === "custom" && (
           <>
             <p className="mt-1 font-display font-bold text-2xl text-acid-400 leading-tight">{result.label}</p>
@@ -125,6 +137,15 @@ function ResultModal({ result, spins, jackpotAmount, onClose, onAgain }) {
         )}
         {result.prizeType === "nothing" && <p className="mt-1 font-display font-bold text-2xl">В этот раз мимо</p>}
         <div className="mt-6 space-y-2">
+          {spins === 0 && chips >= chipPrice && (
+            <button
+              type="button"
+              onClick={onBuyAndSpin}
+              className="w-full rounded-2xl bg-acid-400 text-black font-bold py-3 active:scale-[.98] transition"
+            >
+              Купить крутку за {chipPrice} и крутить
+            </button>
+          )}
           {spins > 0 && (
             <button
               type="button"
@@ -138,7 +159,7 @@ function ResultModal({ result, spins, jackpotAmount, onClose, onAgain }) {
             type="button"
             onClick={onClose}
             className={`w-full rounded-2xl py-3 font-semibold ${
-              spins > 0 ? "border border-dark-600 text-gray-300" : "bg-acid-400 text-black font-bold"
+              spins > 0 || chips >= chipPrice ? "border border-dark-600 text-gray-300" : "bg-acid-400 text-black font-bold"
             }`}
           >
             Готово
@@ -150,8 +171,17 @@ function ResultModal({ result, spins, jackpotAmount, onClose, onAgain }) {
   );
 }
 
-export default function WheelClient({ segments, spins: initialSpins, balance: initialBalance, bigWins = [] }) {
+export default function WheelClient({
+  segments,
+  spins: initialSpins,
+  balance: initialBalance,
+  chips: initialChips = 0,
+  chipPrice = 10,
+  bigWins = [],
+}) {
   const [spins, setSpins] = useState(initialSpins ?? 0);
+  const [chips, setChips] = useState(initialChips ?? 0);
+  const [buying, setBuying] = useState(false);
   const [balance, setBalance] = useState(initialBalance ?? 0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
@@ -237,8 +267,30 @@ export default function WheelClient({ segments, spins: initialSpins, balance: in
     requestAnimationFrame(step);
   }
 
-  async function handleSpin() {
-    if (spinning || spins <= 0 || n === 0) return;
+  // Купить крутки за фишки. then — что сделать после (например, сразу крутить).
+  async function buy(count, then) {
+    if (buying || spinning) return;
+    setError(null);
+    setBuying(true);
+    try {
+      const res = await buySpinsWithChips(count);
+      if (res?.error) {
+        setError(res.error);
+        return;
+      }
+      setChips(res.chips);
+      setSpins(res.spins);
+      haptic.success();
+      then?.(res.spins);
+    } catch {
+      setError("Не получилось купить, попробуй ещё раз");
+    } finally {
+      setBuying(false);
+    }
+  }
+
+  async function handleSpin(force = false) {
+    if (spinning || (!force && spins <= 0) || n === 0) return;
     setError(null);
     setResult(null);
     setSpinning(true);
@@ -250,6 +302,7 @@ export default function WheelClient({ segments, spins: initialSpins, balance: in
       if (!res || res.error) return;
       setSpins(res.spins);
       setBalance(res.balance);
+      if (typeof res.chips === "number") setChips(res.chips);
       setResult(res);
       if (res.prizeType === "nothing") haptic.light();
       else haptic.success();
@@ -279,22 +332,27 @@ export default function WheelClient({ segments, spins: initialSpins, balance: in
     { label: "Турнир: 1-е, 2-е, 3–4-е место", spins: PLACE_SPINS.join(" / ") },
   ];
 
-  const prizes = [...segments].sort((a, b) => {
-    const va = a.prize_type === "coins" ? a.prize_amount : a.prize_type === "spins" ? 50 : 0;
-    const vb = b.prize_type === "coins" ? b.prize_amount : b.prize_type === "spins" ? 50 : 0;
-    return vb - va;
-  });
+  // Сначала коины по убыванию, потом фишки по убыванию.
+  const worth = (x) => (x.prize_type === "coins" ? 100000 + x.prize_amount : x.prize_type === "chips" ? x.prize_amount : 0);
+  const prizes = [...segments].sort((a, b) => worth(b) - worth(a));
+
+  const canBuy = Math.min(50, Math.floor(chips / Math.max(chipPrice, 1)));
+  const buyOptions = [...new Set([1, 3, 5, canBuy].filter((q) => q >= 1 && q <= canBuy))].sort((a, b) => a - b);
 
   return (
     <div className="max-w-md mx-auto space-y-6">
-      <div className="flex items-stretch gap-3">
-        <div className="flex-1 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/15 to-dark-800 px-4 py-3">
-          <p className="text-xs text-gray-400">Круток</p>
-          <p className="font-display text-3xl font-bold text-acid-400 tabular-nums leading-tight">{spins}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/15 to-dark-800 px-3 py-3">
+          <p className="text-[11px] text-gray-400">Круток</p>
+          <p className="font-display text-2xl font-bold text-acid-400 tabular-nums leading-tight">{spins}</p>
         </div>
-        <div className="flex-1 rounded-2xl border border-dark-600 bg-dark-800 px-4 py-3 text-right">
-          <p className="text-xs text-gray-400">Баланс</p>
-          <p className="font-display text-xl font-semibold tabular-nums leading-tight mt-1">
+        <div className="rounded-2xl border border-dark-600 bg-dark-800 px-3 py-3">
+          <p className="text-[11px] text-gray-400">Фишек</p>
+          <p className="font-display text-2xl font-bold tabular-nums leading-tight">{chips}</p>
+        </div>
+        <div className="rounded-2xl border border-dark-600 bg-dark-800 px-3 py-3 text-right">
+          <p className="text-[11px] text-gray-400">Коинов</p>
+          <p className="font-display text-lg font-semibold tabular-nums leading-tight mt-1">
             {balance.toLocaleString("ru-RU")}
           </p>
         </div>
@@ -410,12 +468,12 @@ export default function WheelClient({ segments, spins: initialSpins, balance: in
           {/* Кнопка в центре */}
           <button
             type="button"
-            onClick={handleSpin}
-            disabled={spinning || spins <= 0}
+            onClick={() => (spins > 0 ? handleSpin() : buy(1, () => handleSpin(true)))}
+            disabled={spinning || buying || (spins <= 0 && canBuy < 1)}
             aria-label="Крутить колесо"
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[26%] aspect-square rounded-full bg-acid-400 text-black font-display font-bold text-sm shadow-[0_0_0_6px_rgb(var(--c-bg)),0_0_30px_rgb(var(--c-accent)/0.45)] active:scale-95 transition disabled:opacity-90"
           >
-            {spinning ? "···" : spins > 0 ? "Крутить" : "0"}
+            {spinning || buying ? "···" : spins > 0 ? "Крутить" : canBuy > 0 ? "Купить" : "0"}
           </button>
         </div>
       )}
@@ -426,18 +484,57 @@ export default function WheelClient({ segments, spins: initialSpins, balance: in
         (spins > 0 ? (
           <button
             type="button"
-            onClick={handleSpin}
+            onClick={() => handleSpin()}
             disabled={spinning}
             className="w-full bg-acid-400 text-black font-bold rounded-2xl py-3.5 text-base active:scale-[.98] transition disabled:opacity-50"
           >
             {spinning ? "Крутится…" : `Крутить · осталось ${spins}`}
           </button>
-        ) : (
+        ) : canBuy < 1 ? (
           <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 text-center">
             <p className="font-semibold">Круток пока нет</p>
-            <p className="text-sm text-gray-500 mt-1">Крутки дают за работу, смотри ниже, за что.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Крутки дают за работу, а ещё их можно купить за фишки: {chipPrice} {chipsNom(chipPrice)} за крутку.
+            </p>
           </div>
-        ))}
+        ) : null)}
+
+      {/* Крутки за фишки: выиграл фишки, купил крутки, крутишь дальше */}
+      {n > 0 && (
+        <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="font-semibold">Купить крутки за фишки</p>
+            <p className="text-xs text-gray-500 shrink-0">
+              1 крутка = {chipPrice} {chipsNom(chipPrice)}
+            </p>
+          </div>
+          {buyOptions.length > 0 ? (
+            <div className="grid grid-cols-4 gap-2">
+              {buyOptions.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  disabled={buying || spinning}
+                  onClick={() => buy(q)}
+                  className={`rounded-xl py-2.5 text-sm font-bold disabled:opacity-50 ${
+                    q === buyOptions[0] ? "bg-acid-400 text-black" : "border border-acid-400/40 text-acid-400"
+                  }`}
+                >
+                  ×{q}
+                  <span className="block text-[10px] font-semibold opacity-70">{q * chipPrice}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Нужно ещё {chipPrice - (chips % chipPrice)} {chipsNom(chipPrice - (chips % chipPrice))}. Фишки выпадают на колесе.
+            </p>
+          )}
+          <p className="text-[11px] text-gray-600">
+            Фишки нельзя купить за коины и обменять на коины, они только для круток.
+          </p>
+        </div>
+      )}
 
       {n > 0 && (
         <div className="space-y-2">
@@ -453,14 +550,20 @@ export default function WheelClient({ segments, spins: initialSpins, balance: in
                   }`}
                 >
                   <p className={`font-display font-bold tabular-nums ${isTop ? "text-acid-400" : ""}`}>
-                    {seg.prize_type === "coins"
+                    {seg.prize_type === "coins" || seg.prize_type === "chips"
                       ? `+${Number(seg.prize_amount).toLocaleString("ru-RU")}`
                       : seg.prize_type === "spins"
                         ? `+${seg.prize_amount} ${spinsNom(seg.prize_amount)}`
                         : seg.label}
                   </p>
                   <p className="text-[11px] text-gray-500">
-                    {isTop ? "джекпот · " : seg.prize_type === "coins" ? "коинов · " : ""}
+                    {isTop
+                      ? "джекпот · "
+                      : seg.prize_type === "coins"
+                        ? "коинов · "
+                        : seg.prize_type === "chips"
+                          ? `${chipsNom(seg.prize_amount)} · `
+                          : ""}
                     {rarity(seg.weight || 0, totalWeight)}
                   </p>
                 </div>
@@ -507,11 +610,17 @@ export default function WheelClient({ segments, spins: initialSpins, balance: in
         <ResultModal
           result={result}
           spins={spins}
+          chips={chips}
+          chipPrice={chipPrice}
           jackpotAmount={topCoins}
           onClose={() => setResult(null)}
           onAgain={() => {
             setResult(null);
-            handleSpin();
+            handleSpin(true);
+          }}
+          onBuyAndSpin={() => {
+            setResult(null);
+            buy(1, () => handleSpin(true));
           }}
         />
       )}

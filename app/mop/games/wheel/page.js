@@ -20,7 +20,7 @@ export default async function WheelPage() {
 
   const { data: config } = await supabase
     .from("wheel_config")
-    .select("is_open, opens_at")
+    .select("is_open, opens_at, spin_price_chips")
     .eq("id", true)
     .maybeSingle();
 
@@ -37,7 +37,7 @@ export default async function WheelPage() {
         ? Promise.resolve({ data: null })
         : supabase
             .from("users")
-            .select("balance, wheel_spins")
+            .select("balance, wheel_spins, chips")
             .eq("id", user.id)
             .single(),
       wheelClosed
@@ -94,6 +94,8 @@ export default async function WheelPage() {
           segments={segments ?? []}
           spins={profile?.wheel_spins ?? 0}
           balance={profile?.balance ?? 0}
+          chips={profile?.chips ?? 0}
+          chipPrice={config?.spin_price_chips ?? 10}
           bigWins={bigWins}
         />
       )}
