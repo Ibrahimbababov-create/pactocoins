@@ -417,9 +417,47 @@ create table if not exists public.wheel_spins (
 );
 
 -- ---------- Ключи и связи ----------
-
+-- Сначала основные и уникальные ключи всех таблиц, потом связи между
+-- таблицами: связь можно объявить, только когда у цели уже есть ключ.
 alter table public.users add constraint users_pkey primary key (id);
 alter table public.users add constraint users_email_key unique (email);
+alter table public.projects add constraint projects_pkey primary key (id);
+alter table public.project_rops add constraint project_rops_pkey primary key (project_id, rop_id);
+alter table public.transactions add constraint transactions_pkey primary key (id);
+alter table public.revenue_requests add constraint revenue_requests_pkey primary key (id);
+alter table public.bonus_requests add constraint bonus_requests_pkey primary key (id);
+alter table public.rewards add constraint rewards_pkey primary key (id);
+alter table public.reward_variants add constraint reward_variants_pkey primary key (id);
+alter table public.reward_categories add constraint reward_categories_pkey primary key (id);
+alter table public.reward_categories add constraint reward_categories_name_key unique (name);
+alter table public.reward_suggestions add constraint reward_suggestions_pkey primary key (id);
+alter table public.purchase_requests add constraint purchase_requests_pkey primary key (id);
+alter table public.user_goals add constraint user_goals_pkey primary key (id);
+alter table public.budget_topups add constraint budget_topups_pkey primary key (id);
+alter table public.funds add constraint funds_pkey primary key (id);
+alter table public.fund_contributions add constraint fund_contributions_pkey primary key (id);
+alter table public.messages add constraint messages_pkey primary key (id);
+alter table public.anonymous_messages add constraint anonymous_messages_pkey primary key (id);
+alter table public.bot_inbox_messages add constraint bot_inbox_messages_pkey primary key (id);
+alter table public.chat_members add constraint chat_members_pkey primary key (chat_id, user_id);
+alter table public.join_requests add constraint join_requests_pkey primary key (id);
+alter table public.team_events add constraint team_events_pkey primary key (id);
+alter table public.onboarding_blocks add constraint onboarding_blocks_pkey primary key (id);
+alter table public.onboarding_blocks add constraint onboarding_blocks_key_key unique (key);
+alter table public.onboarding_links add constraint onboarding_links_pkey primary key (id);
+alter table public.onboarding_rop_blocks add constraint onboarding_rop_blocks_pkey primary key (id);
+alter table public.onboarding_rop_blocks add constraint onboarding_rop_blocks_block_id_rop_id_key unique (block_id, rop_id);
+alter table public.onboarding_progress add constraint onboarding_progress_pkey primary key (user_id, block_id);
+alter table public.onboarding_tests add constraint onboarding_tests_pkey primary key (id);
+alter table public.onboarding_tests add constraint onboarding_tests_day_key unique (day);
+alter table public.onboarding_questions add constraint onboarding_questions_pkey primary key (id);
+alter table public.onboarding_attempts add constraint onboarding_attempts_pkey primary key (id);
+alter table public.onboarding_practice_tasks add constraint onboarding_practice_tasks_pkey primary key (id);
+alter table public.onboarding_practice_progress add constraint onboarding_practice_progress_pkey primary key (user_id, task_id);
+alter table public.wheel_config add constraint wheel_config_pkey primary key (id);
+alter table public.wheel_segments add constraint wheel_segments_pkey primary key (id);
+alter table public.wheel_spins add constraint wheel_spins_pkey primary key (id);
+
 alter table public.users add constraint users_id_fkey foreign key (id) references auth.users(id) on delete cascade;
 alter table public.users add constraint users_rop_id_fkey foreign key (rop_id) references users(id) on delete set null;
 alter table public.users add constraint users_mentor_id_fkey foreign key (mentor_id) references users(id) on delete set null;
@@ -427,137 +465,71 @@ alter table public.users add constraint users_project_id_fkey foreign key (proje
 alter table public.users add constraint users_balance_check check ((balance >= 0));
 alter table public.users add constraint users_coin_rate_multiplier_check check ((coin_rate_multiplier > (0)::numeric));
 alter table public.users add constraint users_theme_check check ((theme = any (array['acid'::text, 'brass'::text, 'indigo'::text, 'coral'::text])));
-
-alter table public.projects add constraint projects_pkey primary key (id);
-alter table public.project_rops add constraint project_rops_pkey primary key (project_id, rop_id);
 alter table public.project_rops add constraint project_rops_project_id_fkey foreign key (project_id) references projects(id) on delete cascade;
 alter table public.project_rops add constraint project_rops_rop_id_fkey foreign key (rop_id) references users(id) on delete cascade;
-
-alter table public.transactions add constraint transactions_pkey primary key (id);
 alter table public.transactions add constraint transactions_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.transactions add constraint transactions_created_by_fkey foreign key (created_by) references users(id);
-
-alter table public.revenue_requests add constraint revenue_requests_pkey primary key (id);
 alter table public.revenue_requests add constraint revenue_requests_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.revenue_requests add constraint revenue_requests_reviewed_by_fkey foreign key (reviewed_by) references users(id);
 alter table public.revenue_requests add constraint revenue_requests_amount_kzt_check check ((amount_kzt > 0));
-
-alter table public.bonus_requests add constraint bonus_requests_pkey primary key (id);
 alter table public.bonus_requests add constraint bonus_requests_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.bonus_requests add constraint bonus_requests_reviewed_by_fkey foreign key (reviewed_by) references users(id);
-
-alter table public.rewards add constraint rewards_pkey primary key (id);
 alter table public.rewards add constraint rewards_price_check check ((((is_variable = false) and (price_coins > 0)) or ((is_variable = true) and (rate_coins > 0) and (rate_kzt > 0))));
 alter table public.rewards add constraint rewards_sale_price_check check (((sale_price_coins is null) or (sale_price_coins > 0)));
-
-alter table public.reward_variants add constraint reward_variants_pkey primary key (id);
 alter table public.reward_variants add constraint reward_variants_reward_id_fkey foreign key (reward_id) references rewards(id) on delete cascade;
 alter table public.reward_variants add constraint reward_variants_price_coins_check check ((price_coins > 0));
-
-alter table public.reward_categories add constraint reward_categories_pkey primary key (id);
-alter table public.reward_categories add constraint reward_categories_name_key unique (name);
-
-alter table public.reward_suggestions add constraint reward_suggestions_pkey primary key (id);
 alter table public.reward_suggestions add constraint reward_suggestions_user_id_fkey foreign key (user_id) references users(id);
 alter table public.reward_suggestions add constraint reward_suggestions_reward_id_fkey foreign key (reward_id) references rewards(id);
 alter table public.reward_suggestions add constraint reward_suggestions_reviewed_by_fkey foreign key (reviewed_by) references users(id);
 alter table public.reward_suggestions add constraint reward_suggestions_price_coins_check check ((price_coins > 0));
 alter table public.reward_suggestions add constraint reward_suggestions_status_check check ((status = any (array['pending'::text, 'approved'::text, 'rejected'::text])));
-
-alter table public.purchase_requests add constraint purchase_requests_pkey primary key (id);
 alter table public.purchase_requests add constraint purchase_requests_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.purchase_requests add constraint purchase_requests_reward_id_fkey foreign key (reward_id) references rewards(id);
 alter table public.purchase_requests add constraint purchase_requests_reviewed_by_fkey foreign key (reviewed_by) references users(id) on delete set null;
-
-alter table public.user_goals add constraint user_goals_pkey primary key (id);
 alter table public.user_goals add constraint user_goals_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.user_goals add constraint user_goals_reward_id_fkey foreign key (reward_id) references rewards(id) on delete set null;
 alter table public.user_goals add constraint user_goals_status_check check ((status = any (array['active'::text, 'achieved'::text])));
 alter table public.user_goals add constraint user_goals_target_amount_check check ((target_amount > 0));
-
-alter table public.budget_topups add constraint budget_topups_pkey primary key (id);
 alter table public.budget_topups add constraint budget_topups_created_by_fkey foreign key (created_by) references users(id);
 alter table public.budget_topups add constraint budget_topups_amount_kzt_check check ((amount_kzt > 0));
-
-alter table public.funds add constraint funds_pkey primary key (id);
 alter table public.funds add constraint funds_created_by_fkey foreign key (created_by) references users(id);
 alter table public.funds add constraint funds_goal_coins_check check ((goal_coins > 0));
-
-alter table public.fund_contributions add constraint fund_contributions_pkey primary key (id);
 alter table public.fund_contributions add constraint fund_contributions_fund_id_fkey foreign key (fund_id) references funds(id) on delete cascade;
 alter table public.fund_contributions add constraint fund_contributions_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.fund_contributions add constraint fund_contributions_amount_coins_check check ((amount_coins > 0));
-
-alter table public.messages add constraint messages_pkey primary key (id);
 alter table public.messages add constraint messages_sender_id_fkey foreign key (sender_id) references users(id) on delete cascade;
 alter table public.messages add constraint messages_recipient_id_fkey foreign key (recipient_id) references users(id) on delete cascade;
-
-alter table public.anonymous_messages add constraint anonymous_messages_pkey primary key (id);
 alter table public.anonymous_messages add constraint anonymous_messages_sender_id_fkey foreign key (sender_id) references users(id) on delete set null;
-
-alter table public.bot_inbox_messages add constraint bot_inbox_messages_pkey primary key (id);
-alter table public.chat_members add constraint chat_members_pkey primary key (chat_id, user_id);
-
-alter table public.join_requests add constraint join_requests_pkey primary key (id);
 alter table public.join_requests add constraint join_requests_rop_id_fkey foreign key (rop_id) references users(id) on delete set null;
 alter table public.join_requests add constraint join_requests_mentor_id_fkey foreign key (mentor_id) references users(id) on delete set null;
 alter table public.join_requests add constraint join_requests_reviewed_by_fkey foreign key (reviewed_by) references users(id);
-
-alter table public.team_events add constraint team_events_pkey primary key (id);
 alter table public.team_events add constraint team_events_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.team_events add constraint team_events_kind_check check ((kind = any (array['purchase'::text, 'goal_achieved'::text, 'level_up'::text, 'wheel'::text])));
-
-alter table public.onboarding_blocks add constraint onboarding_blocks_pkey primary key (id);
-alter table public.onboarding_blocks add constraint onboarding_blocks_key_key unique (key);
 alter table public.onboarding_blocks add constraint onboarding_blocks_day_check check (((day >= 1) and (day <= 3)));
 alter table public.onboarding_blocks add constraint onboarding_blocks_kind_check check ((kind = any (array['article'::text, 'links'::text, 'test'::text])));
 alter table public.onboarding_blocks add constraint onboarding_blocks_owner_check check ((owner = any (array['admin'::text, 'rop'::text])));
 alter table public.onboarding_blocks add constraint onboarding_blocks_source_check check ((source = any (array['telegraph'::text, 'text'::text])));
-
-alter table public.onboarding_links add constraint onboarding_links_pkey primary key (id);
 alter table public.onboarding_links add constraint onboarding_links_block_id_fkey foreign key (block_id) references onboarding_blocks(id) on delete cascade;
 alter table public.onboarding_links add constraint onboarding_links_rop_id_fkey foreign key (rop_id) references users(id) on delete cascade;
-
-alter table public.onboarding_rop_blocks add constraint onboarding_rop_blocks_pkey primary key (id);
-alter table public.onboarding_rop_blocks add constraint onboarding_rop_blocks_block_id_rop_id_key unique (block_id, rop_id);
 alter table public.onboarding_rop_blocks add constraint onboarding_rop_blocks_block_id_fkey foreign key (block_id) references onboarding_blocks(id) on delete cascade;
 alter table public.onboarding_rop_blocks add constraint onboarding_rop_blocks_rop_id_fkey foreign key (rop_id) references users(id) on delete cascade;
 alter table public.onboarding_rop_blocks add constraint onboarding_rop_blocks_source_check check ((source = any (array['telegraph'::text, 'text'::text])));
-
-alter table public.onboarding_progress add constraint onboarding_progress_pkey primary key (user_id, block_id);
 alter table public.onboarding_progress add constraint onboarding_progress_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.onboarding_progress add constraint onboarding_progress_block_id_fkey foreign key (block_id) references onboarding_blocks(id) on delete cascade;
-
-alter table public.onboarding_tests add constraint onboarding_tests_pkey primary key (id);
-alter table public.onboarding_tests add constraint onboarding_tests_day_key unique (day);
 alter table public.onboarding_tests add constraint onboarding_tests_day_check check (((day >= 1) and (day <= 3)));
-
-alter table public.onboarding_questions add constraint onboarding_questions_pkey primary key (id);
 alter table public.onboarding_questions add constraint onboarding_questions_test_id_fkey foreign key (test_id) references onboarding_tests(id) on delete cascade;
-
-alter table public.onboarding_attempts add constraint onboarding_attempts_pkey primary key (id);
 alter table public.onboarding_attempts add constraint onboarding_attempts_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.onboarding_attempts add constraint onboarding_attempts_test_id_fkey foreign key (test_id) references onboarding_tests(id) on delete cascade;
-
-alter table public.onboarding_practice_tasks add constraint onboarding_practice_tasks_pkey primary key (id);
 alter table public.onboarding_practice_tasks add constraint onboarding_practice_tasks_rop_id_fkey foreign key (rop_id) references users(id) on delete cascade;
 alter table public.onboarding_practice_tasks add constraint onboarding_practice_tasks_owner_check check ((owner = any (array['admin'::text, 'rop'::text])));
 alter table public.onboarding_practice_tasks add constraint practice_scope_ck check ((((owner = 'admin'::text) and (rop_id is null)) or ((owner = 'rop'::text) and (rop_id is not null))));
-
-alter table public.onboarding_practice_progress add constraint onboarding_practice_progress_pkey primary key (user_id, task_id);
 alter table public.onboarding_practice_progress add constraint onboarding_practice_progress_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.onboarding_practice_progress add constraint onboarding_practice_progress_task_id_fkey foreign key (task_id) references onboarding_practice_tasks(id) on delete cascade;
 alter table public.onboarding_practice_progress add constraint onboarding_practice_progress_verified_by_fkey foreign key (verified_by) references users(id);
-
-alter table public.wheel_config add constraint wheel_config_pkey primary key (id);
 alter table public.wheel_config add constraint wheel_config_id_check check (id);
-
-alter table public.wheel_segments add constraint wheel_segments_pkey primary key (id);
 alter table public.wheel_segments add constraint wheel_segments_prize_amount_check check ((prize_amount >= 0));
 alter table public.wheel_segments add constraint wheel_segments_weight_check check ((weight > 0));
 alter table public.wheel_segments add constraint wheel_segments_prize_type_check check ((prize_type = any (array['coins'::text, 'spins'::text, 'nothing'::text, 'custom'::text])));
-
-alter table public.wheel_spins add constraint wheel_spins_pkey primary key (id);
 alter table public.wheel_spins add constraint wheel_spins_user_id_fkey foreign key (user_id) references users(id) on delete cascade;
 alter table public.wheel_spins add constraint wheel_spins_segment_id_fkey foreign key (segment_id) references wheel_segments(id) on delete set null;
 
