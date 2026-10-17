@@ -1,6 +1,6 @@
 "use server";
 
-import { formatCoins, spinsAcc } from "@/lib/plural";
+import { formatCoins, spinsAcc, spinsNom } from "@/lib/plural";
 import { cancelApprovedRevenue } from "@/lib/cancelRevenue";
 
 import { createAdminClient } from "@/lib/supabase-admin";
@@ -18,7 +18,8 @@ import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 import { maybeGraduateTrainee } from "@/lib/onboarding";
 import { fetchTelegraphContent } from "@/lib/telegraph";
 import { addCoins } from "@/lib/addCoins";
-import { bonusLabel } from "@/lib/bonusCategories";
+import { addSpins } from "@/lib/addSpins";
+import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -655,8 +656,10 @@ export async function approveBonusRequest(requestId, comment) {
     return { error: "Заявка уже обработана" };
   }
 
-  // «Приход вовремя» — награда не coins, а крутка на колесе фортуны.
-  const spinOnly = request.category === "attendance";
+  // Часть бонусов («Приход вовремя», «На линии») награждается не коинами,
+  // а крутками на колесе фортуны (lib/bonusCategories.js).
+  const spinsAward = bonusSpins(request);
+  const spinOnly = spinsAward > 0;
   const coins = spinOnly ? 0 : request.amount_coins;
 
   // Сначала «захватываем» заявку: статус меняется, только если она ещё
@@ -714,18 +717,10 @@ export async function approveBonusRequest(requestId, comment) {
     );
   }
 
-  // За приход вовремя — крутка на колесе фортуны (1 за заявку).
+  // Крутки на колесе фортуны вместо коинов.
   if (spinOnly) {
-    const { data: w } = await admin
-      .from("users")
-      .select("wheel_spins")
-      .eq("id", request.user_id)
-      .single();
-    await admin
-      .from("users")
-      .update({ wheel_spins: (w?.wheel_spins ?? 0) + 1 })
-      .eq("id", request.user_id);
-    const spinText = "🎡 +1 крутка на колесе фортуны за приход вовремя!";
+    await addSpins(admin, request.user_id, spinsAward);
+    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!`;
     await notifyUser(
       admin,
       request.user_id,
@@ -777,8 +772,8 @@ export async function rejectBonusRequest(requestId, comment) {
   return { success: true };
 }
 
-// Одобрили по ошибке — откатываем coins (или крутку колеса за «приход
-// вовремя») и переводим заявку в «отклонено».
+// Одобрили по ошибке — откатываем coins (или крутки колеса) и переводим
+// заявку в «отклонено».
 export async function cancelApprovedBonusRequest(requestId, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
@@ -793,7 +788,8 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
     return { error: "Заявка не в статусе «одобрено»" };
   }
 
-  const spinOnly = request.category === "attendance";
+  const spinsAward = bonusSpins(request);
+  const spinOnly = spinsAward > 0;
   const coins = request.credited_coins ?? 0;
 
   // Сначала статус (только если ещё «одобрено»), потом списание — иначе
@@ -811,15 +807,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
   if (!claimed?.length) return { error: "Заявка уже отменена" };
 
   if (spinOnly) {
-    const { data: w } = await admin
-      .from("users")
-      .select("wheel_spins")
-      .eq("id", request.user_id)
-      .single();
-    await admin
-      .from("users")
-      .update({ wheel_spins: Math.max(0, (w?.wheel_spins ?? 0) - 1) })
-      .eq("id", request.user_id);
+    await addSpins(admin, request.user_id, -spinsAward);
   } else if (coins) {
     const { data: profile } = await admin
       .from("users")
@@ -839,7 +827,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
   }
 
   let text = spinOnly
-    ? "⚠️ Заявка на бонус отменена (одобрена по ошибке) — крутка на колесе списана обратно"
+    ? `⚠️ Заявка на бонус отменена (одобрена по ошибке): ${spinsAward} ${spinsNom(spinsAward)} на колесе списали обратно`
     : `⚠️ Заявка на бонус отменена (одобрена по ошибке)${
         coins ? ` — ${formatCoins(coins)} списаны обратно` : ""
       }`;

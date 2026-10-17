@@ -1,6 +1,6 @@
 "use server";
 
-import { formatCoins } from "@/lib/plural";
+import { formatCoins, spinsNom } from "@/lib/plural";
 
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
@@ -70,7 +70,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
       `🎯 <b>Новая заявка на бонус</b>\n\n` +
       `От: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n` +
       `Повод: ${meta.label}\n` +
-      (meta.spin ? `Награда: 🎡 крутка на колесе\n` : `Коинов: ${amount}\n`) +
+      (meta.spin ? `Награда: 🎡 ${meta.spins} ${spinsNom(meta.spins)} на колесе\n` : `Коинов: ${amount}\n`) +
       (comment ? `Комментарий: ${escapeHtml(comment)}\n` : "");
 
     const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID

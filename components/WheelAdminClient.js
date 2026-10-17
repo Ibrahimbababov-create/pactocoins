@@ -213,30 +213,11 @@ export default function WheelAdminClient({
           <span className="text-acid-400 font-bold">{formatCoins(ev)}</span>. Держи это
           ниже ценности действия, за которое выдаёшь крутку.
         </p>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
-          <label className="text-xs text-gray-500">
-            Цена покупки крутки, коинов
-            <input
-              type="number"
-              min="1"
-              value={cfg.spin_price_coins}
-              onChange={(e) =>
-                setCfg((c) => ({ ...c, spin_price_coins: e.target.value }))
-              }
-              className="mt-0.5 block w-40 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={cfg.buy_enabled}
-              onChange={(e) =>
-                setCfg((c) => ({ ...c, buy_enabled: e.target.checked }))
-              }
-            />
-            Разрешить покупку круток за коины
-          </label>
-        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Купить крутки за коины нельзя: платная крутка со случайным выигрышем похожа на ставку, а
+          розыгрыши в Казахстане проводит только государственный оператор лотерей. Крутки выдаются за
+          работу: бонусы «Приход вовремя» и «На линии», места в турнире, вручную ниже.
+        </p>
 
         <div className="mt-3 flex flex-wrap items-end gap-3 pt-3 border-t border-dark-600/60">
           <label className="flex items-center gap-2 text-sm text-gray-300">

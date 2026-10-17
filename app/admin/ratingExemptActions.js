@@ -1,6 +1,6 @@
 "use server";
 
-import { formatCoins } from "@/lib/plural";
+import { formatCoins, spinsNom } from "@/lib/plural";
 
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
@@ -9,7 +9,8 @@ import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { addCoins } from "@/lib/addCoins";
-import { bonusLabel } from "@/lib/bonusCategories";
+import { addSpins } from "@/lib/addSpins";
+import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -210,8 +211,10 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
     return { error: "Заявка уже обработана" };
   }
 
-  // «Приход вовремя» — награда не coins, а крутка на колесе фортуны.
-  const spinOnly = request.category === "attendance";
+  // Часть бонусов («Приход вовремя», «На линии») награждается не коинами,
+  // а крутками на колесе фортуны (lib/bonusCategories.js).
+  const spinsAward = bonusSpins(request);
+  const spinOnly = spinsAward > 0;
   const coins = spinOnly ? 0 : request.amount_coins;
 
   // Сначала «захватываем» заявку: статус меняется, только если она ещё
@@ -269,18 +272,10 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
     );
   }
 
-  // За приход вовремя — крутка на колесе фортуны (1 за заявку).
+  // Крутки на колесе фортуны вместо коинов.
   if (spinOnly) {
-    const { data: w } = await admin
-      .from("users")
-      .select("wheel_spins")
-      .eq("id", request.user_id)
-      .single();
-    await admin
-      .from("users")
-      .update({ wheel_spins: (w?.wheel_spins ?? 0) + 1 })
-      .eq("id", request.user_id);
-    const spinText = "🎡 +1 крутка на колесе фортуны за приход вовремя!";
+    await addSpins(admin, request.user_id, spinsAward);
+    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!`;
     await notifyUser(
       admin,
       request.user_id,

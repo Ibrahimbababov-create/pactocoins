@@ -296,3 +296,25 @@ button:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) {
   .live-flash, .live-in, .live-toast, .live-glow { animation: none; }
 }
+
+/* Колесо фортуны (components/WheelClient.js) */
+@keyframes wheel-bulb {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+.wheel-bulb { animation: wheel-bulb 1.6s ease-in-out infinite; }
+.wheel-fast .wheel-bulb { animation-duration: 0.32s; }
+@keyframes wheel-confetti {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+}
+.wheel-confetti { animation: wheel-confetti 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+@keyframes wheel-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.wheel-pop { animation: wheel-pop 0.45s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .wheel-bulb, .wheel-confetti, .wheel-pop { animation: none; }
+}

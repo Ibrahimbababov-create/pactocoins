@@ -8,8 +8,8 @@ import { revalidatePath } from "next/cache";
 import { pickSegmentIndex, prizeText, isWheelOpen } from "@/lib/wheel";
 import { notifyUser } from "@/lib/notifyUser";
 import { recordTeamEvent } from "@/lib/teamEvents";
-import { spendCoins } from "@/lib/spendCoins";
 import { addCoins } from "@/lib/addCoins";
+import { addSpins } from "@/lib/addSpins";
 
 async function currentUser() {
   const supabase = createClient();
@@ -20,53 +20,9 @@ async function currentUser() {
   return user;
 }
 
-// Купить N круток за coins (одним чеком).
-export async function buySpin(count = 1) {
-  const user = await currentUser();
-  const admin = createAdminClient();
-
-  const n = Math.max(1, Math.min(100, Math.round(Number(count) || 1)));
-
-  const [{ data: cfg }, { data: profile }] = await Promise.all([
-    admin.from("wheel_config").select("*").eq("id", true).maybeSingle(),
-    admin
-      .from("users")
-      .select("balance, wheel_spins, is_guest")
-      .eq("id", user.id)
-      .single(),
-  ]);
-
-  if (!isWheelOpen(cfg)) return { error: "Колесо сейчас закрыто" };
-  if (!cfg?.buy_enabled) return { error: "Покупка круток выключена" };
-  const price = cfg.spin_price_coins;
-  const cost = price * n;
-  if ((profile?.balance ?? 0) < cost)
-    return { error: `Нужно ${formatCoins(cost)}` };
-
-  // Списание коинов и начисление круток — одним атомарным запросом,
-  // иначе двойным кликом можно купить крутки дважды за одни коины.
-  const spent = await spendCoins(admin, user.id, cost, { spinsDelta: n });
-  if (!spent.ok) return { error: spent.error };
-
-  const { data: after } = await admin
-    .from("users")
-    .select("wheel_spins")
-    .eq("id", user.id)
-    .single();
-  const newSpins = after?.wheel_spins ?? (profile.wheel_spins ?? 0) + n;
-
-  await admin.from("transactions").insert({
-    user_id: user.id,
-    type: "spend",
-    amount_coins: -cost,
-    description: `🎡 Покупка круток ×${n}`,
-    rating_exempt: true,
-  });
-
-  revalidatePath("/mop/games");
-  revalidatePath("/mop/games/wheel");
-  return { success: true, spins: newSpins, cost };
-}
+// Купить крутки за коины больше нельзя (октябрь 2026): платная крутка со
+// случайным выигрышем похожа на ставку, а розыгрыши в Казахстане проводит
+// только государственный оператор лотерей. Крутки дают за работу.
 
 // Прокрутить колесо. Результат решается ЗДЕСЬ, до анимации на клиенте.
 export async function spinWheel() {
@@ -117,8 +73,8 @@ export async function spinWheel() {
       rating_exempt: true,
     });
   } else if (seg.prize_type === "spins" && seg.prize_amount > 0) {
-    spins += seg.prize_amount;
-    await admin.from("users").update({ wheel_spins: spins }).eq("id", user.id);
+    const added = await addSpins(admin, user.id, seg.prize_amount);
+    spins = added.spins ?? spins + seg.prize_amount;
   }
 
   await admin.from("wheel_spins").insert({
