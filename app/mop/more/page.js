@@ -57,7 +57,13 @@ export default async function MorePage() {
           label: "Предложить награду",
           icon: "sparkle",
         },
-      ],
+        // У РОПа и наставника нет вкладки «Игры» внизу — вход в игры и турниры здесь.
+        (role === "rop" || role === "mentor") && {
+          href: "/mop/games",
+          label: "Игры и турниры",
+          icon: "trophy",
+        },
+      ].filter(Boolean),
     },
     {
       title: "Работа",
