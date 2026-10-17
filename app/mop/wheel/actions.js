@@ -132,8 +132,9 @@ export async function spinWheel() {
   });
 
   // В ленту/на проектор — только заметные выигрыши коинами, и не от гостя
-  // (мелкие фишки ленту бы заспамили).
-  if (seg.prize_type === "coins" && seg.prize_amount >= 100 && !profile?.is_guest) {
+  // и не от админа (у тестового «Админ» бесконечные крутки «для интереса»,
+  // его прокрутки никуда не идут). Мелкие фишки ленту бы заспамили.
+  if (seg.prize_type === "coins" && seg.prize_amount >= 100 && !profile?.is_guest && profile?.role !== "admin") {
     await recordTeamEvent(admin, {
       userId: user.id,
       userName: profile?.name ?? "Кто-то",
