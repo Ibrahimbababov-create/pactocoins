@@ -7,6 +7,7 @@ import { almatyDatetimeToUtcIso } from "@/lib/timezone";
 import {
   tournamentError,
   startTournament,
+  startPlayoff,
   adminDecide,
   adminReplay,
   adminExtend,
@@ -44,6 +45,8 @@ function fields(form, { withFee }) {
   const title = String(form.title ?? "").trim().slice(0, 80);
   if (!title) return { error: "Впиши название" };
   const ends = String(form.registration_ends_at ?? "").trim();
+  const leagueEnds = String(form.league_ends_at ?? "").trim();
+  const isLeague = form.format === "league";
   const row = {
     title,
     description: String(form.description ?? "").trim().slice(0, 1000) || null,
@@ -54,6 +57,10 @@ function fields(form, { withFee }) {
     round_hours: int(form.round_hours, 1, 168, 24),
     confirm_hours: int(form.confirm_hours, 0, 72, 6),
     clan_tag: String(form.clan_tag ?? "").trim().slice(0, 40) || null,
+    format: isLeague ? "league" : "single_elim",
+    playoff_size: isLeague ? int(form.playoff_size, 2, 16, 4) : null,
+    playoff_wins: int(form.playoff_wins, 1, 3, 1),
+    league_ends_at: isLeague && leagueEnds ? almatyDatetimeToUtcIso(leagueEnds) : null,
     is_test: Boolean(form.is_test),
   };
   if (withFee) row.entry_fee = int(form.entry_fee, 0, 5000, 0);
@@ -112,6 +119,13 @@ export async function openRegistration(tid) {
 export async function startTournamentAction(tid) {
   await requireAdmin();
   const res = await startTournament(createAdminClient(), tid);
+  refresh(tid);
+  return res;
+}
+
+export async function startPlayoffAction(tid) {
+  await requireAdmin();
+  const res = await startPlayoff(createAdminClient(), tid);
   refresh(tid);
   return res;
 }
