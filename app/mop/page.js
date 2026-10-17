@@ -22,6 +22,8 @@ import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
 import { WeekPlaceCard, TeamMonthCard, MonthTierCard } from "@/components/DashboardPulse";
+import { getFeaturedTournament } from "@/lib/tournamentView";
+import TournamentHomeCard from "@/components/TournamentHomeCard";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -52,6 +54,7 @@ export default async function MopDashboard() {
     weekPlace,
     { data: shopPrices },
     monthTier,
+    tournament,
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", viewId).single(),
     supabase
@@ -100,6 +103,8 @@ export default async function MopDashboard() {
       .eq("is_active", true)
       .order("price_coins", { ascending: true }),
     getMyMonthTier(supabase, viewId),
+    // Турнир, если идёт запись или игра. Сбой здесь не должен ронять главную.
+    getFeaturedTournament(createAdminClient(), { id: viewId }).catch(() => null),
   ]);
 
   const hasPending =
@@ -211,6 +216,11 @@ export default async function MopDashboard() {
           </div>
         </Link>
       )}
+
+      <TournamentHomeCard
+        t={tournament}
+        canJoin={!profile?.is_guest && ["mop", "rop", "mentor", "admin"].includes(profile?.role)}
+      />
 
       {flashSaleRewards?.map((reward) => (
         <FlashSaleCard
