@@ -83,13 +83,23 @@ function buildFeed(d) {
     }
   }
   if (t.started_at) {
-    items.push({ id: "start", at: t.started_at, kind: "info", text: t.format === "league" ? "Лига началась" : "Турнир начался" });
+    items.push({
+      id: "start",
+      at: t.started_at,
+      kind: "info",
+      text: t.format === "league" ? "Лига началась" : "Турнир начался",
+      sub: `играют ${entries.length}`,
+    });
   }
-  const po = matches
-    .filter((m) => m.round > 0 && m.ready_at)
+  const first = matches.filter((m) => m.round === 1);
+  const po = first
+    .filter((m) => m.ready_at)
     .map((m) => m.ready_at)
     .sort()[0];
-  if (t.format === "league" && po) items.push({ id: "playoff", at: po, kind: "info", text: "Начался плей-офф" });
+  if (t.format === "league" && po) {
+    const out = [...new Set(first.flatMap((m) => [m.player_a, m.player_b]).filter(Boolean))].map(n);
+    items.push({ id: "playoff", at: po, kind: "info", text: "Начался плей-офф", sub: `вышли: ${out.join(", ")}` });
+  }
   return items.sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
 }
 
@@ -123,7 +133,7 @@ function Panel({ title, right, className = "", children }) {
 
 // Таблица лиги. Строки стоят абсолютно и двигаются сдвигом, поэтому при
 // смене мест строка плавно уезжает вверх или вниз, а не прыгает.
-function LiveTable({ d, moves, flash, viewerId, className }) {
+function LiveTable({ d, moves, flash, viewerId, className, title = "Таблица лиги", cutText = "выше черты выходят в плей-офф" }) {
   const { tournament: t, entries, matches, people } = d;
   const table = leagueStandings(
     entries.map((e) => e.userId),
@@ -140,7 +150,7 @@ function LiveTable({ d, moves, flash, viewerId, className }) {
   return (
     <Panel
       className={className}
-      title="Таблица лиги"
+      title={title}
       right={
         <span className="text-xs lg:text-lg text-gray-500 tabular-nums">
           сыграно {played} из {league.length}
@@ -163,7 +173,7 @@ function LiveTable({ d, moves, flash, viewerId, className }) {
             style={{ top: `calc(var(--row) * ${cut})`, height: gap }}
           >
             <span className="h-px flex-1 bg-acid-400/40" />
-            выше черты выходят в плей-офф
+            {cutText}
             <span className="h-px flex-1 bg-acid-400/40" />
           </div>
         )}
@@ -184,7 +194,7 @@ function LiveTable({ d, moves, flash, viewerId, className }) {
                 } ${mine ? "ring-1 ring-acid-400/60" : ""} ${flash[r.userId] ? "live-flash" : ""}`}
               >
                 <span
-                  className={`flex items-center justify-center w-8 h-8 lg:w-12 lg:h-12 shrink-0 rounded-full font-display font-bold text-sm lg:text-xl tabular-nums ${
+                  className={`flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 shrink-0 rounded-full font-display font-bold text-sm lg:text-lg 2xl:text-xl tabular-nums ${
                     r.place === 1 && r.wins > 0
                       ? "bg-acid-400 text-black"
                       : r.place <= 3 && r.wins > 0
@@ -199,7 +209,7 @@ function LiveTable({ d, moves, flash, viewerId, className }) {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 min-w-0">
                     <span
-                      className={`truncate text-base lg:text-3xl font-semibold ${
+                      className={`truncate text-base lg:text-xl 2xl:text-3xl font-semibold ${
                         inZone ? "text-gray-100" : "text-gray-400"
                       }`}
                     >
@@ -221,12 +231,12 @@ function LiveTable({ d, moves, flash, viewerId, className }) {
                     <span className="bg-gray-600 transition-[width] duration-700" style={{ width: `${(r.losses / per) * 100}%` }} />
                   </span>
                 </span>
-                <span className="shrink-0 w-12 lg:w-20 text-center text-xs lg:text-xl tabular-nums text-gray-400">
+                <span className="shrink-0 w-12 lg:w-14 2xl:w-20 text-center text-xs lg:text-base 2xl:text-xl tabular-nums text-gray-400">
                   {r.played}
                   <span className="text-gray-600">/{per}</span>
                 </span>
-                <span className="shrink-0 w-10 lg:w-16 text-right">
-                  <span className="block font-display font-bold tabular-nums text-xl lg:text-4xl leading-none">{r.wins}</span>
+                <span className="shrink-0 w-10 lg:w-12 2xl:w-16 text-right">
+                  <span className="block font-display font-bold tabular-nums text-xl lg:text-3xl 2xl:text-4xl leading-none">{r.wins}</span>
                   <span className="block text-[10px] lg:text-sm text-gray-500 mt-0.5 tabular-nums">
                     {r.wins}–{r.losses}
                   </span>
@@ -237,8 +247,8 @@ function LiveTable({ d, moves, flash, viewerId, className }) {
         })}
       </div>
       <div className="flex justify-end gap-3 px-3 lg:px-4 pt-1 text-[10px] lg:text-sm text-gray-600">
-        <span className="w-12 lg:w-20 text-center">игр</span>
-        <span className="w-10 lg:w-16 text-right">побед</span>
+        <span className="w-12 lg:w-14 2xl:w-20 text-center">игр</span>
+        <span className="w-10 lg:w-12 2xl:w-16 text-right">побед</span>
       </div>
     </Panel>
   );
@@ -556,7 +566,11 @@ function Toast({ it, d }) {
   let small;
   let big;
   let sub = null;
-  if (it.kind === "join") {
+  if (it.kind === "info") {
+    small = d.tournament.title;
+    big = it.text;
+    sub = it.sub ?? null;
+  } else if (it.kind === "join") {
     small = "Новый участник";
     big = n(it.a);
     sub = `в банке ${num(d.tournament.pot)} коинов`;
@@ -723,7 +737,7 @@ export default function TournamentLive({ initial, apiUrl, backHref, viewerId = n
       const added = feed.filter((f) => !seen.current.has(f.id));
       seen.current = ids;
       setFresh(new Set(added.map((f) => f.id)));
-      const loud = added.filter((f) => f.kind === "win" || f.kind === "final" || f.kind === "join").reverse();
+      const loud = added.filter((f) => ["win", "final", "join", "info"].includes(f.kind)).reverse();
       if (loud.length) setToasts((q) => [...q, ...loud].slice(-6));
     }
 
@@ -808,8 +822,26 @@ export default function TournamentLive({ initial, apiUrl, backHref, viewerId = n
     );
   } else if (t.status === "running" || t.status === "finished") {
     const done = t.status === "finished";
+    // В плей-офф таблица лиги остаётся на экране рядом с сеткой.
+    const withTable = isLeague && d.rounds > 0 && d.matches.some((m) => m.round === 0);
     const main = d.rounds > 0 ? (
-      <LiveBracket d={d} className={`lg:col-span-8 ${done ? "" : "lg:min-h-[calc(100vh-15rem)]"}`} />
+      <>
+        <LiveBracket
+          d={d}
+          className={`${withTable ? "lg:col-span-5" : "lg:col-span-8"} ${done ? "" : "lg:min-h-[calc(100vh-15rem)]"}`}
+        />
+        {withTable && (
+          <LiveTable
+            d={d}
+            moves={moves}
+            flash={flash}
+            viewerId={viewerId}
+            title="Итоги лиги"
+            cutText="вышли в плей-офф"
+            className="lg:col-span-4"
+          />
+        )}
+      </>
     ) : isLeague ? (
       <LiveTable d={d} moves={moves} flash={flash} viewerId={viewerId} className="lg:col-span-8" />
     ) : null;
@@ -823,7 +855,7 @@ export default function TournamentLive({ initial, apiUrl, backHref, viewerId = n
             fresh={fresh}
             people={d.people}
             limit={done ? 6 : 14}
-            className={`${main ? "lg:col-span-4" : "lg:col-span-12"} ${done ? "" : "lg:max-h-[calc(100vh-15rem)] lg:overflow-hidden lg:[mask-image:linear-gradient(to_bottom,black_88%,transparent)]"}`}
+            className={`${withTable ? "lg:col-span-3" : main ? "lg:col-span-4" : "lg:col-span-12"} ${done ? "" : "lg:max-h-[calc(100vh-15rem)] lg:overflow-hidden lg:[mask-image:linear-gradient(to_bottom,black_88%,transparent)]"}`}
           />
         </div>
       </div>
