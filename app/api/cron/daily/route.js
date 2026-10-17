@@ -8,6 +8,7 @@ import { cleanupOldWelcomes } from "@/lib/groupWelcome";
 import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
 import { syncBotCommands } from "@/lib/botCommands";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { sweepTournaments } from "@/lib/tournament";
 import {
   isMondayInAlmaty,
   isFirstOfMonthInAlmaty,
@@ -50,6 +51,14 @@ export async function GET(request) {
     summary.botCommands = (await syncBotCommands())?.ok ?? false;
   } catch (err) {
     console.error("[cron] bot commands sync failed:", err);
+  }
+
+  // Турниры: «моя победа» без ответа соперника в срок засчитывается сама.
+  // Обычно это происходит при открытии турнира; крон — страховка.
+  try {
+    summary.tournaments = await sweepTournaments(createAdminClient(), { limit: 100 });
+  } catch (err) {
+    console.error("[cron] tournaments sweep failed:", err);
   }
 
   try {
