@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { getFeaturedTournament } from "@/lib/tournamentView";
 import Icon from "@/components/Icon";
 import { isWheelOpen, formatOpensAt } from "@/lib/wheel";
 import { formatCoins, spinsNom } from "@/lib/plural";
@@ -34,6 +36,53 @@ function GameCard({ href, icon, title, text, badge }) {
   );
 }
 
+// Турнир — крупно и первым: банк, статус, твой матч.
+function TournamentCard({ t }) {
+  const myTurn = t.myMatch && t.myMatch.status !== "disputed";
+  const line =
+    t.status === "registration"
+      ? t.joined
+        ? "Ты участвуешь, ждём старта"
+        : t.entry_fee > 0
+          ? `Взнос ${formatCoins(t.entry_fee)}, победитель забирает всё`
+          : "Участие бесплатное"
+      : t.status === "finished"
+        ? `Победитель: ${t.winnerName ?? "определён"}`
+        : myTurn
+          ? "Твой матч ждёт итога"
+          : "Идёт турнир, следи за сеткой";
+  const badge =
+    t.status === "registration" ? "Запись" : t.status === "finished" ? "Итоги" : myTurn ? "Твой матч" : "Идёт";
+  return (
+    <Link
+      href={`/mop/games/tournament/${t.id}`}
+      className="block rounded-2xl border border-acid-400/40 bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800 p-4 active:opacity-80 transition"
+    >
+      <div className="flex items-center gap-3.5">
+        <span className="flex items-center justify-center w-12 h-12 shrink-0 rounded-xl bg-acid-400 text-black">
+          <Icon name="trophy" className="w-6 h-6" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="font-bold truncate">{t.title}</span>
+            <span className="shrink-0 rounded-full bg-acid-400 text-black text-[10px] font-bold px-2 py-0.5">
+              {badge}
+            </span>
+          </span>
+          <span className="block text-xs text-gray-500">Турнир Clash Royale · игроков {t.players}</span>
+        </span>
+        <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
+      </div>
+      {t.status !== "finished" && (
+        <p className="mt-3 text-2xl font-display font-bold text-acid-400 tabular-nums">
+          {Number(t.pot || 0).toLocaleString("ru-RU")} <span className="text-sm font-sans font-normal text-gray-400">коинов в банке</span>
+        </p>
+      )}
+      <p className="mt-1 text-sm text-gray-400">{line}</p>
+    </Link>
+  );
+}
+
 function SoonTile({ icon, title, text }) {
   return (
     <div className="rounded-2xl border border-dashed border-dark-600 p-3.5">
@@ -56,8 +105,9 @@ export default async function GamesPage() {
       .select("spin_price_coins, buy_enabled, is_open, opens_at")
       .eq("id", true)
       .maybeSingle(),
-    supabase.from("users").select("wheel_spins").eq("id", user.id).single(),
+    supabase.from("users").select("id, role, wheel_spins").eq("id", user.id).single(),
   ]);
+  const tournament = await getFeaturedTournament(createAdminClient(), profile);
 
   const spins = profile?.wheel_spins ?? 0;
   const wheelOpen = isWheelOpen(config);
@@ -77,6 +127,7 @@ export default async function GamesPage() {
       <h1 className="text-2xl font-display font-bold">Игры</h1>
 
       <div className="space-y-2.5">
+        {tournament && <TournamentCard t={tournament} />}
         <GameCard
           href="/mop/games/wheel"
           icon="wheel"
@@ -89,7 +140,9 @@ export default async function GamesPage() {
       <div className="space-y-2">
         <p className="text-sm text-gray-500 px-1">Скоро</p>
         <div className="grid grid-cols-2 gap-2.5">
-          <SoonTile icon="trophy" title="Турнир Clash Royale" text="Общий банк забирает победитель" />
+          {!tournament && (
+            <SoonTile icon="trophy" title="Турнир Clash Royale" text="Общий банк забирает победитель" />
+          )}
           <SoonTile icon="chest" title="Сундук дня" text="Заходи каждый день за призом" />
           <SoonTile icon="target" title="Морской бой" text="Один на один с коллегой" />
         </div>
