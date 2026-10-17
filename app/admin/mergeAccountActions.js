@@ -96,6 +96,23 @@ export async function mergeAccounts(oldUserId, newUserId) {
     .update({ sender_id: newUserId })
     .eq("sender_id", oldUserId);
 
+  // Турниры: участие и матчи держат ссылку на человека (on delete restrict),
+  // без переноса удаление старого аккаунта бы не прошло.
+  await admin
+    .from("tournament_entries")
+    .update({ user_id: newUserId })
+    .eq("user_id", oldUserId);
+  for (const col of ["player_a", "player_b", "winner_id", "reported_by", "reported_winner", "disputed_by", "decided_by"]) {
+    await admin
+      .from("tournament_matches")
+      .update({ [col]: newUserId })
+      .eq(col, oldUserId);
+  }
+  await admin
+    .from("tournaments")
+    .update({ winner_id: newUserId })
+    .eq("winner_id", oldUserId);
+
   // Удаляем старый аккаунт полностью (auth + public.users каскадом)
   await admin.auth.admin.deleteUser(oldUserId);
 
