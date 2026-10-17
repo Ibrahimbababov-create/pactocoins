@@ -38,7 +38,10 @@ export default function TournamentHomeCard({ t, canJoin }) {
 
   if (t.status === "registration") {
     return (
-      <div className="rounded-2xl border border-acid-400/40 bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800 p-4 space-y-3">
+      <Card
+        t={t}
+        className="rounded-2xl border border-acid-400/40 bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800 p-4 space-y-3"
+      >
         <Link href={page} className="flex items-center gap-3.5">
           <span className="flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-acid-400 text-black">
             <Icon name="trophy" className="w-6 h-6" />
@@ -78,13 +81,14 @@ export default function TournamentHomeCard({ t, canJoin }) {
             {canJoin ? (t.entry_fee > 0 ? `Участвовать за ${formatCoins(t.entry_fee)}` : "Участвовать") : "Посмотреть турнир"}
           </Link>
         )}
-      </div>
+      </Card>
     );
   }
 
   if (t.status !== "running") return null;
   return (
-    <div
+    <Card
+      t={t}
       className={`rounded-2xl border bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800 p-4 space-y-3 ${
         t.waitingMe ? "border-acid-400" : "border-acid-400/40"
       }`}
@@ -125,6 +129,18 @@ export default function TournamentHomeCard({ t, canJoin }) {
           </Link>
         )}
       </div>
-    </div>
+    </Card>
+  );
+}
+
+// Рамка карточки. Кто не участвует, может скрыть турнир с главной
+// («Скрыть»): на этом устройстве карточка этого турнира больше не
+// появится, в «Играх» он остаётся. Участникам скрывать нечего: там их матчи.
+function Card({ t, className, children }) {
+  if (t.joined) return <div className={className}>{children}</div>;
+  return (
+    <DismissibleCard storageKey={`tournament-home-${t.id}`} label="Скрыть" className={className}>
+      {children}
+    </DismissibleCard>
   );
 }
