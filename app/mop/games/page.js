@@ -83,12 +83,22 @@ function TournamentCard({ t }) {
   );
 }
 
-function SoonTile({ icon, title, text }) {
+// Игра, которой ещё нет: такой же широкий ряд, только приглушённый.
+function SoonRow({ icon, title, text }) {
   return (
-    <div className="rounded-2xl border border-dashed border-dark-600 p-3.5">
-      <Icon name={icon} className="w-6 h-6 text-gray-500" />
-      <p className="mt-2 font-semibold text-gray-300 text-sm">{title}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{text}</p>
+    <div className="flex items-center gap-3.5 rounded-2xl border border-dashed border-dark-600 p-4">
+      <span className="flex items-center justify-center w-12 h-12 shrink-0 rounded-xl bg-dark-700 text-gray-500">
+        <Icon name={icon} className="w-6 h-6" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="font-bold text-gray-300 truncate">{title}</span>
+          <span className="shrink-0 rounded-full border border-dark-600 text-gray-500 text-[10px] font-semibold px-2 py-0.5">
+            Скоро
+          </span>
+        </span>
+        <span className="block text-sm text-gray-500 mt-0.5">{text}</span>
+      </span>
     </div>
   );
 }
@@ -126,8 +136,13 @@ export default async function GamesPage() {
     <div className="space-y-5">
       <h1 className="text-2xl font-display font-bold">Игры</h1>
 
+      {/* Все игры одним списком, по порядку: турнир, колесо, дальше новые. */}
       <div className="space-y-2.5">
-        {tournament && <TournamentCard t={tournament} />}
+        {tournament ? (
+          <TournamentCard t={tournament} />
+        ) : (
+          <SoonRow icon="trophy" title="Турнир Clash Royale" text="Общий банк забирает победитель" />
+        )}
         <GameCard
           href="/mop/games/wheel"
           icon="wheel"
@@ -135,17 +150,8 @@ export default async function GamesPage() {
           text={wheelText}
           badge={wheelOpen && spins > 0 ? `${spins} ${spinsNom(spins)}` : null}
         />
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-sm text-gray-500 px-1">Скоро</p>
-        <div className="grid grid-cols-2 gap-2.5">
-          {!tournament && (
-            <SoonTile icon="trophy" title="Турнир Clash Royale" text="Общий банк забирает победитель" />
-          )}
-          <SoonTile icon="chest" title="Сундук дня" text="Заходи каждый день за призом" />
-          <SoonTile icon="target" title="Морской бой" text="Один на один с коллегой" />
-        </div>
+        <SoonRow icon="chest" title="Сундук дня" text="Заходи каждый день за призом" />
+        <SoonRow icon="target" title="Морской бой" text="Один на один с коллегой" />
       </div>
     </div>
   );
