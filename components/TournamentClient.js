@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { formatCoins } from "@/lib/plural";
@@ -25,6 +25,51 @@ const STATUS = {
 
 // «18.10, 20:00» — год на экране не нужен.
 const when = (v) => formatDateTimeAlmaty(v).replace(/\.\d{4},/, ",");
+
+// Во время турнира шапка компактная: главное на экране — твой матч.
+function HeroCompact({ t, players, stage }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-acid-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-acid-400 animate-pulse" />
+          {t.format === "league" ? (stage === "league" ? "Идёт лига" : "Плей-офф") : "Идёт турнир"}
+          {t.playoff_wins > 1 && stage === "playoff" ? ` · до ${t.playoff_wins} побед` : ""}
+        </p>
+        <p className="text-[11px] text-gray-500 mt-1 truncate">
+          Взнос {Number(t.entry_fee || 0).toLocaleString("ru-RU")}
+          {t.bonus_coins > 0 ? ` · Pacto +${Number(t.bonus_coins).toLocaleString("ru-RU")}` : ""} · игроков {players}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-[10px] text-gray-500">Банк</p>
+        <p className="font-display font-bold text-2xl text-acid-400 tabular-nums leading-none">
+          {Number(t.pot || 0).toLocaleString("ru-RU")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Переключатель разделов страницы (матчи / таблица / сетка).
+function Tabs({ value, onChange, items }) {
+  return (
+    <div className="grid gap-1 rounded-xl bg-dark-800 border border-dark-600 p-1" style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
+      {items.map((it) => (
+        <button
+          key={it.key}
+          type="button"
+          onClick={() => onChange(it.key)}
+          className={`rounded-lg py-2 text-sm font-semibold transition ${
+            value === it.key ? "bg-acid-400 text-black" : "text-gray-400"
+          }`}
+        >
+          {it.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function Hero({ t, players, winnerName, stage }) {
   const live = t.status === "registration" || t.status === "running";
@@ -283,9 +328,9 @@ function MyMatch({ t, m, people, viewer, rounds, pending, run }) {
       <>
         {m.status === "ready" && (
           <p className="text-sm text-gray-400">
-            {t.playoff_wins > 1 ? `Играйте до ${t.playoff_wins} побед. ` : ""}
-            Сыграйте дружеский бой до <b className="text-gray-200">{when(m.play_by)}</b>
-            {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}. Потом отметь итог.
+            {t.playoff_wins > 1 ? `Играйте до ${t.playoff_wins} побед` : "Сыграйте один дружеский бой"}
+            {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, успеть до <b className="text-gray-200">{when(m.play_by)}</b>. Потом
+            отметь итог.
           </p>
         )}
         <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} />
@@ -318,7 +363,7 @@ function MyMatch({ t, m, people, viewer, rounds, pending, run }) {
   );
 }
 
-function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
+function LeagueTable({ t, entries, matches, people, viewer, collapsed, bare = false }) {
   const table = leagueStandings(
     entries.map((e) => e.userId),
     matches
@@ -407,6 +452,7 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
       )}
     </div>
   );
+  if (bare) return body;
   if (collapsed) {
     return (
       <details className="space-y-2">
@@ -423,75 +469,130 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
   );
 }
 
-function MyLeague({ t, list, people, viewer, pending, run }) {
-  if (!list.length) return null;
+// Порядок своих матчей лиги: сначала ждущие твоего ответа, потом по турам.
+function leagueOrder(list, viewer) {
   const byTour = (a, b) => (a.tour ?? a.slot) - (b.tour ?? b.slot);
   const open = list.filter((m) => m.status !== "done").sort(byTour);
   const done = list.filter((m) => m.status === "done").sort(byTour);
-  const wins = done.filter((m) => m.winner_id === viewer.id).length;
-  // Сначала то, что ждёт тебя (подтвердить победу соперника), потом по турам.
   const waitingMe = open.filter((m) => m.status === "reported" && m.reported_by !== viewer.id);
-  const rest = open.filter((m) => !waitingMe.includes(m));
-  const ordered = [...waitingMe, ...rest];
-  const now = ordered[0];
+  const ordered = [...waitingMe, ...open.filter((m) => !waitingMe.includes(m))];
+  return { ordered, done };
+}
 
-  const card = (m, isNow = false) => {
-    const oppId = m.player_a === viewer.id ? m.player_b : m.player_a;
-    const opp = people[oppId] ?? { name: "Соперник" };
+const oppOf = (m, viewer, people) => people[m.player_a === viewer.id ? m.player_b : m.player_a] ?? { name: "Соперник" };
+
+// Главная карточка лиги: с кем играть прямо сейчас.
+function LeagueNow({ t, list, people, viewer, pending, run }) {
+  if (!list.length) return null;
+  const { ordered, done } = leagueOrder(list, viewer);
+  const m = ordered[0];
+  if (!m) {
     return (
-      <div
-        key={m.id}
-        className={`rounded-xl border bg-dark-800 p-3 space-y-2 ${
-          isNow ? "border-acid-400/60 bg-gradient-to-br from-acid-400/10 to-dark-800" : m.status === "done" ? "border-dark-700" : "border-dark-600"
-        }`}
-      >
-        {isNow && (
-          <p className="text-[11px] font-semibold text-acid-400">
-            {m.status === "reported" && m.reported_by !== viewer.id ? "Ждёт твоего ответа" : "Сейчас"}
-            {m.tour ? ` · тур ${m.tour}` : ""}
-          </p>
+      <div className="rounded-2xl border border-acid-400/40 bg-dark-800 p-4 text-center">
+        <Icon name="check" className="w-7 h-7 mx-auto text-acid-400" />
+        <p className="mt-2 font-semibold">Все твои матчи лиги сыграны</p>
+        <p className="text-xs text-gray-500 mt-1">
+          Побед {done.filter((x) => x.winner_id === viewer.id).length} из {done.length}. Смотри таблицу.
+        </p>
+      </div>
+    );
+  }
+  const opp = oppOf(m, viewer, people);
+  const waiting = m.status === "reported" && m.reported_by !== viewer.id;
+  return (
+    <div className="rounded-2xl border border-acid-400/60 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-acid-400">
+          {waiting ? "Ждёт твоего ответа" : "Сейчас"}
+          {m.tour ? ` · тур ${m.tour}` : ""}
+        </p>
+        <p className="text-[11px] text-gray-500">
+          сыграно {done.length} из {list.length}
+        </p>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xl font-bold truncate">{opp.name}</p>
+        {opp.tag && (
+          <button
+            type="button"
+            onClick={() => navigator.clipboard?.writeText(opp.tag)}
+            className="shrink-0 text-xs text-gray-400 border border-dark-600 rounded-lg px-2.5 py-1.5 tabular-nums"
+          >
+            {opp.tag}
+          </button>
         )}
-        <div className="flex items-center justify-between gap-2">
-          <span className={`font-semibold truncate ${isNow ? "text-lg" : ""}`}>
-            {!isNow && m.tour ? <span className="text-xs text-gray-500 font-normal mr-1.5">Тур {m.tour}</span> : null}
-            {opp.name}
-          </span>
-          {opp.tag && (
-            <button
-              type="button"
-              onClick={() => navigator.clipboard?.writeText(opp.tag)}
-              className="shrink-0 text-[11px] text-gray-500 tabular-nums"
+      </div>
+      <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} />
+    </div>
+  );
+}
+
+// Остальные матчи лиги — короткими строками, кнопки по нажатию.
+function LeagueRest({ t, list, people, viewer, pending, run }) {
+  const [openId, setOpenId] = useState(null);
+  const { ordered, done } = leagueOrder(list, viewer);
+  const rest = ordered.slice(1);
+  const row = (m) => {
+    const opp = oppOf(m, viewer, people);
+    const isOpen = openId === m.id;
+    const result =
+      m.status === "done" ? (m.winner_id === viewer.id ? "победа" : "поражение") : m.status === "reported" ? "ждёт ответа" : m.status === "disputed" ? "спор" : null;
+    return (
+      <div key={m.id} className="rounded-xl border border-dark-600 bg-dark-800">
+        <button
+          type="button"
+          onClick={() => setOpenId(isOpen ? null : m.id)}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left"
+        >
+          <span className="shrink-0 w-12 text-[11px] text-gray-500">{m.tour ? `Тур ${m.tour}` : ""}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{opp.name}</span>
+          {result && (
+            <span
+              className={`shrink-0 text-[11px] ${
+                result === "победа" ? "text-acid-400" : result === "спор" ? "text-amber-400" : "text-gray-500"
+              }`}
             >
-              {opp.tag}
-            </button>
+              {result}
+            </span>
           )}
-        </div>
-        <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} compact={!isNow} />
+          <Icon
+            name="chevronDown"
+            className={`w-4 h-4 shrink-0 text-gray-600 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {isOpen && (
+          <div className="px-3.5 pb-3 space-y-2">
+            {opp.tag && (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard?.writeText(opp.tag)}
+                className="text-[11px] text-gray-400 border border-dark-600 rounded-lg px-2 py-1 tabular-nums"
+              >
+                Скопировать тег {opp.tag}
+              </button>
+            )}
+            <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} compact />
+          </div>
+        )}
       </div>
     );
   };
-
+  if (!rest.length && !done.length) return null;
   return (
     <div className="space-y-2">
-      <p className="text-sm text-gray-500 px-1">
-        {open.length
-          ? `Твои матчи в лиге · сыграно ${done.length} из ${list.length}`
-          : "Все твои матчи в лиге сыграны"}
-      </p>
-      {open.length > 0 && t.clan_tag && (
-        <p className="text-xs text-gray-500 px-1">
-          Играй по порядку туров, дружеский бой в клане {t.clan_tag}. Соперник занят? Сыграй следующий тур, этот доиграешь потом.
-        </p>
+      {rest.length > 0 && (
+        <>
+          <p className="text-xs text-gray-500 px-1">
+            Дальше по турам. Соперник занят? Открой следующий тур, этот доиграешь потом.
+          </p>
+          {rest.map(row)}
+        </>
       )}
-      {now && card(now, true)}
-      {ordered.slice(1).map((m) => card(m))}
       {done.length > 0 && (
-        <details className="space-y-2">
-          <summary className="text-sm text-gray-500 px-1 cursor-pointer">
-            Сыгранные · {done.length}, побед {wins}
-          </summary>
-          <div className="space-y-2 pt-2">{done.map((m) => card(m))}</div>
-        </details>
+        <>
+          <p className="text-xs text-gray-500 px-1 pt-2">Сыгранные</p>
+          {done.map(row)}
+        </>
       )}
     </div>
   );
@@ -542,7 +643,7 @@ function MatchRow({ m, people, viewer }) {
   );
 }
 
-function Bracket({ matches, rounds, people, viewer }) {
+function Bracket({ matches, rounds, people, viewer, bare = false }) {
   const current = Math.min(
     rounds,
     ...matches.filter((m) => ["ready", "reported", "disputed"].includes(m.status)).map((m) => m.round),
@@ -553,7 +654,7 @@ function Bracket({ matches, rounds, people, viewer }) {
   const list = matches.filter((m) => m.round === round);
   return (
     <div className="space-y-2">
-      <p className="text-sm text-gray-500 px-1">Сетка</p>
+      {!bare && <p className="text-sm text-gray-500 px-1">Сетка</p>}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {Array.from({ length: rounds }, (_, i) => i + 1).map((r) => (
           <button
@@ -599,20 +700,46 @@ function Participants({ entries, people, viewer }) {
 }
 
 function Rules({ t }) {
+  const league = t.format === "league";
+  const size = t.playoff_size ?? 4;
+  const wins = t.playoff_wins > 1 ? `до ${t.playoff_wins} побед` : "в один бой";
+  const report = (
+    <li>
+      После боя отметьте итог здесь. «Победа соперника» засчитывается сразу. «Моя победа» ждёт подтверждения соперника{" "}
+      {t.confirm_hours} ч, потом засчитывается сама.
+    </li>
+  );
   return (
     <details className="rounded-2xl border border-dark-600 bg-dark-800 p-4 text-sm text-gray-400">
       <summary className="font-semibold text-gray-200 cursor-pointer">Как проходит турнир</summary>
       <ol className="mt-3 space-y-2 list-decimal pl-5">
         <li>Взносы всех участников идут в общий банк{t.bonus_coins > 0 ? `, Pacto добавляет ${formatCoins(t.bonus_coins)}` : ""}.</li>
-        <li>Когда запись закрывается, сетка собирается случайно. Проиграл матч, значит выбыл.</li>
-        <li>
-          На матч {t.round_hours} ч. Играете дружеский бой{t.clan_tag ? ` в клане ${t.clan_tag}` : ""}: добавьтесь в друзья
-          или в один клан.
-        </li>
-        <li>
-          После боя отметьте итог здесь или в боте. «Победа соперника» засчитывается сразу. «Моя победа» ждёт подтверждения
-          соперника {t.confirm_hours} ч, потом засчитывается сама.
-        </li>
+        {league ? (
+          <>
+            <li>
+              Лига: каждый играет с каждым по одному дружескому бою{t.clan_tag ? ` в клане ${t.clan_tag}` : ""}
+              {t.league_ends_at ? `, всё до ${when(t.league_ends_at)}` : ""}.
+            </li>
+            <li>
+              Туры показывают порядок, а не время. Сыграл свой тур, сразу иди к сопернику следующего, остальных ждать не нужно.
+            </li>
+            {report}
+            <li>Места в таблице: больше побед выше. При равенстве меньше поражений, потом кто выиграл личную встречу.</li>
+            <li>
+              Лучшие {size} выходят в плей-офф, матчи {wins}. Первое место играет с последним из вышедших. Проиграл, значит
+              выбыл.
+            </li>
+          </>
+        ) : (
+          <>
+            <li>Когда запись закрывается, сетка собирается случайно. Проиграл матч, значит выбыл.</li>
+            <li>
+              На матч {t.round_hours} ч, {wins}. Играете дружеский бой{t.clan_tag ? ` в клане ${t.clan_tag}` : ""}: добавьтесь в
+              друзья или в один клан.
+            </li>
+            {report}
+          </>
+        )}
         <li>Если вы не сошлись в итоге, решает админ.</li>
         <li>Победитель финала забирает весь банк. На рейтинг выручки это не влияет.</li>
       </ol>
@@ -626,6 +753,22 @@ export default function TournamentClient({ data, viewer }) {
   const [msg, setMsg] = useState(null);
   const { tournament: t, people, entries, matches, rounds, me, myMatch, myLeague = [], stage } = data;
   const leagueOn = t.format === "league" && matches.some((m) => m.round === 0);
+  const running = t.status === "running";
+  // Свои незаконченные матчи лиги есть — открываем их, иначе сразу таблицу.
+  const inLeague = myLeague.length > 0;
+  const [tab, setTab] = useState(
+    stage === "league" ? (myLeague.some((m) => m.status !== "done") ? "matches" : "table") : rounds > 0 ? "bracket" : "table"
+  );
+
+  // Пока турнир идёт, страница сама подтягивает свежие результаты:
+  // соперник отметил итог — видно без перезагрузки.
+  useEffect(() => {
+    if (!running) return undefined;
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 20000);
+    return () => clearInterval(id);
+  }, [running, router]);
 
   const run = (fn) => {
     setMsg(null);
@@ -636,9 +779,61 @@ export default function TournamentClient({ data, viewer }) {
     });
   };
 
+  const table = (bare) => (
+    <LeagueTable t={t} entries={entries} matches={matches} people={people} viewer={viewer} bare={bare} />
+  );
+  const bracket = (bare) =>
+    rounds > 0 ? <Bracket matches={matches} rounds={rounds} people={people} viewer={viewer} bare={bare} /> : null;
+
+  let sections = null;
+  if (leagueOn && stage === "league" && running && inLeague) {
+    sections = (
+      <>
+        <LeagueNow t={t} list={myLeague} people={people} viewer={viewer} pending={pending} run={run} />
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          items={[
+            { key: "matches", label: "Мои матчи" },
+            { key: "table", label: "Таблица" },
+          ]}
+        />
+        {tab === "matches" ? (
+          <LeagueRest t={t} list={myLeague} people={people} viewer={viewer} pending={pending} run={run} />
+        ) : (
+          table(true)
+        )}
+      </>
+    );
+  } else if (leagueOn && rounds > 0) {
+    sections = (
+      <>
+        <Tabs
+          value={tab === "matches" ? "bracket" : tab}
+          onChange={setTab}
+          items={[
+            { key: "bracket", label: "Плей-офф" },
+            { key: "table", label: "Таблица лиги" },
+          ]}
+        />
+        {tab === "table" ? table(true) : bracket(true)}
+      </>
+    );
+  } else if (leagueOn) {
+    sections = table(false);
+  } else if (rounds > 0) {
+    sections = bracket(false);
+  } else {
+    sections = <Participants entries={entries} people={people} viewer={viewer} />;
+  }
+
   return (
     <div className="space-y-4">
-      <Hero t={t} players={entries.length} winnerName={t.winner_id ? people[t.winner_id]?.name : null} stage={stage} />
+      {running ? (
+        <HeroCompact t={t} players={entries.length} stage={stage} />
+      ) : (
+        <Hero t={t} players={entries.length} winnerName={t.winner_id ? people[t.winner_id]?.name : null} stage={stage} />
+      )}
       {msg?.error && <p className="text-sm text-red-400 text-center">{msg.error}</p>}
       {!me && !viewer.isGuest && <HowToJoin t={t} />}
       <JoinBlock t={t} me={me} viewer={viewer} pending={pending} run={run} />
@@ -647,21 +842,7 @@ export default function TournamentClient({ data, viewer }) {
       {t.status === "cancelled" && (
         <p className="text-sm text-gray-500 text-center">Турнир отменён, взносы вернули на баланс.</p>
       )}
-      {leagueOn && stage === "league" && t.status === "running" && (
-        <MyLeague t={t} list={myLeague} people={people} viewer={viewer} pending={pending} run={run} />
-      )}
-      {rounds > 0 && <Bracket matches={matches} rounds={rounds} people={people} viewer={viewer} />}
-      {leagueOn && (
-        <LeagueTable
-          t={t}
-          entries={entries}
-          matches={matches}
-          people={people}
-          viewer={viewer}
-          collapsed={stage === "playoff"}
-        />
-      )}
-      {!leagueOn && rounds === 0 && <Participants entries={entries} people={people} viewer={viewer} />}
+      {sections}
       {t.description && <p className="text-sm text-gray-400 whitespace-pre-line">{t.description}</p>}
       <Rules t={t} />
     </div>
