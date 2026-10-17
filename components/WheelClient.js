@@ -328,13 +328,20 @@ export default function WheelClient({
   const ways = [
     ...Object.values(BONUS_CATEGORIES)
       .filter((m) => m.spins && !m.hidden)
-      .map((m) => ({ label: m.label, spins: m.spins })),
-    { label: "Турнир: 1-е, 2-е, 3–4-е место", spins: PLACE_SPINS.join(" / ") },
+      .map((m) => ({ label: m.label, value: `+${m.spins}` })),
+    { label: "Турнир", value: `до +${Math.max(...PLACE_SPINS)}` },
   ];
 
   // Сначала коины по убыванию, потом фишки по убыванию.
   const worth = (x) => (x.prize_type === "coins" ? 100000 + x.prize_amount : x.prize_type === "chips" ? x.prize_amount : 0);
-  const prizes = [...segments].sort((a, b) => worth(b) - worth(a));
+  // Одинаковые сектора (на колесе их бывает два) в списке — одной карточкой.
+  const prizes = Object.values(
+    segments.reduce((acc, s) => {
+      const k = `${s.prize_type}:${s.prize_amount}:${s.prize_type === "custom" ? s.label : ""}`;
+      acc[k] = acc[k] ? { ...acc[k], weight: (acc[k].weight || 0) + (s.weight || 0) } : { ...s };
+      return acc;
+    }, {})
+  ).sort((a, b) => worth(b) - worth(a));
 
   const canBuy = Math.min(50, Math.floor(chips / Math.max(chipPrice, 1)));
   const buyOptions = [...new Set([1, 3, 5, canBuy].filter((q) => q >= 1 && q <= canBuy))].sort((a, b) => a - b);
@@ -503,7 +510,7 @@ export default function WheelClient({
       {n > 0 && (
         <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 space-y-3">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="font-semibold">Купить крутки за фишки</p>
+            <p className="font-semibold">Крутки за фишки</p>
             <p className="text-xs text-gray-500 shrink-0">
               1 крутка = {chipPrice} {chipsNom(chipPrice)}
             </p>
@@ -579,7 +586,7 @@ export default function WheelClient({
           {ways.map((w) => (
             <div key={w.label} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
               <span className="text-gray-300">{w.label}</span>
-              <span className="shrink-0 font-display font-bold text-acid-400 tabular-nums">+{w.spins}</span>
+              <span className="shrink-0 font-display font-bold text-acid-400 tabular-nums">{w.value}</span>
             </div>
           ))}
         </div>
