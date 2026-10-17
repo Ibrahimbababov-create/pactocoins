@@ -102,7 +102,8 @@ export async function updateTournament(tid, form) {
   return { ok: true };
 }
 
-export async function openRegistration(tid) {
+// silent: открыть запись без поста в группу (админ сам выложит анонс).
+export async function openRegistration(tid, { silent = false } = {}) {
   await requireAdmin();
   const admin = createAdminClient();
   const { data } = await admin
@@ -113,7 +114,7 @@ export async function openRegistration(tid) {
     .select("*");
   const t = data?.[0];
   if (!t) return { error: "Запись уже открыта" };
-  await announceRegistration(t);
+  if (!silent) await announceRegistration(t);
   refresh(tid);
   return { ok: true };
 }

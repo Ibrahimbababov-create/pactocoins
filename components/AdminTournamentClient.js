@@ -177,6 +177,19 @@ export default function AdminTournamentClient({ data, now }) {
               Открыть запись
             </button>
           )}
+          {t.status === "draft" && !t.is_test && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                window.confirm("Открыть запись без сообщения бота? Анонс в группу выложишь сам.") &&
+                run(() => openRegistration(t.id, { silent: true }))
+              }
+              className="border border-dark-600 rounded-lg px-3 py-2 text-sm text-gray-300 disabled:opacity-50"
+            >
+              Открыть без поста в группу
+            </button>
+          )}
           {t.status === "registration" && (
             <button
               type="button"
