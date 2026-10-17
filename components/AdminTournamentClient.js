@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Icon from "@/components/Icon";
 import { formatCoins } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
@@ -69,6 +70,16 @@ function MatchAdmin({ m, people, rounds, pending, run, now }) {
         <b className={m.winner_id && m.winner_id === m.player_b ? "text-acid-400" : ""}>{name(m.player_b)}</b>
       </p>
       {m.status === "ready" && m.play_by && <p className="text-xs text-gray-500">Сыграть до {when(m.play_by)}</p>}
+      {m.status === "done" && m.method !== "bye" && (
+        <p className="text-xs text-gray-400">
+          {when(m.decided_at)}: победа {name(m.winner_id)}.{" "}
+          {m.method === "loser_report" &&
+            `${name(m.winner_id === m.player_a ? m.player_b : m.player_a)}: «победа соперника».`}
+          {m.method === "confirmed" && `${name(m.reported_winner)}: «моя победа», ${name(m.decided_by)}: «подтверждаю».`}
+          {m.method === "auto_confirm" && `${name(m.reported_winner)}: «моя победа», соперник не ответил, засчитано по сроку.`}
+          {(m.method === "admin" || m.method === "walkover") && `Решил админ ${name(m.decided_by)}.`}
+        </p>
+      )}
       {m.status === "reported" && (
         <p className="text-xs text-gray-400">
           {name(m.reported_winner)}: «моя победа». Засчитаем сами {when(m.confirm_by)}
@@ -209,9 +220,30 @@ export default function AdminTournamentClient({ data, now }) {
             </button>
           )}
         </div>
+        <p className="text-[11px] text-gray-500">
+          Создан {when(t.created_at)}
+          {t.started_at ? ` · старт ${when(t.started_at)}` : ""}
+          {t.finished_at ? ` · завершён ${when(t.finished_at)}` : ""}
+          {t.cancelled_at ? ` · отменён ${when(t.cancelled_at)}` : ""}
+        </p>
         {msg?.error && <p className="text-xs text-red-400">{msg.error}</p>}
         {msg?.ok && <p className="text-xs text-acid-400">{msg.ok}</p>}
       </div>
+
+      {t.status === "finished" && t.winner_id && (
+        <div className="flex items-center gap-3 rounded-2xl border border-acid-400/40 bg-dark-800 p-4">
+          <Icon name="trophy" className="w-8 h-8 shrink-0 text-acid-400" />
+          <div className="min-w-0">
+            <p className="font-semibold">Победитель: {people[t.winner_id]?.name ?? "—"}</p>
+            <p className="text-xs text-gray-400">
+              {t.pot_coins > 0
+                ? `Банк ${formatCoins(t.pot_coins)} выплачен${t.paid_out_at ? ` ${when(t.paid_out_at)}` : ""}`
+                : "Банка не было: турнир без взноса"}
+              {t.bonus_coins > 0 ? `, из них ${formatCoins(t.bonus_coins)} добавил Pacto` : ""}
+            </p>
+          </div>
+        </div>
+      )}
 
       {leagueStage && (
         <div className="space-y-2">
@@ -260,6 +292,9 @@ export default function AdminTournamentClient({ data, now }) {
                 <p className="text-[11px] text-gray-500 tabular-nums">
                   {people[e.userId]?.tag ?? "без тега"}
                   {e.status !== "active" ? ` · ${e.status === "winner" ? "победитель" : "выбыл"}` : ""}
+                </p>
+                <p className="text-[11px] text-gray-600">
+                  {e.paid > 0 ? `взнос ${formatCoins(e.paid)} · ` : ""}записался {when(e.joinedAt)}
                 </p>
               </div>
               {["draft", "registration"].includes(t.status) && (
