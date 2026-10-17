@@ -371,3 +371,8 @@ grant execute on function public.tournament_cancel(uuid, uuid) to service_role;
 -- (права те же: читать может любой вошедший, см. политики выше).
 -- Применено 2026-10-17.
 alter publication supabase_realtime add table public.tournament_matches, public.tournament_entries, public.tournaments;
+
+-- ---------- Скрыть старый или тестовый турнир ----------
+-- Админ жмёт «Скрыть из игр»: турнир пропадает из «Игр» и с главной,
+-- страница по ссылке остаётся. Применено 17.10.2026.
+alter table public.tournaments add column if not exists hidden_at timestamptz;

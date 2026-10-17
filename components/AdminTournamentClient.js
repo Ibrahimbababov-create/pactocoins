@@ -13,6 +13,7 @@ import {
   startPlayoffAction,
   sendLeagueTable,
   cancelTournament,
+  setTournamentHidden,
   removeEntry,
   decideMatch,
   replayMatch,
@@ -245,7 +246,20 @@ export default function AdminTournamentClient({ data, now }) {
               Отменить с возвратом
             </button>
           )}
+          {["finished", "cancelled", "draft"].includes(t.status) && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => setTournamentHidden(t.id, !t.hidden_at))}
+              className="border border-dark-600 rounded-lg px-3 py-2 text-sm text-gray-300 disabled:opacity-50"
+            >
+              {t.hidden_at ? "Вернуть в игры" : "Скрыть из игр"}
+            </button>
+          )}
         </div>
+        {t.hidden_at && (
+          <p className="text-xs text-gray-500">Скрыт: в «Играх» и на главной его не видно, страница открывается только по ссылке.</p>
+        )}
         <p className="text-[11px] text-gray-500">
           Создан {when(t.created_at)}
           {t.started_at ? ` · старт ${when(t.started_at)}` : ""}

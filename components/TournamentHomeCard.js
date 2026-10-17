@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import DismissibleCard from "@/components/DismissibleCard";
 import { formatCoins } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 
@@ -17,20 +18,21 @@ export default function TournamentHomeCard({ t, canJoin }) {
     // Карточку с итогами держим сутки, потом главный экран снова про работу.
     if (!t.finished_at || Date.now() - new Date(t.finished_at).getTime() > DAY) return null;
     return (
-      <Link
-        href={page}
-        className="flex items-center gap-3.5 rounded-2xl border border-acid-400/40 bg-gradient-to-br from-acid-400/15 to-dark-800 p-4 active:opacity-80 transition"
-      >
-        <span className="flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-acid-400 text-black">
-          <Icon name="trophy" className="w-6 h-6" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs text-gray-400">{t.title} · итоги</span>
-          <span className="block font-bold truncate">Победитель: {t.winnerName ?? "определён"}</span>
-          {t.pot > 0 && <span className="block text-xs text-gray-500">забирает {formatCoins(t.pot)}</span>}
-        </span>
-        <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
-      </Link>
+      <DismissibleCard storageKey={`tournament-result-${t.id}`}>
+        <Link
+          href={page}
+          className="flex items-center gap-3.5 rounded-2xl border border-acid-400/40 bg-gradient-to-br from-acid-400/15 to-dark-800 py-4 pl-4 pr-11 active:opacity-80 transition"
+        >
+          <span className="flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-acid-400 text-black">
+            <Icon name="trophy" className="w-6 h-6" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-gray-400">{t.title} · итоги</span>
+            <span className="block font-bold truncate">Победитель: {t.winnerName ?? "определён"}</span>
+            {t.pot > 0 && <span className="block text-xs text-gray-500">забирает {formatCoins(t.pot)}</span>}
+          </span>
+        </Link>
+      </DismissibleCard>
     );
   }
 

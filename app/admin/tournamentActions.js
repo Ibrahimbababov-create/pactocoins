@@ -165,6 +165,24 @@ export async function cancelTournament(tid) {
   return { ok: true, refunded: (res.refunded ?? []).length };
 }
 
+// Скрыть завершённый или отменённый турнир из «Игр» и с главной (старые и
+// тестовые турниры не должны мешать). Страница по ссылке остаётся.
+export async function setTournamentHidden(tid, hidden) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("tournaments")
+    .update({ hidden_at: hidden ? new Date().toISOString() : null })
+    .eq("id", tid)
+    .in("status", ["finished", "cancelled", "draft"])
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Скрыть можно только завершённый, отменённый или черновик" };
+  refresh(tid);
+  revalidatePath("/mop");
+  return { ok: true };
+}
+
 export async function removeEntry(tid, userId) {
   const user = await requireAdmin();
   const admin = createAdminClient();
