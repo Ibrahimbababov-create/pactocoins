@@ -12,7 +12,9 @@ import {
   adminReplay,
   adminExtend,
 } from "@/lib/tournament";
-import { announceRegistration, notifyCancelled } from "@/lib/tournamentNotify";
+import { announceRegistration, notifyCancelled, announceLeagueTable } from "@/lib/tournamentNotify";
+import { leagueStandings } from "@/lib/tournamentRounds";
+import { playerNames } from "@/lib/tournament";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -128,6 +130,26 @@ export async function startPlayoffAction(tid) {
   const res = await startPlayoff(createAdminClient(), tid);
   refresh(tid);
   return res;
+}
+
+// Таблица лиги в общую группу — когда админ сам захочет показать.
+export async function sendLeagueTable(tid) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { data: t } = await admin.from("tournaments").select("*").eq("id", tid).single();
+  if (!t) return { error: "Турнир не найден" };
+  if (t.is_test) return { error: "Турнир тестовый: в группу ничего не отправляется" };
+  const [{ data: matches }, { data: entries }] = await Promise.all([
+    admin.from("tournament_matches").select("*").eq("tournament_id", tid).eq("round", 0),
+    admin.from("tournament_entries").select("user_id").eq("tournament_id", tid).neq("status", "refunded").order("joined_at"),
+  ]);
+  const ids = (entries ?? []).map((e) => e.user_id);
+  const league = (matches ?? []).filter((m) => m.status !== "void");
+  if (!league.length) return { error: "Лига ещё не началась" };
+  const table = leagueStandings(ids, league);
+  const names = await playerNames(admin, ids);
+  await announceLeagueTable(t, table, names, league.filter((m) => m.status === "done").length, league.length);
+  return { ok: true };
 }
 
 export async function cancelTournament(tid) {

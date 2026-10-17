@@ -11,6 +11,7 @@ import {
   openRegistration,
   startTournamentAction,
   startPlayoffAction,
+  sendLeagueTable,
   cancelTournament,
   removeEntry,
   decideMatch,
@@ -190,6 +191,18 @@ export default function AdminTournamentClient({ data, now }) {
               className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm disabled:opacity-50"
             >
               {isLeague ? "Запустить лигу" : "Запустить сетку"}
+            </button>
+          )}
+          {isLeague && t.status === "running" && matches.some((m) => m.round === 0) && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                window.confirm("Отправить текущую таблицу лиги в общую группу?") && run(() => sendLeagueTable(t.id))
+              }
+              className="border border-dark-600 rounded-lg px-3 py-2 text-sm text-gray-300 disabled:opacity-50"
+            >
+              Таблицу в группу
             </button>
           )}
           {leagueStage && (

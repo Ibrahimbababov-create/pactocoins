@@ -364,7 +364,11 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
             <span className="bg-gray-600" style={{ width: `${(r.losses / perPlayer) * 100}%` }} />
           </span>
         </span>
-        <span className="shrink-0 text-right">
+        <span className="shrink-0 w-10 text-center text-xs tabular-nums text-gray-400">
+          {r.played}
+          <span className="text-gray-600">/{perPlayer}</span>
+        </span>
+        <span className="shrink-0 w-8 text-right">
           <span className="block font-display font-bold tabular-nums text-base leading-none">{r.wins}</span>
           <span className="block text-[10px] text-gray-500 mt-0.5 tabular-nums">
             {r.wins}–{r.losses}
@@ -381,7 +385,10 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
           <span>
             Сыграно {played} из {total}
           </span>
-          <span>победы · счёт</span>
+          <span className="flex gap-3">
+            <span className="w-10 text-center">игр</span>
+            <span className="w-8 text-right">побед</span>
+          </span>
         </div>
         <div className="mt-1.5 h-1.5 rounded-full bg-dark-700 overflow-hidden">
           <div className="h-full bg-acid-400 rounded-full" style={{ width: total ? `${(played / total) * 100}%` : 0 }} />
@@ -418,21 +425,37 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed }) {
 
 function MyLeague({ t, list, people, viewer, pending, run }) {
   if (!list.length) return null;
-  const open = list.filter((m) => m.status !== "done");
-  const done = list.filter((m) => m.status === "done");
+  const byTour = (a, b) => (a.tour ?? a.slot) - (b.tour ?? b.slot);
+  const open = list.filter((m) => m.status !== "done").sort(byTour);
+  const done = list.filter((m) => m.status === "done").sort(byTour);
   const wins = done.filter((m) => m.winner_id === viewer.id).length;
-  const card = (m) => {
+  // Сначала то, что ждёт тебя (подтвердить победу соперника), потом по турам.
+  const waitingMe = open.filter((m) => m.status === "reported" && m.reported_by !== viewer.id);
+  const rest = open.filter((m) => !waitingMe.includes(m));
+  const ordered = [...waitingMe, ...rest];
+  const now = ordered[0];
+
+  const card = (m, isNow = false) => {
     const oppId = m.player_a === viewer.id ? m.player_b : m.player_a;
     const opp = people[oppId] ?? { name: "Соперник" };
     return (
       <div
         key={m.id}
         className={`rounded-xl border bg-dark-800 p-3 space-y-2 ${
-          m.status === "done" ? "border-dark-700" : m.status === "reported" && m.reported_by !== viewer.id ? "border-acid-400/50" : "border-dark-600"
+          isNow ? "border-acid-400/60 bg-gradient-to-br from-acid-400/10 to-dark-800" : m.status === "done" ? "border-dark-700" : "border-dark-600"
         }`}
       >
+        {isNow && (
+          <p className="text-[11px] font-semibold text-acid-400">
+            {m.status === "reported" && m.reported_by !== viewer.id ? "Ждёт твоего ответа" : "Сейчас"}
+            {m.tour ? ` · тур ${m.tour}` : ""}
+          </p>
+        )}
         <div className="flex items-center justify-between gap-2">
-          <span className="font-semibold truncate">{opp.name}</span>
+          <span className={`font-semibold truncate ${isNow ? "text-lg" : ""}`}>
+            {!isNow && m.tour ? <span className="text-xs text-gray-500 font-normal mr-1.5">Тур {m.tour}</span> : null}
+            {opp.name}
+          </span>
           {opp.tag && (
             <button
               type="button"
@@ -443,25 +466,31 @@ function MyLeague({ t, list, people, viewer, pending, run }) {
             </button>
           )}
         </div>
-        <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} compact />
+        <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} compact={!isNow} />
       </div>
     );
   };
+
   return (
     <div className="space-y-2">
       <p className="text-sm text-gray-500 px-1">
-        {open.length ? `Твои матчи в лиге · осталось ${open.length} из ${list.length}` : "Все твои матчи в лиге сыграны"}
+        {open.length
+          ? `Твои матчи в лиге · сыграно ${done.length} из ${list.length}`
+          : "Все твои матчи в лиге сыграны"}
       </p>
       {open.length > 0 && t.clan_tag && (
-        <p className="text-xs text-gray-500 px-1">Играйте дружеский бой в клане {t.clan_tag}.</p>
+        <p className="text-xs text-gray-500 px-1">
+          Играй по порядку туров, дружеский бой в клане {t.clan_tag}. Соперник занят? Сыграй следующий тур, этот доиграешь потом.
+        </p>
       )}
-      {open.map(card)}
+      {now && card(now, true)}
+      {ordered.slice(1).map((m) => card(m))}
       {done.length > 0 && (
         <details className="space-y-2">
           <summary className="text-sm text-gray-500 px-1 cursor-pointer">
             Сыгранные · {done.length}, побед {wins}
           </summary>
-          <div className="space-y-2 pt-2">{done.map(card)}</div>
+          <div className="space-y-2 pt-2">{done.map((m) => card(m))}</div>
         </details>
       )}
     </div>

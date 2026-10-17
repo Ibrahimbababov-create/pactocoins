@@ -104,6 +104,9 @@ create table if not exists public.tournament_matches (
   created_at timestamptz not null default now(),
   unique (tournament_id, round, slot)
 );
+-- Тур лиги (порядок «по кругу»: в каждом туре у каждого один соперник).
+-- Не время, а порядок: пропущенный матч доигрывают до league_ends_at.
+alter table public.tournament_matches add column if not exists tour smallint;
 create index if not exists tournament_matches_players_a on public.tournament_matches (player_a);
 create index if not exists tournament_matches_players_b on public.tournament_matches (player_b);
 create index if not exists tournament_matches_reported on public.tournament_matches (confirm_by)
