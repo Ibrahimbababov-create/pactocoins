@@ -176,14 +176,18 @@ export default async function MopDashboard() {
     }
   }
 
+  // Карточка турнира на главной уже есть — баннер про турнир не дублируем.
+  const tournamentShown = tournament?.status === "registration" || tournament?.status === "running";
+
   return (
     <div className="space-y-6">
-      {CURRENT_ANNOUNCEMENT && (
+      {CURRENT_ANNOUNCEMENT && !(CURRENT_ANNOUNCEMENT.hideWhenTournament && tournamentShown) && (
         <AnnouncementBanner
           storageKey={CURRENT_ANNOUNCEMENT.storageKey}
+          icon={CURRENT_ANNOUNCEMENT.icon}
           title={CURRENT_ANNOUNCEMENT.title}
           text={CURRENT_ANNOUNCEMENT.text}
-          href="/mop/games"
+          href={CURRENT_ANNOUNCEMENT.href}
         />
       )}
 
