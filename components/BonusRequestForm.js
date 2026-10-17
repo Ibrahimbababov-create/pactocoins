@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCoins } from "@/lib/plural";
+import { formatCoins, spinsNom } from "@/lib/plural";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -92,7 +92,7 @@ export default function BonusRequestForm({ open, onOpenChange }) {
                 <option key={key} value={key}>
                   {m.label}
                   {m.spin
-                    ? " — крутка на колесе"
+                    ? ` — ${m.spins} ${spinsNom(m.spins)} на колесе`
                     : m.amount
                     ? ` — ${formatCoins(m.amount)}`
                     : ""}

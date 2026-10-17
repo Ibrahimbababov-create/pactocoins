@@ -20,7 +20,7 @@ export default async function WheelPage() {
 
   const { data: config } = await supabase
     .from("wheel_config")
-    .select("spin_price_coins, buy_enabled, is_open, opens_at")
+    .select("is_open, opens_at")
     .eq("id", true)
     .maybeSingle();
 
@@ -94,7 +94,6 @@ export default async function WheelPage() {
           segments={segments ?? []}
           spins={profile?.wheel_spins ?? 0}
           balance={profile?.balance ?? 0}
-          config={config ?? { spin_price_coins: 150, buy_enabled: false }}
           bigWins={bigWins}
         />
       )}

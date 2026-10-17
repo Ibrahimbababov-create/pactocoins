@@ -12,7 +12,7 @@ import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { CURRENT_ANNOUNCEMENT } from "@/lib/announcement";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { recordTeamEvent } from "@/lib/teamEvents";
-import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import { BONUS_CATEGORIES, bonusRewardText } from "@/lib/bonusCategories";
 import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 import { getMonthEarned } from "@/lib/earnings";
@@ -309,9 +309,7 @@ export default async function MopDashboard() {
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category} ожидает
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  {BONUS_CATEGORIES[r.category]?.spin
-                    ? "крутка на колесе"
-                    : `${formatCoins(r.amount_coins)}`}
+                  {bonusRewardText(r)}
                   {r.comment ? ` · ${r.comment}` : ""}
                 </p>
               </div>

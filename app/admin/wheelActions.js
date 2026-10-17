@@ -76,7 +76,8 @@ export async function saveWheelConfig({
 
   const patch = {
     spin_price_coins: Math.max(1, Math.round(Number(spin_price_coins) || 150)),
-    buy_enabled: !!buy_enabled,
+    // Покупка круток выключена насовсем, см. app/mop/wheel/actions.js.
+    buy_enabled: false,
     is_open: !!is_open,
   };
   // opens_at: строка из <input type="datetime-local"> по Алматы, либо пусто

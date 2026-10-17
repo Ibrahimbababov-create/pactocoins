@@ -916,3 +916,22 @@ create policy onboarding_files_delete on storage.objects for delete to authentic
 
 -- Колесо без этой строки не открывается: оно читает настройки по id = true.
 insert into public.wheel_config (id) values (true) on conflict (id) do nothing;
+
+-- Крутки колеса одним запросом (lib/addSpins.js): бонусы, призы турнира,
+-- «ещё крутка» на колесе. Применено 18.10.2026.
+create or replace function public.add_wheel_spins(uid uuid, n integer)
+ returns integer language plpgsql security definer set search_path to 'public'
+as $$
+declare v integer;
+begin
+  if n is null or n = 0 then
+    select wheel_spins into v from public.users where id = uid;
+    return v;
+  end if;
+  update public.users set wheel_spins = greatest(0, coalesce(wheel_spins, 0) + n)
+   where id = uid
+  returning wheel_spins into v;
+  return v;
+end; $$;
+revoke all on function public.add_wheel_spins(uuid, integer) from public, anon, authenticated;
+grant execute on function public.add_wheel_spins(uuid, integer) to service_role;
