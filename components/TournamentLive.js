@@ -426,9 +426,9 @@ function LiveBracket({ d, className = "" }) {
       title="Плей-офф"
       right={t.playoff_wins > 1 ? <span className="text-xs lg:text-lg text-gray-500">матчи до {t.playoff_wins} побед</span> : null}
     >
-      <div className="flex-1 flex gap-3 lg:gap-6 overflow-x-auto pb-1">
+      <div className="flex-1 flex justify-center gap-3 lg:gap-6 overflow-x-auto pb-1">
         {cols.map((c) => (
-          <div key={c.r} className="flex-1 min-w-[180px] flex flex-col">
+          <div key={c.r} className="flex-1 min-w-[180px] max-w-[460px] flex flex-col">
             <p className="text-center text-xs lg:text-xl text-gray-400 mb-2 lg:mb-4">{roundLabel(c.r, rounds)}</p>
             <div className="flex-1 flex flex-col justify-around gap-3 lg:gap-5">
               {c.list.map((m) => (
@@ -899,7 +899,7 @@ export default function TournamentLive({ initial, apiUrl, backHref, viewerId = n
               </p>
             </div>
           </div>
-          <div className="text-right shrink-0">
+          <div className={`text-right shrink-0 ${t.pot > 0 || live ? "" : "invisible"}`}>
             <p className="text-xs lg:text-xl text-gray-500">Банк</p>
             <p className="font-display font-bold text-3xl lg:text-7xl text-acid-400 tabular-nums leading-none mt-0.5">
               {num(t.pot)}
