@@ -97,6 +97,42 @@ function Hero({ t, players, winnerName, stage }) {
   );
 }
 
+// Для тех, кто впервые: что сделать до записи.
+function HowToJoin({ t }) {
+  if (t.status !== "registration") return null;
+  const steps = [
+    t.clan_tag
+      ? `Вступи в клан ${t.clan_tag} в Clash Royale: вкладка «Клан» → поиск → вставь тег клана.`
+      : "Добавь соперников в друзья в Clash Royale (клан пришлёт админ).",
+    "Узнай свой тег: нажми на свой ник в игре, тег под ним, вида #2PYLQ8.",
+    "Впиши тег ниже и нажми «Участвовать». Когда запись закроется, бот пришлёт соперников.",
+  ];
+  return (
+    <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4">
+      <p className="font-semibold">Как участвовать</p>
+      <ol className="mt-2 space-y-2">
+        {steps.map((text, i) => (
+          <li key={i} className="flex gap-3 text-sm text-gray-300">
+            <span className="flex items-center justify-center w-6 h-6 shrink-0 rounded-full bg-acid-400/15 text-acid-400 text-xs font-bold">
+              {i + 1}
+            </span>
+            <span>{text}</span>
+          </li>
+        ))}
+      </ol>
+      {t.clan_tag && (
+        <button
+          type="button"
+          onClick={() => navigator.clipboard?.writeText(t.clan_tag)}
+          className="mt-3 text-xs text-gray-400 border border-dark-600 rounded-lg px-2.5 py-1.5"
+        >
+          Скопировать тег клана
+        </button>
+      )}
+    </div>
+  );
+}
+
 function JoinBlock({ t, me, viewer, pending, run }) {
   const [tag, setTag] = useState(viewer.clashTag);
   if (t.status !== "registration") return null;
@@ -517,6 +553,7 @@ export default function TournamentClient({ data, viewer }) {
     <div className="space-y-4">
       <Hero t={t} players={entries.length} winnerName={t.winner_id ? people[t.winner_id]?.name : null} stage={stage} />
       {msg?.error && <p className="text-sm text-red-400 text-center">{msg.error}</p>}
+      {!me && !viewer.isGuest && <HowToJoin t={t} />}
       <JoinBlock t={t} me={me} viewer={viewer} pending={pending} run={run} />
       <MyMatch t={t} m={myMatch} people={people} viewer={viewer} rounds={rounds} pending={pending} run={run} />
       <MyOutcome t={t} me={me} />
