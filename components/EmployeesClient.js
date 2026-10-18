@@ -44,6 +44,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
   const [editingId, setEditingId] = useState(null);
   const [adjustingId, setAdjustingId] = useState(null);
   const [adjustSpins, setAdjustSpins] = useState("");
+  const [spinsForId, setSpinsForId] = useState(null);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [message, setMessage] = useState(null);
@@ -499,6 +500,14 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                   >
                     Баланс
                   </button>
+                  <button
+                    onClick={() =>
+                      setSpinsForId(spinsForId === u.id ? null : u.id)
+                    }
+                    className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"
+                  >
+                    Крутки{(u.wheel_spins ?? 0) > 0 ? ` · ${u.wheel_spins}` : ""}
+                  </button>
                   {u.role === "trainee" && u.is_active && (
                     <button
                       onClick={() => handleGraduate(u.id, u.name)}
@@ -546,6 +555,45 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
               </div>
             )}
 
+            {spinsForId === u.id && (
+              <div className="border-t border-dark-600 pt-3 space-y-2">
+                <p className="text-[11px] text-gray-500">
+                  Крутки колеса считаются отдельно от коинов. Сейчас у него:{" "}
+                  <span className="text-gray-300">{u.wheel_spins ?? 0}</span>
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={adjustSpins}
+                    onChange={(e) => setAdjustSpins(e.target.value)}
+                    placeholder="Сколько круток"
+                    className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                  <button
+                    onClick={() => handleSpins(u.id, 1)}
+                    disabled={isPending}
+                    className="bg-acid-400/15 text-acid-400 font-bold rounded-lg px-3 py-2 text-sm"
+                  >
+                    + Выдать
+                  </button>
+                  <button
+                    onClick={() => handleSpins(u.id, -1)}
+                    disabled={isPending}
+                    className="bg-red-500/10 text-red-400 rounded-lg px-3 py-2 text-sm"
+                  >
+                    −
+                  </button>
+                </div>
+                <input
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  placeholder="За что (уйдёт ему в сообщении)"
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                />
+              </div>
+            )}
+
             {adjustingId === u.id && (
               <div className="border-t border-dark-600 pt-3 space-y-2">
                 <input
@@ -578,36 +626,6 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                   </button>
                 </div>
 
-                <div className="border-t border-dark-700 pt-2 space-y-2">
-                  <p className="text-[11px] text-gray-500">
-                    Крутки колеса — отдельно от коинов. Сейчас у него:{" "}
-                    <span className="text-gray-300">{u.wheel_spins ?? 0}</span>
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      value={adjustSpins}
-                      onChange={(e) => setAdjustSpins(e.target.value)}
-                      placeholder="Сколько круток"
-                      className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-                    />
-                    <button
-                      onClick={() => handleSpins(u.id, 1)}
-                      disabled={isPending}
-                      className="bg-acid-400/15 text-acid-400 font-bold rounded-lg px-3 py-2 text-sm"
-                    >
-                      + Выдать
-                    </button>
-                    <button
-                      onClick={() => handleSpins(u.id, -1)}
-                      disabled={isPending}
-                      className="bg-red-500/10 text-red-400 rounded-lg px-3 py-2 text-sm"
-                    >
-                      −
-                    </button>
-                  </div>
-                </div>
               </div>
             )}
                   </div>
