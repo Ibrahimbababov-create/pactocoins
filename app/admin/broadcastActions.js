@@ -184,26 +184,34 @@ export async function broadcastMessage(formData) {
   let sent = 0;
   let failed = 0;
 
-  for (const u of recipients) {
-    try {
-      const res = hasFile
-        ? await sendFile(
-            u.telegram_id,
-            { fileBytes, fileName, fileType },
-            text || undefined
-          )
-        : await sendTelegramMessage(u.telegram_id, text, markup);
+  // Раньше слали по одному в цикл: тридцать с лишним человек по пол-секунды
+  // не укладывались в лимит времени функции, и рассылка просто висла.
+  // Шлём пачками: Telegram спокойно держит такой темп.
+  const CHUNK = 10;
 
-      if (res?.ok) {
-        sent++;
-      } else {
-        failed++;
-        console.error(`[broadcast] failed for user ${u.id}:`, res);
-      }
-    } catch (err) {
-      failed++;
-      console.error(`[broadcast] error for user ${u.id}:`, err);
-    }
+  for (let i = 0; i < recipients.length; i += CHUNK) {
+    const batch = recipients.slice(i, i + CHUNK);
+    const results = await Promise.all(
+      batch.map(async (u) => {
+        try {
+          const res = hasFile
+            ? await sendFile(
+                u.telegram_id,
+                { fileBytes, fileName, fileType },
+                text || undefined
+              )
+            : await sendTelegramMessage(u.telegram_id, text, markup);
+
+          if (res?.ok) return true;
+          console.error(`[broadcast] failed for user ${u.id}:`, res);
+          return false;
+        } catch (err) {
+          console.error(`[broadcast] error for user ${u.id}:`, err);
+          return false;
+        }
+      })
+    );
+    for (const ok of results) ok ? sent++ : failed++;
   }
 
   return { sent, failed, skipped };

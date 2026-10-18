@@ -1,6 +1,10 @@
 import BroadcastClient from "@/components/BroadcastClient";
 import { createClient } from "@/lib/supabase-server";
 
+// Рассылка на весь отдел плюс проверка каждого по группе Telegram не
+// укладывается в обычный лимит времени: даём минуту.
+export const maxDuration = 60;
+
 export default async function BroadcastPage() {
   const supabase = createClient();
   const {
