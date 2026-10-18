@@ -318,3 +318,95 @@ button:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) {
   .wheel-bulb, .wheel-confetti, .wheel-pop { animation: none; }
 }
+
+/* Сундук (components/Chest.js): как в Clash Royale — падает, трясётся,
+   крышка отлетает, из сундука бьёт свет и вылетает приз. */
+@keyframes chest-drop {
+  0% { transform: translateY(-110vh) scale(0.9); }
+  62% { transform: translateY(0) scale(1.08, 0.86); }
+  78% { transform: translateY(-18px) scale(0.97, 1.04); }
+  100% { transform: translateY(0) scale(1); }
+}
+.chest-drop { animation: chest-drop 0.75s cubic-bezier(0.5, 0, 0.6, 1) both; }
+@keyframes chest-idle {
+  0%, 70%, 100% { transform: translateY(0) rotate(0deg); }
+  78% { transform: translateY(-6px) rotate(-3deg); }
+  86% { transform: translateY(0) rotate(2.5deg); }
+  93% { transform: translateY(-2px) rotate(-1deg); }
+}
+.chest-idle { animation: chest-idle 2.2s ease-in-out infinite; }
+@keyframes chest-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1.04); }
+  25% { transform: translate(-4px, 1px) rotate(-5deg) scale(1.06, 1.02); }
+  75% { transform: translate(4px, -1px) rotate(5deg) scale(1.02, 1.06); }
+}
+.chest-shake { animation: chest-shake 0.13s linear infinite; }
+@keyframes chest-opened {
+  0% { transform: scale(1.12, 0.88); }
+  45% { transform: scale(0.96, 1.06); }
+  100% { transform: scale(1); }
+}
+.chest-opened { animation: chest-opened 0.45s ease-out both; }
+.chest-lid, .chest-beam { transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes chest-lid-open {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  45% { transform: translate(4px, -84px) rotate(-9deg); }
+  100% { transform: translate(-8px, -60px) rotate(-17deg) scaleY(0.88); }
+}
+.chest-lid.is-open { animation: chest-lid-open 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) forwards; }
+.chest-beam { opacity: 0; transform: scaleY(0); }
+@keyframes chest-beam {
+  0% { opacity: 0; transform: scaleY(0); }
+  100% { opacity: 1; transform: scaleY(1); }
+}
+.chest-beam.is-open { animation: chest-beam 0.5s 0.08s ease-out forwards; }
+.chest-seam { opacity: 0; transition: opacity 0.3s; }
+@keyframes chest-seam {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.chest-seam.is-on { opacity: 1; animation: chest-seam 0.35s ease-in-out infinite; }
+@keyframes chest-flash {
+  0% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+.chest-flash { animation: chest-flash 0.7s ease-out forwards; }
+@keyframes chest-rays {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes chest-rays-in {
+  from { opacity: 0; scale: 0.3; }
+  to { opacity: 1; scale: 1; }
+}
+.chest-rays { animation: chest-rays 18s linear infinite, chest-rays-in 0.6s ease-out both; }
+@keyframes chest-spark {
+  0% { transform: translate(-50%, -50%) scale(0.3) rotate(45deg); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1) rotate(225deg); opacity: 0; }
+}
+.chest-spark { animation: chest-spark 1.1s cubic-bezier(0.15, 0.7, 0.3, 1) both; }
+@keyframes chest-reward {
+  0% { transform: translateY(150px) scale(0.2); opacity: 0; }
+  60% { transform: translateY(-14px) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.chest-reward { animation: chest-reward 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+@keyframes chest-hint {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+.chest-hint { animation: chest-hint 1.4s ease-in-out infinite; }
+@keyframes chest-card-bob {
+  0%, 80%, 100% { transform: rotate(0deg); }
+  85% { transform: rotate(-6deg) translateY(-2px); }
+  90% { transform: rotate(5deg); }
+  95% { transform: rotate(-2deg); }
+}
+.chest-card-bob { animation: chest-card-bob 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .chest-drop, .chest-idle, .chest-shake, .chest-opened, .chest-flash, .chest-spark, .chest-reward, .chest-hint, .chest-card-bob { animation: none; }
+  .chest-rays { animation: none; transform: translate(-50%, -50%); }
+  .chest-lid.is-open { animation: none; transform: translate(-8px, -60px) rotate(-17deg) scaleY(0.88); }
+  .chest-beam.is-open { animation: none; opacity: 1; transform: none; }
+  .chest-flash { opacity: 0; }
+}

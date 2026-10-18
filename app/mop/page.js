@@ -24,6 +24,8 @@ import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardP
 import { WeekPlaceCard, TeamMonthCard, MonthTierCard } from "@/components/DashboardPulse";
 import { getFeaturedTournament } from "@/lib/tournamentView";
 import TournamentHomeCard from "@/components/TournamentHomeCard";
+import ChestCard from "@/components/Chest";
+import { getPendingChest, chestEligible } from "@/lib/chest";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -55,6 +57,7 @@ export default async function MopDashboard() {
     { data: shopPrices },
     monthTier,
     tournament,
+    chest,
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", viewId).single(),
     supabase
@@ -105,6 +108,8 @@ export default async function MopDashboard() {
     getMyMonthTier(supabase, viewId),
     // Турнир, если идёт запись или игра. Сбой здесь не должен ронять главную.
     getFeaturedTournament(createAdminClient(), { id: viewId }).catch(() => null),
+    // Сундук открывает только сам человек, не админ в режиме просмотра.
+    viewId === user.id ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
   ]);
 
   const hasPending =
@@ -194,6 +199,8 @@ export default async function MopDashboard() {
       <div>
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
       </div>
+
+      {chest && chestEligible(profile) && <ChestCard chest={chest} />}
 
       {isTrainee && (
         <OnboardingTrainee days={onboardingDays ?? []} ropName={ropName} />
