@@ -41,7 +41,7 @@ export async function withdrawMyRequest(kind, id) {
     .select("id, admin_chat_id, admin_message_id");
 
   if (error) return { error: "Не получилось отозвать, попробуй ещё раз" };
-  if (!rows?.length) return { error: "Заявку уже рассмотрели — отозвать нельзя" };
+  if (!rows?.length) return { error: "Заявку уже рассмотрели, отозвать нельзя" };
 
   // В рабочей группе убираем кнопки и отвечаем на сообщение заявки, чтобы
   // админ не тратил на неё время. Сбой Телеграма отзыв не отменяет.
@@ -54,7 +54,7 @@ export async function withdrawMyRequest(kind, id) {
         : undefined;
       await sendTelegramMessage(
         chatId,
-        "↩️ Сотрудник отозвал эту заявку — рассматривать не нужно.",
+        "↩️ Сотрудник отозвал эту заявку, рассматривать не нужно.",
         undefined,
         threadId,
         messageId,

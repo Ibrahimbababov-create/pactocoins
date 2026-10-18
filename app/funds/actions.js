@@ -210,7 +210,7 @@ export async function contributeToFund(fundId, amount) {
 
   if (contribError) {
     await addCoins(admin, user.id, coins);
-    return { error: "Не получилось внести — коины вернули на баланс" };
+    return { error: "Не получилось внести, коины вернули на баланс" };
   }
 
   await admin.from("transactions").insert({

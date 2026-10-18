@@ -122,7 +122,7 @@ function Reader({ block, onClose, onDone }) {
         >
           <span className="inline-flex items-center gap-1.5">
             <Icon name="check" className="w-4 h-4" strokeWidth={2.5} />
-            {block.done ? "Изучено — закрыть" : "Я изучил"}
+            {block.done ? "Изучено, закрыть" : "Я изучил"}
           </span>
         </button>
       </div>
@@ -162,7 +162,7 @@ function TestOverlay({ block, onClose, onPassed }) {
         if (res.passed) onPassed(block.id);
       }
     } catch {
-      setResult({ error: "Не отправилось — попробуй ещё раз" });
+      setResult({ error: "Не отправилось, попробуй ещё раз" });
     } finally {
       setBusy(false);
     }
@@ -384,7 +384,7 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
           n.delete(id);
           return n;
         });
-        setErr("Не сохранилось — нажми ещё раз");
+        setErr("Не сохранилось, нажми ещё раз");
         setTimeout(() => setErr(null), 3000);
       })
       .finally(() => inFlight.current.delete(id));
@@ -417,7 +417,7 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
         <p className="text-xs text-gray-500 pt-1">
           {ropName
             ? `Твой руководитель: ${ropName}`
-            : "Руководитель не выбран — выбери его в Настройках."}{" "}
+            : "Руководитель не выбран. Выбери его в Настройках."}{" "}
           · Пройдено дней: {totalDays}/3
         </p>
       </div>

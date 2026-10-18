@@ -30,7 +30,7 @@ export default function JoinRequestsClient({ requests }) {
       if (res?.error) showMessage(res.error, "error");
       else {
         setLocalStatuses((prev) => ({ ...prev, [id]: "approved" }));
-        showMessage("Принят — аккаунт создан");
+        showMessage("Принят, аккаунт создан");
       }
     });
   }

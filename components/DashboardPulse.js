@@ -19,8 +19,8 @@ export function WeekPlaceCard({ data }) {
           <p className="font-semibold">На этой неделе ты ещё не в рейтинге</p>
           <p className="text-sm text-gray-400 mt-0.5">
             {data.ranked > 0
-              ? `Первая подтверждённая оплата сразу поставит тебя в таблицу — там уже ${data.ranked}`
-              : "Пока ни у кого нет оплат. Первая сделка недели — сразу первое место"}
+              ? `Первая подтверждённая оплата сразу поставит тебя в таблицу, там уже ${data.ranked}`
+              : "Пока ни у кого нет оплат. Первая сделка недели сразу ставит на первое место"}
           </p>
         </div>
         <Icon name="chevronRight" className="w-5 h-5 text-gray-600 shrink-0" />

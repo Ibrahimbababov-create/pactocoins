@@ -159,7 +159,7 @@ async function handleAllCommand(msg) {
   if (byId.size === 0) {
     await sendTelegramMessage(
       msg.chat.id,
-      "Пока некого тегать — ещё никто не засветился в чате.",
+      "Пока некого тегать, ещё никто не засветился в чате.",
       undefined,
       msg.message_thread_id,
       msg.message_id
@@ -396,7 +396,7 @@ async function handleCancelCommand(msg) {
 
   if (!request) {
     await say(
-      "Это сообщение не про оплату. Ответь на заявку на выручку — ту, где были кнопки «Подтвердить» и «Отклонить»."
+      "Это сообщение не про оплату. Ответь на заявку на выручку, на ту, где были кнопки «Подтвердить» и «Отклонить»."
     );
     return;
   }
@@ -477,7 +477,7 @@ async function handleSpendCommand(msg) {
   const arg = String(msg.text || "").trim().split(/\s+/).slice(1).join(" ");
   if (!arg) {
     await say(
-      "Напиши сумму после команды: /потрачено 45000 (можно 45к). Стереть записанное — /потрачено -"
+      "Напиши сумму после команды: /потрачено 45000 (можно 45к). Стереть записанное: /потрачено -"
     );
     return;
   }
@@ -502,7 +502,7 @@ async function handleSpendCommand(msg) {
   }
 
   if (purchase.status === "rejected") {
-    await say("Эта покупка отклонена — денег на неё не ушло, записывать нечего.");
+    await say("Эта покупка отклонена, денег на неё не ушло, записывать нечего.");
     return;
   }
 
@@ -795,7 +795,7 @@ export async function POST(request) {
       } else {
         await sendTelegramMessage(
           msg.chat.id,
-          "Открой бота в личке — там слева от поля ввода кнопка «Открыть PactoCoins». Или добавь иконку на телефон: меню → «Вывести иконку на телефон».",
+          "Открой бота в личке, там слева от поля ввода кнопка «Открыть PactoCoins». Или добавь иконку на телефон: меню → «Вывести иконку на телефон».",
           undefined,
           msg.message_thread_id,
           msg.message_id

@@ -215,7 +215,7 @@ export default function PaymentsClient({ employees, initialRows }) {
                 name="reason"
                 autoFocus
                 defaultValue="Возврат оплаты"
-                placeholder="Причина — уйдёт сотруднику"
+                placeholder="Причина, её увидит сотрудник"
                 className="flex-1 min-w-[200px] bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm"
               />
               <button

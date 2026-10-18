@@ -303,7 +303,7 @@ function LinkName({ row, people, disabled, onPick }) {
         value={row.user ? row.user.id : ""}
         onChange={(id) => onPick(row, id)}
         placeholder="Начни писать имя…"
-        clearLabel="Никто не выбран — строка не считается"
+        clearLabel="Никто не выбран, строка не считается"
         onClear={() => onPick(row, "")}
         describe={(p) =>
           p.projectId === row.projectId ? undefined : "другой проект"
@@ -501,7 +501,7 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
                     <p className="text-xs text-amber-400 mt-0.5">
                       {r.ambiguous.length
                         ? `Не понял, кто это: ${r.ambiguous.join(", ")}`
-                        : "Не нашёл в PactoCoins — выбери человека ниже, и я запомню"}
+                        : "Не нашёл в PactoCoins. Выбери человека ниже, и я запомню"}
                     </p>
                   )}
                   {/* Список показываем всегда, когда строка пришла из

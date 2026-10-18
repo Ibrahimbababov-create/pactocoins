@@ -68,7 +68,7 @@ export default function TeamManageClient({ mine = [], others = [], monthLabel = 
     setMsg(null);
     start(async () => {
       const res = await graduateTrainee(id);
-      setMsg(res?.error || `${name} допущен — теперь МОП`);
+      setMsg(res?.error || `${name} допущен, теперь МОП`);
     });
   }
 

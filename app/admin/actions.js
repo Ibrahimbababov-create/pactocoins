@@ -443,7 +443,7 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
     .select("id");
 
   if (error) return { error: error.message };
-  if (!changed?.length) return { error: "Заявку уже кто-то обработал — обнови страницу" };
+  if (!changed?.length) return { error: "Заявку уже кто-то обработал, обнови страницу" };
 
   // Если отклоняем (и раньше не было отклонено) — возвращаем коины
   if (newStatus === "rejected" && purchase.status !== "rejected") {
@@ -1073,7 +1073,7 @@ export async function deleteEmployee(userId) {
     .single();
   if (!target) return { error: "Сотрудник не найден" };
   if (target.role === "admin") {
-    return { error: "Админа удалять нельзя — сначала смени роль" };
+    return { error: "Админа удалять нельзя, сначала смени роль" };
   }
 
   // Обнуляем ссылки, которые не удаляются каскадом (кто одобрял/создавал).

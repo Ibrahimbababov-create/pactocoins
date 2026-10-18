@@ -95,7 +95,7 @@ export async function sendTestBroadcast(formData) {
     .single();
 
   if (!profile?.telegram_id) {
-    return { error: "У твоего аккаунта нет telegram_id — зайди в приложение через бота хотя бы раз" };
+    return { error: "У твоего аккаунта нет telegram_id, зайди в приложение через бота хотя бы раз" };
   }
 
   try {
@@ -132,12 +132,12 @@ export async function sendToEmployee(formData) {
     .single();
 
   if (!profile?.telegram_id) {
-    return { error: "У этого сотрудника нет telegram_id — он ни разу не заходил через бота" };
+    return { error: "У этого сотрудника нет telegram_id, он ни разу не заходил через бота" };
   }
 
   if (!(await isTeamMember(profile.telegram_id))) {
     return {
-      error: `${profile.name ?? "Этот человек"} не состоит в рабочей группе — сообщение не отправлено`,
+      error: `${profile.name ?? "Этот человек"} не состоит в рабочей группе, сообщение не отправлено`,
     };
   }
 

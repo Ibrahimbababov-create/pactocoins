@@ -92,7 +92,7 @@ export async function purchaseReward(rewardId) {
   if (purchaseError) {
     // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
     await addCoins(admin, user.id, effectivePrice);
-    return { error: "Не получилось оформить покупку — коины вернули на баланс" };
+    return { error: "Не получилось оформить покупку, коины вернули на баланс" };
   }
 
   await admin.from("transactions").insert({
@@ -178,7 +178,7 @@ export async function purchaseRewardVariant(variantId) {
   if (purchaseError) {
     // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
     await addCoins(admin, user.id, price);
-    return { error: "Не получилось оформить покупку — коины вернули на баланс" };
+    return { error: "Не получилось оформить покупку, коины вернули на баланс" };
   }
 
   await admin.from("transactions").insert({
@@ -267,7 +267,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
   if (purchaseError) {
     // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
     await addCoins(admin, user.id, priceCoins);
-    return { error: "Не получилось оформить покупку — коины вернули на баланс" };
+    return { error: "Не получилось оформить покупку, коины вернули на баланс" };
   }
 
   await admin.from("transactions").insert({
