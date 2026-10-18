@@ -16,85 +16,97 @@ import Icon from "@/components/Icon";
 
 const LID = "M40 110 L40 84 Q40 48 120 44 Q200 48 200 84 L200 110 Z";
 
+// Сундук из трёх слоёв: свет, корпус, крышка. Анимируем слои целиком
+// (transform и opacity), а не элементы внутри SVG: так телефон двигает
+// готовые картинки и не перерисовывает их на каждом кадре.
 export function ChestArt({ open = false, glow = false, className = "" }) {
   const id = useId().replace(/:/g, "");
   const u = (name) => `url(#${id}${name})`;
+  const gold = (key) => (
+    <linearGradient id={`${id}${key}`} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor="#FFE7A0" />
+      <stop offset="45%" stopColor="#E7B04A" />
+      <stop offset="100%" stopColor="#9A6514" />
+    </linearGradient>
+  );
   return (
-    <svg viewBox="0 0 240 200" className={className} overflow="visible" aria-hidden="true">
-      <defs>
-        <linearGradient id={`${id}w`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#8A4F24" />
-          <stop offset="100%" stopColor="#4A2810" />
-        </linearGradient>
-        <linearGradient id={`${id}l`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#A9652F" />
-          <stop offset="100%" stopColor="#5C3315" />
-        </linearGradient>
-        <linearGradient id={`${id}g`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#FFE7A0" />
-          <stop offset="45%" stopColor="#E7B04A" />
-          <stop offset="100%" stopColor="#9A6514" />
-        </linearGradient>
-        <linearGradient id={`${id}b`} x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="#FFF4CF" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#FFD77A" stopOpacity="0" />
-        </linearGradient>
-        <radialGradient id={`${id}i`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#FFFBEA" />
-          <stop offset="55%" stopColor="#FFD77A" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#FFB23E" stopOpacity="0" />
-        </radialGradient>
-        <clipPath id={`${id}c`}>
-          <path d={LID} />
-        </clipPath>
-        <filter id={`${id}f`} x="-20%" y="-300%" width="140%" height="700%">
-          <feGaussianBlur stdDeviation="3" />
-        </filter>
-      </defs>
-
+    <div className={`relative ${className}`} style={{ aspectRatio: "240 / 200" }} aria-hidden="true">
       {/* Свет из открытого сундука */}
-      <polygon className={`chest-beam ${open ? "is-open" : ""}`} points="66,110 174,110 230,-70 10,-70" fill={u("b")} />
+      <svg
+        viewBox="0 0 240 200"
+        overflow="visible"
+        className={`chest-beam absolute inset-0 w-full h-full ${open ? "is-open" : ""}`}
+      >
+        <defs>
+          <linearGradient id={`${id}b`} x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#FFF4CF" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#FFD77A" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points="66,110 174,110 230,-70 10,-70" fill={u("b")} />
+      </svg>
 
       {/* Корпус */}
-      <rect x="40" y="108" width="160" height="80" rx="10" fill={u("w")} />
-      <path d="M44 134 H196 M44 160 H196" stroke="#2E1708" strokeOpacity="0.55" strokeWidth="2" />
-      <rect x="62" y="108" width="18" height="80" fill={u("g")} />
-      <rect x="160" y="108" width="18" height="80" fill={u("g")} />
-      <rect x="34" y="178" width="172" height="14" rx="6" fill={u("g")} />
-      {[71, 169].map((x) =>
-        [128, 150, 168].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="2.6" fill="#6B430C" />)
-      )}
-      <rect x="103" y="114" width="34" height="40" rx="7" fill={u("g")} stroke="#7A4E0E" strokeWidth="1.5" />
-      <circle cx="120" cy="130" r="4.5" fill="#2E1708" />
-      <rect x="118.2" y="131" width="3.6" height="11" rx="1.5" fill="#2E1708" />
-
-      {/* Сияние внутри, видно, когда крышка отлетела */}
-      <ellipse cx="120" cy="110" rx="78" ry="15" fill={u("i")} opacity={open ? 1 : 0} />
+      <svg viewBox="0 0 240 200" className="absolute inset-0 w-full h-full">
+        <defs>
+          <linearGradient id={`${id}w`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#8A4F24" />
+            <stop offset="100%" stopColor="#4A2810" />
+          </linearGradient>
+          {gold("g")}
+          <radialGradient id={`${id}i`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFFBEA" />
+            <stop offset="55%" stopColor="#FFD77A" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#FFB23E" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect x="40" y="108" width="160" height="80" rx="10" fill={u("w")} />
+        <path d="M44 134 H196 M44 160 H196" stroke="#2E1708" strokeOpacity="0.55" strokeWidth="2" />
+        <rect x="62" y="108" width="18" height="80" fill={u("g")} />
+        <rect x="160" y="108" width="18" height="80" fill={u("g")} />
+        <rect x="34" y="178" width="172" height="14" rx="6" fill={u("g")} />
+        {[71, 169].map((x) =>
+          [128, 150, 168].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="2.6" fill="#6B430C" />)
+        )}
+        <rect x="103" y="114" width="34" height="40" rx="7" fill={u("g")} stroke="#7A4E0E" strokeWidth="1.5" />
+        <circle cx="120" cy="130" r="4.5" fill="#2E1708" />
+        <rect x="118.2" y="131" width="3.6" height="11" rx="1.5" fill="#2E1708" />
+        {/* Сияние внутри, видно, когда крышка отлетела */}
+        <ellipse cx="120" cy="110" rx="78" ry="15" fill={u("i")} opacity={open ? 1 : 0} />
+      </svg>
 
       {/* Крышка */}
-      <g className={`chest-lid ${open ? "is-open" : ""}`}>
+      <svg
+        viewBox="0 0 240 200"
+        overflow="visible"
+        className={`chest-lid absolute inset-0 w-full h-full ${open ? "is-open" : ""}`}
+      >
+        <defs>
+          <linearGradient id={`${id}l`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#A9652F" />
+            <stop offset="100%" stopColor="#5C3315" />
+          </linearGradient>
+          {gold("h")}
+          <clipPath id={`${id}c`}>
+            <path d={LID} />
+          </clipPath>
+        </defs>
         <path d={LID} fill={u("l")} />
         <g clipPath={u("c")}>
-          <rect x="62" y="30" width="18" height="90" fill={u("g")} />
-          <rect x="160" y="30" width="18" height="90" fill={u("g")} />
+          <rect x="62" y="30" width="18" height="90" fill={u("h")} />
+          <rect x="160" y="30" width="18" height="90" fill={u("h")} />
           <ellipse cx="94" cy="62" rx="46" ry="13" fill="#FFFFFF" opacity="0.13" />
         </g>
-        <rect x="34" y="98" width="172" height="14" rx="6" fill={u("g")} />
-        <rect x="108" y="96" width="24" height="22" rx="5" fill={u("g")} stroke="#7A4E0E" strokeWidth="1.5" />
-      </g>
+        <rect x="34" y="98" width="172" height="14" rx="6" fill={u("h")} />
+        <rect x="108" y="96" width="24" height="22" rx="5" fill={u("h")} stroke="#7A4E0E" strokeWidth="1.5" />
+      </svg>
 
       {/* Свет пробивается из щели, пока сундук трясётся */}
-      <rect
-        className={`chest-seam ${glow && !open ? "is-on" : ""}`}
-        x="44"
-        y="109"
-        width="152"
-        height="5"
-        rx="2.5"
-        fill="#FFE9A8"
-        filter={u("f")}
+      <span
+        className={`chest-seam absolute rounded-full ${glow && !open ? "is-on" : ""}`}
+        style={{ left: "19%", width: "62%", top: "54.6%", height: "2.2%" }}
       />
-    </svg>
+    </div>
   );
 }
 
@@ -160,6 +172,29 @@ function Sparks() {
         />
       ))}
     </div>
+  );
+}
+
+// Лучи за открытым сундуком: готовая картинка, которая просто вращается.
+function Rays() {
+  const id = useId().replace(/:/g, "");
+  return (
+    <svg
+      viewBox="-100 -100 200 200"
+      className="chest-rays pointer-events-none absolute left-1/2 top-[52%] w-[640px] h-[640px]"
+      aria-hidden="true"
+    >
+      <defs>
+        <radialGradient id={`${id}r`} cx="0" cy="0" r="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0.12" stopColor="#FFD77A" stopOpacity="0.34" />
+          <stop offset="0.65" stopColor="#FFD77A" stopOpacity="0.08" />
+          <stop offset="1" stopColor="#FFD77A" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      {Array.from({ length: 16 }, (_, i) => (
+        <path key={i} d="M0 0 L-10 -100 L10 -100 Z" fill={`url(#${id}r)`} transform={`rotate(${i * 22.5})`} />
+      ))}
+    </svg>
   );
 }
 
@@ -282,20 +317,13 @@ export function ChestOpening({ title, onClose, onClaimed }) {
       </div>
 
       <div className="relative mt-2 shrink-0" style={{ height: "min(265px, 32vh)", aspectRatio: "260 / 230" }}>
-        {opened && (
-          <div
-            className="chest-rays pointer-events-none absolute left-1/2 top-[52%] w-[640px] h-[640px] rounded-full"
-            style={{
-              background:
-                "repeating-conic-gradient(from 0deg, rgba(255,215,122,0.22) 0deg 7deg, rgba(255,215,122,0) 7deg 22deg)",
-              WebkitMaskImage: "radial-gradient(circle, #000 18%, transparent 62%)",
-              maskImage: "radial-gradient(circle, #000 18%, transparent 62%)",
-            }}
-          />
-        )}
-        <div className="absolute left-1/2 bottom-3 h-5 w-48 -translate-x-1/2 rounded-[50%] bg-black/55 blur-md" />
-        <div className={`absolute inset-x-[10px] bottom-0 ${chestClass}`}>
-          <ChestArt open={opened} glow={stage === "shaking"} className="w-full h-auto" />
+        {opened && <Rays />}
+        <div
+          className="absolute left-1/2 bottom-2 h-6 w-52 -translate-x-1/2 rounded-[50%]"
+          style={{ background: "radial-gradient(closest-side, rgba(0,0,0,0.6), rgba(0,0,0,0))" }}
+        />
+        <div className={`absolute inset-x-[10px] bottom-0 will-change-transform ${chestClass}`}>
+          <ChestArt open={opened} glow={stage === "shaking"} className="w-full" />
         </div>
         {opened && <Sparks />}
       </div>
@@ -364,36 +392,49 @@ export function ChestOpening({ title, onClose, onClaimed }) {
   );
 }
 
-// Карточка «Тебе сундук» на главной и в «Играх».
+// Карточка «Тебе сундук» на главной и в «Играх». Страница рисует её
+// всегда, даже без подарка (chest = null): если страница обновится, пока
+// сундук открывается, анимация не пропадёт вместе с карточкой.
+const chestKey = (c) => (c ? `${c.title}|${c.chips}|${c.spins}` : null);
+
 export default function ChestCard({ chest }) {
   const router = useRouter();
   const [show, setShow] = useState(false);
-  const [claimed, setClaimed] = useState(false);
+  const [opening, setOpening] = useState({ title: "", key: null });
+  const [claimedKey, setClaimedKey] = useState(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!chest || (claimed && !show)) return null;
+  const visible = chest && chestKey(chest) !== claimedKey;
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setShow(true)}
-        className="flex w-full items-center gap-4 rounded-2xl border border-acid-400/50 bg-gradient-to-br from-acid-400/20 via-dark-800 to-dark-800 py-3.5 pl-3 pr-4 text-left active:scale-[.99] transition"
-      >
-        <span className="relative w-[76px] h-[64px] shrink-0">
-          <span className="absolute inset-2 rounded-full bg-[#FFD77A]/30 blur-xl" />
-          <ChestArt className="chest-card-bob relative w-full h-full" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs text-acid-400">Тебе сундук</span>
-          <span className="block font-bold leading-tight line-clamp-2 mt-0.5">{chest.title}</span>
-        </span>
-        <span className="shrink-0 rounded-xl bg-acid-400 text-black font-bold text-sm px-3.5 py-2">Открыть</span>
-      </button>
+      {visible && (
+        <button
+          type="button"
+          onClick={() => {
+            setOpening({ title: chest.title, key: chestKey(chest) });
+            setShow(true);
+          }}
+          className="flex w-full items-center gap-4 rounded-2xl border border-acid-400/50 bg-gradient-to-br from-acid-400/20 via-dark-800 to-dark-800 py-3.5 pl-3 pr-4 text-left active:scale-[.99] transition"
+        >
+          <span className="relative flex items-center w-[76px] h-[64px] shrink-0">
+            <span
+              className="absolute inset-0 rounded-full"
+              style={{ background: "radial-gradient(closest-side, rgba(255,215,122,0.35), rgba(255,215,122,0))" }}
+            />
+            <ChestArt className="chest-card-bob w-full will-change-transform" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-acid-400">Тебе сундук</span>
+            <span className="block font-bold leading-tight line-clamp-2 mt-0.5">{chest.title}</span>
+          </span>
+          <span className="shrink-0 rounded-xl bg-acid-400 text-black font-bold text-sm px-3.5 py-2">Открыть</span>
+        </button>
+      )}
       {mounted && show && (
         <ChestOpening
-          title={chest.title}
-          onClaimed={() => setClaimed(true)}
+          title={opening.title}
+          onClaimed={() => setClaimedKey(opening.key)}
           onClose={() => {
             setShow(false);
             router.refresh();

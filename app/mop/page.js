@@ -200,7 +200,7 @@ export default async function MopDashboard() {
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
       </div>
 
-      {chest && chestEligible(profile) && <ChestCard chest={chest} />}
+      {chestEligible(profile) && <ChestCard chest={chest} />}
 
       {isTrainee && (
         <OnboardingTrainee days={onboardingDays ?? []} ropName={ropName} />

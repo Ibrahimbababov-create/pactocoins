@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { revalidatePath } from "next/cache";
 import { chestEligible } from "@/lib/chest";
 
 // Открыть сундук. Всё содержимое начисляет claim_chest одним запросом:
@@ -27,9 +26,9 @@ export async function openChest() {
   if (res?.error === "empty") return { error: "Сундук уже открыт" };
   if (!res?.ok) return { error: "Не получилось открыть, попробуй ещё раз" };
 
-  revalidatePath("/mop");
-  revalidatePath("/mop/games");
-  revalidatePath("/mop/games/wheel");
+  // Страницу отсюда не перерисовываем (revalidatePath): главная обновилась
+  // бы прямо во время анимации, и сундук пропал бы на полуслове. Клиент
+  // обновит страницу сам, когда человек закроет сундук.
   return {
     ok: true,
     chips: res.chips ?? 0,
