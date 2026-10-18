@@ -33,7 +33,9 @@ export async function openChest() {
     ok: true,
     chips: res.chips ?? 0,
     spins: res.spins ?? 0,
+    coins: res.coins ?? 0,
     totalChips: res.total_chips ?? 0,
     totalSpins: res.total_spins ?? 0,
+    totalBalance: res.total_balance ?? 0,
   };
 }

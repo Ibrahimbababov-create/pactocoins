@@ -65,3 +65,58 @@ end; $function$;
 
 revoke all on function public.claim_chest(uuid) from public, anon, authenticated;
 grant execute on function public.claim_chest(uuid) to service_role;
+
+-- ── Личные сундуки и коины в сундуке (октябрь 2026) ──────────────────────
+-- user_id: сундук только для одного человека (null — для всех).
+-- coins: коины в подарок. Начисляются через add_coins и строкой в истории
+-- (source 'manual', rating_exempt — на рейтинг не влияют).
+set lock_timeout = '5s';
+alter table public.chest_gifts add column if not exists coins integer not null default 0;
+alter table public.chest_gifts add constraint chest_gifts_coins_check check (coins >= 0 and coins <= 5000);
+alter table public.chest_gifts add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.chest_gifts drop constraint chest_gifts_check;
+alter table public.chest_gifts add constraint chest_gifts_check check (chips > 0 or spins > 0 or coins > 0);
+-- Чужие личные сундуки не видно.
+alter policy chest_gifts_read on public.chest_gifts
+  using (auth.uid() is not null and (user_id is null or user_id = auth.uid() or is_admin()));
+
+create or replace function public.claim_chest(uid uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  c_chips integer;
+  c_spins integer;
+  c_coins integer;
+  n integer;
+  titles text;
+  u record;
+begin
+  with fresh as (
+    insert into public.chest_claims (gift_id, user_id)
+    select g.id, uid from public.chest_gifts g
+     where g.is_active and (g.user_id is null or g.user_id = uid)
+    on conflict do nothing
+    returning gift_id
+  )
+  select coalesce(sum(g.chips), 0), coalesce(sum(g.spins), 0), coalesce(sum(g.coins), 0), count(*), string_agg(g.title, ', ')
+    into c_chips, c_spins, c_coins, n, titles
+    from fresh f join public.chest_gifts g on g.id = f.gift_id;
+  if n = 0 then return jsonb_build_object('error', 'empty'); end if;
+  update public.users
+     set chips = chips + c_chips, wheel_spins = coalesce(wheel_spins, 0) + c_spins
+   where id = uid;
+  if c_chips > 0 then
+    insert into public.chip_log (user_id, amount, reason) values (uid, c_chips, 'Сундук: ' || titles);
+  end if;
+  if c_coins > 0 then
+    perform public.add_coins(uid, c_coins);
+    insert into public.transactions (user_id, type, amount_coins, description, rating_exempt, source)
+    values (uid, 'manual_add', c_coins, '🎁 Сундук: ' || titles, true, 'manual');
+  end if;
+  select chips, wheel_spins, balance into u from public.users where id = uid;
+  return jsonb_build_object('ok', true, 'chips', c_chips, 'spins', c_spins, 'coins', c_coins, 'gifts', n, 'titles', titles,
+    'total_chips', u.chips, 'total_spins', u.wheel_spins, 'total_balance', u.balance);
+end; $function$;
