@@ -39,7 +39,7 @@ export default async function AdminWheelPage() {
       .limit(30),
     admin
       .from("chest_gifts")
-      .select("id, title, chips, spins, is_active, created_at")
+      .select("id, title, chips, spins, coins, user_id, is_active, created_at, users!chest_gifts_user_id_fkey(name)")
       .order("created_at", { ascending: false })
       .limit(10),
     admin.from("users").select("role, is_active, is_guest, email").eq("is_active", true),
@@ -68,8 +68,9 @@ export default async function AdminWheelPage() {
         recentSpins={recentSpins}
       />
       <ChestAdminClient
-        gifts={(gifts ?? []).map((g) => ({ ...g, claims: claimCount[g.id] ?? 0 }))}
+        gifts={(gifts ?? []).map((g) => ({ ...g, recipient: g.users?.name ?? null, claims: claimCount[g.id] ?? 0 }))}
         eligibleCount={(people ?? []).filter(chestEligible).length}
+        employees={employees ?? []}
       />
     </div>
   );

@@ -3,19 +3,27 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { putChestGift, removeChestGift } from "@/app/admin/chestActions";
-import { chipsNom, spinsNom } from "@/lib/plural";
+import { chipsNom, spinsNom, formatCoins } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
+import EmployeePicker from "@/components/EmployeePicker";
 
 function giftText(g) {
-  return [g.chips > 0 && `${g.chips} ${chipsNom(g.chips)}`, g.spins > 0 && `${g.spins} ${spinsNom(g.spins)}`]
+  return [
+    g.coins > 0 && formatCoins(g.coins),
+    g.chips > 0 && `${g.chips} ${chipsNom(g.chips)}`,
+    g.spins > 0 && `${g.spins} ${spinsNom(g.spins)}`,
+  ]
     .filter(Boolean)
     .join(" + ");
 }
 
-// Сундук в админке: положить подарок всем и посмотреть, кто открыл.
-export default function ChestAdminClient({ gifts, eligibleCount }) {
+// Сундук в админке: положить подарок всем или одному человеку и
+// посмотреть, кто открыл.
+export default function ChestAdminClient({ gifts, eligibleCount, employees }) {
   const router = useRouter();
-  const [form, setForm] = useState({ title: "Подарок от Pacto", chips: 20, spins: 0 });
+  const [form, setForm] = useState({ title: "Подарок от Pacto", chips: 20, spins: 0, coins: 0 });
+  const [toOne, setToOne] = useState(false);
+  const [userId, setUserId] = useState("");
   const [msg, setMsg] = useState(null);
   const [pending, start] = useTransition();
 
@@ -25,8 +33,14 @@ export default function ChestAdminClient({ gifts, eligibleCount }) {
   function put() {
     setMsg(null);
     start(async () => {
-      const res = await putChestGift(form);
-      setMsg(res?.error ?? "Положено. У всех на главной появился сундук");
+      if (toOne && !userId) {
+        setMsg("Выбери, кому сундук");
+        return;
+      }
+      const res = await putChestGift({ ...form, userId: toOne ? userId : null });
+      setMsg(
+        res?.error ?? (toOne ? "Положено. У человека на главной появился сундук" : "Положено. У всех на главной появился сундук")
+      );
       router.refresh();
     });
   }
@@ -44,8 +58,9 @@ export default function ChestAdminClient({ gifts, eligibleCount }) {
       <div>
         <p className="font-bold">Сундук</p>
         <p className="text-sm text-gray-400 mt-1">
-          Положи подарок, и у каждого сотрудника на главной и в «Играх» появится сундук. Открыть
-          можно один раз. Пока подарок лежит, его получат и новенькие; убери, когда хватит.
+          Положи подарок, и на главной и в «Играх» появится сундук: у всех или у одного человека.
+          Открыть можно один раз. Пока общий подарок лежит, его получат и новенькие; убери, когда
+          хватит. Коины в сундуке настоящие и считаются в бюджете программы.
         </p>
       </div>
 
@@ -59,7 +74,10 @@ export default function ChestAdminClient({ gifts, eligibleCount }) {
                   {g.title} · <span className="text-acid-400">{giftText(g)}</span>
                 </p>
                 <p className="text-xs text-gray-500">
-                  открыли {g.claims} из {eligibleCount} · положен {formatDateTimeAlmaty(g.created_at)}
+                  {g.recipient
+                    ? `для ${g.recipient} · ${g.claims > 0 ? "открыл" : "ещё не открыл"}`
+                    : `открыли ${g.claims} из ${eligibleCount}`}{" "}
+                  · положен {formatDateTimeAlmaty(g.created_at)}
                 </p>
               </div>
               <button
@@ -75,7 +93,31 @@ export default function ChestAdminClient({ gifts, eligibleCount }) {
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-3 pt-3 border-t border-dark-600/60">
+      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-dark-600/60">
+        <span className="text-xs text-gray-500">Кому</span>
+        {[
+          [false, "Всем"],
+          [true, "Одному человеку"],
+        ].map(([v, label]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setToOne(v)}
+            className={`rounded-lg px-3 py-1.5 text-sm ${
+              toOne === v ? "bg-acid-400 text-black font-bold" : "border border-dark-600 text-gray-300"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {toOne && (
+        <div className="max-w-sm">
+          <EmployeePicker employees={employees} value={userId} onChange={setUserId} />
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-end gap-3">
         <label className="text-xs text-gray-500">
           Название
           <input
@@ -83,6 +125,17 @@ export default function ChestAdminClient({ gifts, eligibleCount }) {
             maxLength={60}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             className="mt-0.5 block w-56 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white"
+          />
+        </label>
+        <label className="text-xs text-gray-500">
+          Коины
+          <input
+            type="number"
+            min="0"
+            max="5000"
+            value={form.coins}
+            onChange={(e) => setForm((f) => ({ ...f, coins: e.target.value }))}
+            className="mt-0.5 block w-24 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-sm text-white"
           />
         </label>
         <label className="text-xs text-gray-500">
@@ -123,7 +176,8 @@ export default function ChestAdminClient({ gifts, eligibleCount }) {
           <p className="text-xs text-gray-500">Раньше</p>
           {past.map((g) => (
             <p key={g.id} className="text-xs text-gray-500">
-              {g.title} · {giftText(g)} · открыли {g.claims}
+              {g.title} · {giftText(g)}
+              {g.recipient ? ` · для ${g.recipient}` : ""} · открыли {g.claims}
             </p>
           ))}
         </div>

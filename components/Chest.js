@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { openChest } from "@/app/mop/chestActions";
-import { chipsNom, spinsNom } from "@/lib/plural";
+import { chipsNom, spinsNom, plural } from "@/lib/plural";
 import { haptic } from "@/lib/haptics";
 import Icon from "@/components/Icon";
 
@@ -261,7 +261,7 @@ export function ChestOpening({ title, onClose, onClaimed }) {
     setRes(r);
     setStage("open");
     onClaimed?.(r);
-    const cards = (r.chips > 0 ? 1 : 0) + (r.spins > 0 ? 1 : 0);
+    const cards = [r.chips, r.spins, r.coins].filter((x) => x > 0).length;
     timers.current.push(
       setTimeout(() => {
         haptic.success();
@@ -271,6 +271,40 @@ export function ChestOpening({ title, onClose, onClaimed }) {
   }
 
   const opened = stage === "open" || stage === "done";
+  // Что вылетает из сундука, по порядку. Коины первыми: они самые ценные.
+  const rewards = res
+    ? [
+        res.coins > 0 && {
+          key: "coins",
+          art: <Icon name="coin" className="w-12 h-12 text-[#FFD77A]" />,
+          amount: res.coins,
+          label: plural(res.coins, "коин", "коина", "коинов"),
+        },
+        res.chips > 0 && {
+          key: "chips",
+          art: <ChipArt className="w-14 h-14" />,
+          amount: res.chips,
+          label: chipsNom(res.chips),
+        },
+        res.spins > 0 && {
+          key: "spins",
+          art: <Icon name="wheel" className="w-12 h-12 text-[#FFD77A]" />,
+          amount: res.spins,
+          label: spinsNom(res.spins),
+        },
+      ].filter(Boolean)
+    : [];
+  // «Теперь у тебя 805 коинов, 35 фишек и 2 крутки»
+  const totals = res
+    ? [
+        res.coins > 0 && `${Number(res.totalBalance).toLocaleString("ru-RU")} ${plural(res.totalBalance, "коин", "коина", "коинов")}`,
+        res.chips > 0 && `${res.totalChips} ${chipsNom(res.totalChips)}`,
+        res.spins > 0 && `${res.totalSpins} ${spinsNom(res.totalSpins)}`,
+      ].filter(Boolean)
+    : [];
+  const totalsText =
+    totals.length > 1 ? `${totals.slice(0, -1).join(", ")} и ${totals[totals.length - 1]}` : totals[0] ?? "";
+  const forWheel = res && (res.chips > 0 || res.spins > 0);
   const chestClass =
     stage === "drop" ? "chest-drop" : stage === "ready" ? "chest-idle" : stage === "shaking" ? "chest-shake" : "chest-opened";
 
@@ -303,17 +337,10 @@ export function ChestOpening({ title, onClose, onClaimed }) {
 
       {/* Награды вылетают из сундука сюда */}
       <div className="relative z-10 mt-4 flex h-[min(178px,22vh)] shrink-0 items-end justify-center gap-3">
-        {opened && res?.chips > 0 && (
-          <RewardCard art={<ChipArt className="w-14 h-14" />} amount={res.chips} label={chipsNom(res.chips)} delay={150} />
-        )}
-        {opened && res?.spins > 0 && (
-          <RewardCard
-            art={<Icon name="wheel" className="w-12 h-12 text-[#FFD77A]" />}
-            amount={res.spins}
-            label={spinsNom(res.spins)}
-            delay={res.chips > 0 ? 400 : 150}
-          />
-        )}
+        {opened &&
+          rewards.map((x, i) => (
+            <RewardCard key={x.key} art={x.art} amount={x.amount} label={x.label} delay={150 + i * 250} />
+          ))}
       </div>
 
       <div className="relative mt-2 shrink-0" style={{ height: "min(265px, 32vh)", aspectRatio: "260 / 230" }}>
@@ -347,38 +374,29 @@ export function ChestOpening({ title, onClose, onClaimed }) {
           <p className="chest-hint font-semibold text-[#FFD77A]">Нажми на сундук</p>
         ) : stage === "done" && res ? (
           <div className="wheel-pop space-y-3">
-            <p className="text-sm text-[#F3EFE7]/75">
-              {res.chips > 0 && (
-                <>
-                  Теперь у тебя {res.totalChips} {chipsNom(res.totalChips)}
-                </>
-              )}
-              {res.chips > 0 && res.spins > 0 && " и "}
-              {res.spins > 0 && (
-                <>
-                  {res.chips > 0 ? "" : "Теперь у тебя "}
-                  {res.totalSpins} {spinsNom(res.totalSpins)}
-                </>
-              )}
-            </p>
-            <Link
-              href="/mop/games/wheel"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="flex items-center justify-center gap-2 w-full rounded-2xl bg-acid-400 text-black font-bold py-3 active:scale-[.98] transition"
-            >
-              <Icon name="wheel" className="w-5 h-5" />
-              К колесу фортуны
-            </Link>
+            {totalsText && <p className="text-sm text-[#F3EFE7]/75">Теперь у тебя {totalsText}</p>}
+            {forWheel && (
+              <Link
+                href="/mop/games/wheel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="flex items-center justify-center gap-2 w-full rounded-2xl bg-acid-400 text-black font-bold py-3 active:scale-[.98] transition"
+              >
+                <Icon name="wheel" className="w-5 h-5" />
+                К колесу фортуны
+              </Link>
+            )}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();
               }}
-              className="w-full rounded-2xl border border-white/15 text-[#F3EFE7]/80 font-semibold py-3"
+              className={`w-full rounded-2xl py-3 ${
+                forWheel ? "border border-white/15 text-[#F3EFE7]/80 font-semibold" : "bg-acid-400 text-black font-bold"
+              }`}
             >
               Готово
             </button>
