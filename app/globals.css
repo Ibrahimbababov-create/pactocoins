@@ -347,11 +347,15 @@ button:not(:disabled):active {
   100% { transform: scale(1); }
 }
 .chest-opened { animation: chest-opened 0.45s ease-out both; }
-.chest-lid, .chest-beam { transform-box: fill-box; transform-origin: 50% 100%; }
+/* Слои сундука двигаются целиком: крышка вокруг своего низа (56% высоты),
+   свет растёт от щели (55%). Сдвиги в процентах, чтобы большой сундук и
+   маленький на карточке открывались одинаково. */
+.chest-lid { transform-origin: 50% 56%; will-change: transform; }
+.chest-beam { transform-origin: 50% 55%; }
 @keyframes chest-lid-open {
   0% { transform: translate(0, 0) rotate(0deg); }
-  45% { transform: translate(4px, -84px) rotate(-9deg); }
-  100% { transform: translate(-8px, -60px) rotate(-17deg) scaleY(0.88); }
+  45% { transform: translate(1.7%, -42%) rotate(-9deg); }
+  100% { transform: translate(-3.3%, -30%) rotate(-17deg) scaleY(0.88); }
 }
 .chest-lid.is-open { animation: chest-lid-open 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) forwards; }
 .chest-beam { opacity: 0; transform: scaleY(0); }
@@ -360,7 +364,12 @@ button:not(:disabled):active {
   100% { opacity: 1; transform: scaleY(1); }
 }
 .chest-beam.is-open { animation: chest-beam 0.5s 0.08s ease-out forwards; }
-.chest-seam { opacity: 0; transition: opacity 0.3s; }
+.chest-seam {
+  opacity: 0;
+  transition: opacity 0.3s;
+  background: #FFE9A8;
+  box-shadow: 0 0 10px 4px rgba(255, 233, 168, 0.9), 0 0 26px 10px rgba(255, 196, 90, 0.45);
+}
 @keyframes chest-seam {
   0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }
@@ -379,7 +388,7 @@ button:not(:disabled):active {
   from { opacity: 0; scale: 0.3; }
   to { opacity: 1; scale: 1; }
 }
-.chest-rays { animation: chest-rays 18s linear infinite, chest-rays-in 0.6s ease-out both; }
+.chest-rays { will-change: transform; animation: chest-rays 18s linear infinite, chest-rays-in 0.6s ease-out both; }
 @keyframes chest-spark {
   0% { transform: translate(-50%, -50%) scale(0.3) rotate(45deg); opacity: 1; }
   100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1) rotate(225deg); opacity: 0; }
@@ -406,7 +415,7 @@ button:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) {
   .chest-drop, .chest-idle, .chest-shake, .chest-opened, .chest-flash, .chest-spark, .chest-reward, .chest-hint, .chest-card-bob { animation: none; }
   .chest-rays { animation: none; transform: translate(-50%, -50%); }
-  .chest-lid.is-open { animation: none; transform: translate(-8px, -60px) rotate(-17deg) scaleY(0.88); }
+  .chest-lid.is-open { animation: none; transform: translate(-3.3%, -30%) rotate(-17deg) scaleY(0.88); }
   .chest-beam.is-open { animation: none; opacity: 1; transform: none; }
   .chest-flash { opacity: 0; }
 }

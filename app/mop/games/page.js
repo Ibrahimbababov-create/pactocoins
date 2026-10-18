@@ -150,7 +150,7 @@ export default async function GamesPage() {
       {/* Все игры одним списком, по порядку: сундук (если есть подарок),
           турнир, колесо, дальше новые. */}
       <div className="space-y-2.5">
-        {chest && <ChestCard chest={chest} />}
+        {chestEligible(profile) && <ChestCard chest={chest} />}
         {tournament ? (
           <>
             <TournamentCard t={tournament} />
