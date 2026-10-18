@@ -28,8 +28,32 @@ async function requireAdmin() {
   return user;
 }
 
+// Кнопка в рассылке: человек жмёт и сразу попадает на нужный экран, а не
+// ищет его по меню. Экранов немного и они заданы здесь — произвольные
+// ссылки в рассылке ни к чему.
+const APP_URL = "https://pactocoins.vercel.app";
+
+export const BROADCAST_BUTTONS = {
+  settings: { label: "Настройки уведомлений", path: "/mop/settings" },
+  shop: { label: "Открыть магазин", path: "/mop/shop" },
+  rating: { label: "Открыть рейтинг", path: "/mop/rating" },
+  games: { label: "Открыть игры", path: "/mop/games" },
+  app: { label: "Открыть PactoCoins", path: "" },
+};
+
+function buttonMarkup(key) {
+  const item = BROADCAST_BUTTONS[key];
+  if (!item) return undefined;
+  return {
+    inline_keyboard: [
+      [{ text: item.label, web_app: { url: `${APP_URL}${item.path}` } }],
+    ],
+  };
+}
+
 async function parseBroadcastForm(formData) {
   const text = (formData.get("text")?.toString() || "").trim();
+  const button = formData.get("button")?.toString() || "";
   const file = formData.get("file");
   const hasFile = file && typeof file === "object" && file.size > 0;
 
@@ -45,7 +69,7 @@ async function parseBroadcastForm(formData) {
     fileType = file.type || "application/octet-stream";
   }
 
-  return { text, hasFile, fileBytes, fileName, fileType };
+  return { text, hasFile, fileBytes, fileName, fileType, markup: buttonMarkup(button) };
 }
 
 // Картинки шлём через sendPhoto (превью в чате), остальные файлы — sendDocument
@@ -61,7 +85,7 @@ export async function sendTestBroadcast(formData) {
 
   const parsed = await parseBroadcastForm(formData);
   if (parsed.error) return parsed;
-  const { text, hasFile, fileBytes, fileName, fileType } = parsed;
+  const { text, hasFile, fileBytes, fileName, fileType, markup } = parsed;
 
   const supabase = createClient();
   const { data: profile } = await supabase
@@ -81,7 +105,7 @@ export async function sendTestBroadcast(formData) {
           { fileBytes, fileName, fileType },
           text || undefined
         )
-      : await sendTelegramMessage(profile.telegram_id, text);
+      : await sendTelegramMessage(profile.telegram_id, text, markup);
 
     if (!res?.ok) return { error: res?.description || "Telegram отклонил отправку" };
     return { success: true };
@@ -98,7 +122,7 @@ export async function sendToEmployee(formData) {
 
   const parsed = await parseBroadcastForm(formData);
   if (parsed.error) return parsed;
-  const { text, hasFile, fileBytes, fileName, fileType } = parsed;
+  const { text, hasFile, fileBytes, fileName, fileType, markup } = parsed;
 
   const admin = createAdminClient();
   const { data: profile } = await admin
@@ -124,7 +148,7 @@ export async function sendToEmployee(formData) {
           { fileBytes, fileName, fileType },
           text || undefined
         )
-      : await sendTelegramMessage(profile.telegram_id, text);
+      : await sendTelegramMessage(profile.telegram_id, text, markup);
 
     if (!res?.ok) return { error: res?.description || "Telegram отклонил отправку" };
     return { success: true, name: profile.name };
@@ -138,7 +162,7 @@ export async function broadcastMessage(formData) {
 
   const parsed = await parseBroadcastForm(formData);
   if (parsed.error) return parsed;
-  const { text, hasFile, fileBytes, fileName, fileType } = parsed;
+  const { text, hasFile, fileBytes, fileName, fileType, markup } = parsed;
 
   const admin = createAdminClient();
   const { data: users } = await admin
@@ -168,7 +192,7 @@ export async function broadcastMessage(formData) {
             { fileBytes, fileName, fileType },
             text || undefined
           )
-        : await sendTelegramMessage(u.telegram_id, text);
+        : await sendTelegramMessage(u.telegram_id, text, markup);
 
       if (res?.ok) {
         sent++;

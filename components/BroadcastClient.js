@@ -13,6 +13,7 @@ export default function BroadcastClient({ employees = [] }) {
   const [isPending, startTransition] = useTransition();
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
+  const [button, setButton] = useState("");
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -26,6 +27,7 @@ export default function BroadcastClient({ employees = [] }) {
   function buildFormData() {
     const formData = new FormData();
     formData.append("text", text);
+    if (button) formData.append("button", button);
     if (file) formData.append("file", file);
     return formData;
   }
@@ -126,6 +128,27 @@ export default function BroadcastClient({ employees = [] }) {
         placeholder="Текст сообщения для всех сотрудников..."
         className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-acid-400"
       />
+
+      {/* Кнопка под сообщением: человек жмёт и попадает прямо на нужный
+          экран приложения, а не ищет его в меню. */}
+      <label className="block space-y-1">
+        <span className="text-xs text-gray-500">
+          Кнопка под сообщением{" "}
+          <span className="text-gray-600">(к файлу не прикрепляется)</span>
+        </span>
+        <select
+          value={button}
+          onChange={(e) => setButton(e.target.value)}
+          className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+        >
+          <option value="">Без кнопки</option>
+          <option value="settings">Настройки уведомлений</option>
+          <option value="shop">Открыть магазин</option>
+          <option value="rating">Открыть рейтинг</option>
+          <option value="games">Открыть игры</option>
+          <option value="app">Открыть PactoCoins</option>
+        </select>
+      </label>
 
       <div className="space-y-2">
         <input
