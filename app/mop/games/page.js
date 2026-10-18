@@ -5,6 +5,8 @@ import { getFeaturedTournament } from "@/lib/tournamentView";
 import Icon from "@/components/Icon";
 import { isWheelOpen, formatOpensAt } from "@/lib/wheel";
 import { formatCoins, spinsNom } from "@/lib/plural";
+import ChestCard from "@/components/Chest";
+import { getPendingChest, chestEligible } from "@/lib/chest";
 
 export const dynamic = "force-dynamic";
 
@@ -117,9 +119,16 @@ export default async function GamesPage() {
       .select("spin_price_coins, buy_enabled, is_open, opens_at")
       .eq("id", true)
       .maybeSingle(),
-    supabase.from("users").select("id, role, wheel_spins").eq("id", user.id).single(),
+    supabase
+      .from("users")
+      .select("id, role, wheel_spins, is_active, is_guest, email")
+      .eq("id", user.id)
+      .single(),
   ]);
-  const tournament = await getFeaturedTournament(createAdminClient(), profile);
+  const [tournament, chest] = await Promise.all([
+    getFeaturedTournament(createAdminClient(), profile),
+    chestEligible(profile) ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
+  ]);
 
   const spins = profile?.wheel_spins ?? 0;
   const wheelOpen = isWheelOpen(config);
@@ -138,8 +147,10 @@ export default async function GamesPage() {
     <div className="space-y-5">
       <h1 className="text-2xl font-display font-bold">Игры</h1>
 
-      {/* Все игры одним списком, по порядку: турнир, колесо, дальше новые. */}
+      {/* Все игры одним списком, по порядку: сундук (если есть подарок),
+          турнир, колесо, дальше новые. */}
       <div className="space-y-2.5">
+        {chest && <ChestCard chest={chest} />}
         {tournament ? (
           <>
             <TournamentCard t={tournament} />
@@ -164,7 +175,6 @@ export default async function GamesPage() {
           text={wheelText}
           badge={wheelOpen && spins > 0 ? `${spins} ${spinsNom(spins)}` : null}
         />
-        <SoonRow icon="chest" title="Сундук дня" text="Заходи каждый день за призом" />
         <SoonRow icon="target" title="Морской бой" text="Один на один с коллегой" />
       </div>
     </div>
