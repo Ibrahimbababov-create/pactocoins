@@ -33,7 +33,9 @@ async function requireAdmin() {
 // ссылки в рассылке ни к чему.
 const APP_URL = "https://pactocoins.vercel.app";
 
-export const BROADCAST_BUTTONS = {
+// Не export: файл с "use server" может отдавать наружу только асинхронные
+// действия, на объекте сборка падает ошибкой сервера.
+const BROADCAST_BUTTONS = {
   settings: { label: "Настройки уведомлений", path: "/mop/settings" },
   shop: { label: "Открыть магазин", path: "/mop/shop" },
   rating: { label: "Открыть рейтинг", path: "/mop/rating" },
