@@ -636,30 +636,42 @@ async function handleAdminReplyComment(msg) {
 
   const admin = createAdminClient();
 
+  const reply = (text) =>
+    sendTelegramMessage(
+      msg.chat.id,
+      text,
+      undefined,
+      msg.message_thread_id,
+      msg.message_id
+    );
+
   for (const table of REPLY_COMMENT_TABLES) {
+    // Ищем заявку в любом статусе: если она уже закрыта, об этом нужно
+    // сказать, а не молчать. Молчание выглядит как «ничего не работает».
     const { data: row } = await admin
       .from(table)
-      .select("id")
+      .select("id, status")
       .eq("admin_chat_id", msg.chat.id)
       .eq("admin_message_id", repliedId)
-      .eq("status", "pending")
       .maybeSingle();
 
-    if (row) {
-      await admin
-        .from(table)
-        .update({ admin_reply_comment: msg.text })
-        .eq("id", row.id);
+    if (!row) continue;
 
-      await sendTelegramMessage(
-        msg.chat.id,
-        "💬 Сохранил — добавлю к решению по заявке.",
-        undefined,
-        msg.message_thread_id,
-        msg.message_id
+    if (row.status !== "pending") {
+      await reply(
+        "По этой заявке решение уже принято, комментарий к ней не добавится. " +
+          "Напиши человеку кнопкой «Написать» под сообщением."
       );
       return true;
     }
+
+    await admin
+      .from(table)
+      .update({ admin_reply_comment: msg.text })
+      .eq("id", row.id);
+
+    await reply("💬 Сохранил, добавлю к решению по заявке.");
+    return true;
   }
 
   return false;
