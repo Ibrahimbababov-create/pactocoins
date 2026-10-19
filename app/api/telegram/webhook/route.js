@@ -506,9 +506,15 @@ async function handleSpendCommand(msg) {
     return;
   }
 
+  // Как и в админке: записали сумму — покупка считается выполненной.
+  const patch = { actual_kzt_amount: parsed.value };
+  if (parsed.value !== null && parsed.value > 0 && purchase.status === "approved") {
+    patch.status = "done";
+  }
+
   const { error } = await admin
     .from("purchase_requests")
-    .update({ actual_kzt_amount: parsed.value })
+    .update(patch)
     .eq("id", purchase.id);
 
   if (error) {
@@ -528,8 +534,9 @@ async function handleSpendCommand(msg) {
   await say(
     parsed.value === null
       ? `Сумма по «${escapeHtml(title)}» (${escapeHtml(who)}) стёрта.`
-      : `💸 Записал: «${escapeHtml(title)}» для ${escapeHtml(who)} — ` +
-          `${parsed.value.toLocaleString("ru-RU")} ₸. Ушло в бюджет.`
+      : `💸 Записал: «${escapeHtml(title)}» для ${escapeHtml(who)}, ` +
+          `${parsed.value.toLocaleString("ru-RU")} ₸. Ушло в бюджет` +
+          (patch.status === "done" ? ", покупка выполнена." : ".")
   );
 }
 
