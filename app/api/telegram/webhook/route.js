@@ -533,6 +533,62 @@ async function handleSpendCommand(msg) {
   );
 }
 
+// После решения по заявке оставляем в сообщении одну кнопку: написать
+// человеку в личку. Иначе после «Подтверждено» нужно идти искать его по
+// списку контактов, а сказать что-то обычно хочется сразу.
+const APPLICANT_TABLES = {
+  approve_rev: "revenue_requests",
+  reject_rev: "revenue_requests",
+  approve_bonus: "bonus_requests",
+  reject_bonus: "bonus_requests",
+  approve_purchase: "purchase_requests",
+  reject_purchase_go: "purchase_requests",
+  approve_join: "join_requests",
+  reject_join: "join_requests",
+};
+
+async function applicantContact(action, requestId) {
+  const table = APPLICANT_TABLES[action];
+  if (!table || !requestId) return null;
+
+  const admin = createAdminClient();
+
+  // Заявка на регистрацию хранит телеграм прямо в себе: аккаунта ещё нет.
+  if (table === "join_requests") {
+    const { data } = await admin
+      .from("join_requests")
+      .select("name, telegram_id, telegram_username")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (!data?.telegram_id) return null;
+    return {
+      name: data.name ?? "сотруднику",
+      url: data.telegram_username
+        ? `https://t.me/${data.telegram_username}`
+        : `tg://user?id=${data.telegram_id}`,
+    };
+  }
+
+  const { data: row } = await admin
+    .from(table)
+    .select("user_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!row?.user_id) return null;
+
+  const { data: person } = await admin
+    .from("users")
+    .select("name, telegram_id")
+    .eq("id", row.user_id)
+    .maybeSingle();
+  if (!person?.telegram_id) return null;
+
+  return {
+    name: person.name ?? "сотруднику",
+    url: `tg://user?id=${person.telegram_id}`,
+  };
+}
+
 // id админа в нашей базе — чтобы в истории было видно, кто отменил.
 async function adminUserId(telegramId) {
   if (!telegramId) return null;
@@ -902,10 +958,19 @@ export async function POST(request) {
       callback.from.first_name +
       (callback.from.last_name ? ` ${callback.from.last_name}` : "");
 
+    const contact = await applicantContact(action, requestId);
+
     await editTelegramMessage(
       chatId,
       messageId,
-      `${escapeHtml(callback.message.text ?? "")}\n\n<b>${resultLabel}</b> (${escapeHtml(actorName)})`
+      `${escapeHtml(callback.message.text ?? "")}\n\n<b>${resultLabel}</b> (${escapeHtml(actorName)})`,
+      contact
+        ? {
+            inline_keyboard: [
+              [{ text: `✍️ Написать: ${contact.name}`, url: contact.url }],
+            ],
+          }
+        : undefined
     );
 
     await answerCallbackQuery(callback.id, resultLabel);
