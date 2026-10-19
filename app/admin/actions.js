@@ -487,16 +487,8 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
           }`;
     if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
 
-    // Решение приняли из админки: к кнопке «написать» подставляем телеграм
-    // того, кто нажал, если он привязан, иначе первого админа.
-    const { data: actor } = await admin
-      .from("users")
-      .select("telegram_id")
-      .eq("id", admin_user.id)
-      .maybeSingle();
-
     await notifyUser(admin, purchase.user_id, text, "notify_requests", {
-      markup: await decisionContact(admin, actor?.telegram_id ?? null),
+      markup: await decisionContact(admin),
     });
   }
 
