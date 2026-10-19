@@ -548,13 +548,11 @@ async function isTelegramAdmin(fromId) {
   return (await telegramRole(fromId)) === "admin";
 }
 
-// Заявки на регистрацию принимает ещё и наставник — он ведёт новичков
-// с первого дня. Коинов эти кнопки не двигают, только заводят аккаунт.
-const JOIN_ACTIONS = new Set(["approve_join", "reject_join"]);
-async function canPressButton(fromId, action) {
+// Наставник жмёт те же кнопки, что и админ: он ведёт новичков с первого
+// дня и разбирает заявки наравне. Решение Ибрагима, октябрь 2026.
+async function canPressButton(fromId) {
   const role = await telegramRole(fromId);
-  if (role === "admin") return true;
-  return role === "mentor" && JOIN_ACTIONS.has(action);
+  return role === "admin" || role === "mentor";
 }
 
 const REPLY_COMMENT_TABLES = [
@@ -571,7 +569,7 @@ const REPLY_COMMENT_TABLES = [
 async function handleAdminReplyComment(msg) {
   const repliedId = msg?.reply_to_message?.message_id;
   if (!repliedId || !msg.text || !msg.chat?.id) return false;
-  if (!(await isTelegramAdmin(msg.from?.id))) return false;
+  if (!(await canPressButton(msg.from?.id))) return false;
 
   const admin = createAdminClient();
 
@@ -822,15 +820,14 @@ export async function POST(request) {
   const chatId = callback.message.chat.id;
   const messageId = callback.message.message_id;
 
-  // Дальше идут кнопки, двигающие коины и аккаунты. Пускаем админов, а на
-  // приём новичков — ещё и наставника.
-  if (!(await canPressButton(callback.from?.id, action))) {
+  // Дальше идут кнопки, двигающие коины и аккаунты: админ и наставник.
+  if (!(await canPressButton(callback.from?.id))) {
     console.warn("[webhook] нет прав на", action, callback.from?.id);
     // Сообщение подсказывает и настоящую причину отказа, и частый случай:
     // человек реально админ, но его Telegram не привязан к аккаунту.
     await answerCallbackQuery(
       callback.id,
-      "Только для админов. Если ты админ — твой Telegram не привязан к аккаунту, скажи Ибрагиму",
+      "Эти кнопки для админов и наставника. Если ты из них, твой Telegram не привязан к аккаунту, скажи Ибрагиму",
       true
     );
     return NextResponse.json({ ok: true });
