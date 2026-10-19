@@ -5,6 +5,7 @@ import {
   broadcastMessage,
   sendTestBroadcast,
   sendToEmployee,
+  sendToEmployees,
 } from "@/app/admin/broadcastActions";
 import EmployeePicker from "@/components/EmployeePicker";
 import Icon from "@/components/Icon";
@@ -17,6 +18,7 @@ export default function BroadcastClient({ employees = [] }) {
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [pickedIds, setPickedIds] = useState([]);
   const fileInputRef = useRef(null);
 
   function clearFile() {
@@ -45,6 +47,22 @@ export default function BroadcastClient({ employees = [] }) {
       } else {
         setMessage({ type: "success", text: "Тест отправлен тебе в Telegram" });
       }
+    });
+  }
+
+  // Позвать нескольких поимённо: приглашение на турнир, напоминание
+  // команде. Всем подряд такое слать незачем.
+  function handleSendToPicked() {
+    if (!pickedIds.length || (!text.trim() && !file)) return;
+    if (!window.confirm(`Отправить ${pickedIds.length} сотрудникам?`)) return;
+
+    startTransition(async () => {
+      const formData = buildFormData();
+      pickedIds.forEach((id) => formData.append("userIds", id));
+      const res = await sendToEmployees(formData);
+      if (res?.error) return setResult({ sent: 0, failed: 0, error: res.error });
+      setResult(res);
+      setPickedIds([]);
     });
   }
 
@@ -207,6 +225,32 @@ export default function BroadcastClient({ employees = [] }) {
             : selectedUserId
             ? `Отправить: ${employees.find((e) => e.id === selectedUserId)?.name ?? ""}`
             : "Отправить сотруднику"}
+        </button>
+      </div>
+
+      <div className="pt-2 border-t border-dark-600 space-y-2">
+        <p className="text-xs text-gray-500">
+          Или нескольким сразу: отметь галочками, кому нужно.
+        </p>
+        <EmployeePicker
+          employees={employees}
+          multiple
+          values={pickedIds}
+          onToggle={(id) =>
+            setPickedIds((p) =>
+              p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
+            )
+          }
+          placeholder="Найти сотрудников…"
+        />
+        <button
+          onClick={handleSendToPicked}
+          disabled={isPending || !pickedIds.length || (!text.trim() && !file)}
+          className="w-full bg-acid-400 text-black font-bold rounded-lg py-3 text-sm disabled:opacity-50"
+        >
+          {isPending
+            ? "Отправляем..."
+            : `Отправить выбранным (${pickedIds.length})`}
         </button>
       </div>
     </div>

@@ -159,6 +159,61 @@ export async function sendToEmployee(formData) {
   }
 }
 
+// Позвать не всех и не одного, а несколько человек поимённо: приглашение
+// на турнир, напоминание конкретной команде. Шлём пачками, как общую
+// рассылку, иначе десяток сообщений не укладывается в лимит времени.
+export async function sendToEmployees(formData) {
+  await requireAdmin();
+
+  const ids = formData.getAll("userIds").map(String).filter(Boolean);
+  if (!ids.length) return { error: "Выбери, кому отправить" };
+
+  const parsed = await parseBroadcastForm(formData);
+  if (parsed.error) return parsed;
+  const { text, hasFile, fileBytes, fileName, fileType, markup } = parsed;
+
+  const admin = createAdminClient();
+  const { data: users } = await admin
+    .from("users")
+    .select("id, name, telegram_id")
+    .in("id", ids)
+    .not("telegram_id", "is", null);
+
+  const inGroup = await keepGroupMembers((users ?? []).map((u) => u.telegram_id));
+  const recipients = (users ?? []).filter((u) => inGroup.has(String(u.telegram_id)));
+  const skipped = ids.length - recipients.length;
+
+  let sent = 0;
+  let failed = 0;
+  const CHUNK = 10;
+
+  for (let i = 0; i < recipients.length; i += CHUNK) {
+    const batch = recipients.slice(i, i + CHUNK);
+    const results = await Promise.all(
+      batch.map(async (u) => {
+        try {
+          const res = hasFile
+            ? await sendFile(
+                u.telegram_id,
+                { fileBytes, fileName, fileType },
+                text || undefined
+              )
+            : await sendTelegramMessage(u.telegram_id, text, markup);
+          if (res?.ok) return true;
+          console.error(`[broadcast-some] failed for ${u.id}:`, res);
+          return false;
+        } catch (err) {
+          console.error(`[broadcast-some] error for ${u.id}:`, err);
+          return false;
+        }
+      })
+    );
+    for (const ok of results) ok ? sent++ : failed++;
+  }
+
+  return { sent, failed, skipped };
+}
+
 export async function broadcastMessage(formData) {
   await requireAdmin();
 
