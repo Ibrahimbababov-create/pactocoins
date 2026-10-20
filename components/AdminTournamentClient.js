@@ -121,7 +121,10 @@ function MatchAdmin({ m, people, rounds, pending, run, now }) {
       }`}
     >
       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
-        <span>{roundLabel(m.round, rounds)}</span>
+        <span>
+          {roundLabel(m.round, rounds)}
+          {m.tour ? ` · тур ${m.tour}` : ""}
+        </span>
         <span className={m.status === "disputed" || overdue ? "text-amber-400" : ""}>
           {overdue ? "просрочен" : MATCH[m.status]}
           {m.method ? ` · ${METHOD[m.method]}` : ""}
@@ -208,6 +211,15 @@ export default function AdminTournamentClient({ data, now }) {
   const needs = matches.filter(
     (m) => m.status === "disputed" || (m.status === "ready" && m.play_by && new Date(m.play_by).getTime() < now)
   );
+  // Несыгранные сверху: по ним и нужны кнопки. Матчи лиги (round 0) тоже
+  // здесь: если человек не смог зайти в приложение, итог ставит админ.
+  const openFirst = (m) => (["ready", "reported", "disputed"].includes(m.status) ? 0 : 1);
+  const rest = matches
+    .filter((m) => m.method !== "bye" && !needs.includes(m))
+    .sort(
+      (a, b) =>
+        openFirst(a) - openFirst(b) || b.round - a.round || (a.tour ?? 0) - (b.tour ?? 0) || a.slot - b.slot
+    );
 
   return (
     <div className="space-y-4">
@@ -426,15 +438,12 @@ export default function AdminTournamentClient({ data, now }) {
         </div>
       </div>
 
-      {rounds > 0 && (
+      {rest.length > 0 && (
         <div className="space-y-2">
           <p className="text-sm text-gray-500 px-1">Матчи</p>
-          {matches
-            .filter((m) => m.method !== "bye" && !needs.includes(m))
-            .sort((a, b) => b.round - a.round || a.slot - b.slot)
-            .map((m) => (
-              <MatchAdmin key={m.id} m={m} people={people} rounds={rounds} pending={pending} run={run} now={now} />
-            ))}
+          {rest.map((m) => (
+            <MatchAdmin key={m.id} m={m} people={people} rounds={rounds} pending={pending} run={run} now={now} />
+          ))}
         </div>
       )}
     </div>
