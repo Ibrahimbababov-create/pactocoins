@@ -14,11 +14,15 @@
 -- блокировкой строки турнира или условным «захватом» матча: двойной тап,
 -- параллельный крон и бот не заплатят и не продвинут дважды.
 
--- ---------- Тег игрока ----------
+-- ---------- Тег и ник игрока ----------
 alter table public.users add column if not exists clash_tag text
   check (clash_tag is null or clash_tag ~ '^#[0289PYLQGRJCUV]{3,14}$');
 create unique index if not exists users_clash_tag_uniq on public.users (clash_tag)
   where clash_tag is not null;
+
+-- Ник в игре (применено 20.10.2026): над ареной в бою видно его, а не имя
+-- сотрудника. Без ника участники не понимают, с кем сели играть.
+alter table public.users add column if not exists clash_name text;
 
 -- ---------- Таблицы ----------
 create table if not exists public.tournaments (
@@ -70,6 +74,10 @@ create table if not exists public.tournament_entries (
   refunded_at timestamptz,
   primary key (tournament_id, user_id)
 );
+
+-- Ник в игре фиксируем и в самой записи: состав турнира не должен
+-- меняться, если человек потом переименуется в игре.
+alter table public.tournament_entries add column if not exists clash_name text;
 create index if not exists tournament_entries_user on public.tournament_entries (user_id);
 
 create table if not exists public.tournament_matches (

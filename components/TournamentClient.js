@@ -7,8 +7,10 @@ import Icon from "@/components/Icon";
 import { formatCoins } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
+import { MODE_NAME, MODE_LINE, MODE_HOW } from "@/lib/clashMode";
 import {
   joinTournament,
+  saveClashName,
   withdrawFromTournament,
   reportMatch,
   confirmMatch,
@@ -26,6 +28,31 @@ const STATUS = {
 
 // «18.10, 20:00» — год на экране не нужен.
 const when = (v) => formatDateTimeAlmaty(v).replace(/\.\d{4},/, ",");
+
+// Имя человека и его ник в игре рядом. В офисе зовут по имени, а над
+// ареной в бою видно ник: без связки непонятно, с кем ты сел играть.
+function Who({ p, right = false, strong = false, dim = false, me = false }) {
+  const nick = p?.inGame;
+  return (
+    <span className={`min-w-0 flex-1 ${right ? "text-right" : ""}`}>
+      <span className={`block truncate text-sm ${strong ? "font-bold" : ""} ${dim ? "text-gray-500" : ""}`}>
+        {p?.name ?? "Игрок"}
+        {me && <span className="ml-1 text-[10px] font-normal text-acid-400">ты</span>}
+      </span>
+      {nick && <span className="block truncate text-[11px] text-gray-500">{nick}</span>}
+    </span>
+  );
+}
+
+// Режим боя: его путают чаще всего, поэтому пишем прямо, а не в правилах.
+function ModeNote({ className = "" }) {
+  return (
+    <div className={`rounded-xl border border-acid-400/25 bg-acid-400/[0.06] px-3.5 py-2.5 ${className}`}>
+      <p className="text-sm font-semibold text-acid-400">{MODE_NAME}</p>
+      <p className="mt-0.5 text-xs text-gray-400">{MODE_HOW}</p>
+    </div>
+  );
+}
 
 // Во время турнира шапка компактная: главное на экране — твой матч.
 function HeroCompact({ t, players, stage }) {
@@ -99,7 +126,7 @@ function Hero({ t, players, winnerName, stage }) {
               : "Плей-офф"
             : (STATUS[t.status] ?? t.status)}
         </span>
-        <span className="text-xs text-gray-500">Clash Royale</span>
+        <span className="text-xs text-gray-500">Clash Royale · {MODE_NAME.toLowerCase()}</span>
       </div>
 
       {t.status === "finished" && winnerName ? (
@@ -161,7 +188,7 @@ function HowToJoin({ t }) {
       ? `Вступи в клан ${t.clan_tag} в Clash Royale: вкладка «Клан» → поиск → вставь тег клана.`
       : "Добавь соперников в друзья в Clash Royale (клан пришлёт админ).",
     "Узнай свой тег: нажми на свой ник в игре, тег под ним, вида #2PYLQ8.",
-    "Впиши тег ниже и нажми «Участвовать». Когда запись закроется, бот пришлёт соперников.",
+    "Впиши ник и тег ниже, нажми «Участвовать». Когда запись закроется, бот пришлёт соперников.",
   ];
   return (
     <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4">
@@ -176,6 +203,7 @@ function HowToJoin({ t }) {
           </li>
         ))}
       </ol>
+      <ModeNote className="mt-3" />
       {t.clan_tag && (
         <button
           type="button"
@@ -191,6 +219,7 @@ function HowToJoin({ t }) {
 
 function JoinBlock({ t, me, viewer, pending, run }) {
   const [tag, setTag] = useState(viewer.clashTag);
+  const [nick, setNick] = useState(viewer.clashName ?? "");
   if (t.status !== "registration") return null;
   if (viewer.isGuest) {
     return <p className="text-sm text-gray-500 text-center">В гостевом режиме участвовать нельзя.</p>;
@@ -220,6 +249,17 @@ function JoinBlock({ t, me, viewer, pending, run }) {
   const short = t.entry_fee > viewer.balance;
   return (
     <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 space-y-3">
+      {/* Ник и тег — разные вещи: по тегу тебя добавят, по нику узна́ют в бою. */}
+      <label className="block text-xs text-gray-500">
+        Твой ник в Clash Royale
+        <input
+          value={nick}
+          onChange={(e) => setNick(e.target.value)}
+          placeholder="как написано в игре"
+          className="block w-full mt-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+        />
+        <span className="block mt-1 text-gray-600">Его соперник видит над ареной в бою</span>
+      </label>
       <label className="block text-xs text-gray-500">
         Твой тег в Clash Royale
         <input
@@ -232,13 +272,13 @@ function JoinBlock({ t, me, viewer, pending, run }) {
       </label>
       <button
         type="button"
-        disabled={pending || short || !tag.trim()}
+        disabled={pending || short || !tag.trim() || !nick.trim()}
         onClick={() =>
           window.confirm(
             t.entry_fee > 0
               ? `Записаться в турнир? ${formatCoins(t.entry_fee)} уйдут в общий банк. До старта можно выйти и вернуть взнос.`
               : "Записаться в турнир?"
-          ) && run(() => joinTournament(t.id, tag))
+          ) && run(() => joinTournament(t.id, tag, nick))
         }
         className="w-full bg-acid-400 text-black font-bold rounded-xl py-3 disabled:opacity-50"
       >
@@ -249,6 +289,72 @@ function JoinBlock({ t, me, viewer, pending, run }) {
           На балансе {formatCoins(viewer.balance)}, на взнос не хватает.
         </p>
       )}
+    </div>
+  );
+}
+
+// Свой ник в игре. Кто записался раньше, чем мы стали его спрашивать,
+// дописывает здесь: пока ника нет, соперник не поймёт, кто ему попался.
+function MyNickCard({ t, me, viewer, pending, run }) {
+  const saved = me?.clashName || viewer.clashName || "";
+  const [nick, setNick] = useState(saved);
+  const [open, setOpen] = useState(!saved);
+  useEffect(() => {
+    if (saved) {
+      setNick(saved);
+      setOpen(false);
+    }
+  }, [saved]);
+  if (!me || viewer.isGuest || ["finished", "cancelled"].includes(t.status)) return null;
+
+  if (!open) {
+    return (
+      <div className="flex items-center gap-2 px-1 text-xs text-gray-500">
+        <span className="min-w-0 truncate">
+          Твой ник в игре: <b className="text-gray-300">{saved}</b>
+        </span>
+        <button type="button" onClick={() => setOpen(true)} className="shrink-0 underline">
+          изменить
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className={`rounded-2xl border bg-dark-800 p-4 space-y-2 ${saved ? "border-dark-600" : "border-acid-400/50"}`}>
+      <p className="font-semibold">{saved ? "Твой ник в игре" : "Впиши свой ник в игре"}</p>
+      {!saved && (
+        <p className="text-xs text-gray-400">
+          В бою над ареной видно ник, а не имя. Соперник ищет тебя именно по нему.
+        </p>
+      )}
+      <input
+        value={nick}
+        onChange={(e) => setNick(e.target.value)}
+        placeholder="как написано в игре"
+        className="block w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending || !nick.trim()}
+          onClick={() => run(() => saveClashName(t.id, nick))}
+          className="flex-1 bg-acid-400 text-black font-bold rounded-lg py-2.5 text-sm disabled:opacity-50"
+        >
+          Сохранить
+        </button>
+        {saved && (
+          <button
+            type="button"
+            onClick={() => {
+              setNick(saved);
+              setOpen(false);
+            }}
+            className="px-4 border border-dark-600 text-gray-400 rounded-lg py-2.5 text-sm"
+          >
+            Отмена
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -338,11 +444,14 @@ function MyMatch({ t, m, people, viewer, rounds, pending, run }) {
     body = (
       <>
         {m.status === "ready" && (
-          <p className="text-sm text-gray-400">
-            {t.playoff_wins > 1 ? `Играйте до ${t.playoff_wins} побед` : "Сыграйте один дружеский бой"}
-            {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, успеть до <b className="text-gray-200">{when(m.play_by)}</b>. Потом
-            отметь итог.
-          </p>
+          <>
+            <p className="text-sm text-gray-400">
+              {t.playoff_wins > 1 ? `Играйте до ${t.playoff_wins} побед` : "Сыграйте один дружеский бой"}
+              {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, успеть до <b className="text-gray-200">{when(m.play_by)}</b>. Потом
+              отметь итог.
+            </p>
+            <p className="text-xs text-acid-400">{MODE_LINE}</p>
+          </>
         )}
         <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} />
       </>
@@ -356,6 +465,7 @@ function MyMatch({ t, m, people, viewer, rounds, pending, run }) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-lg font-bold truncate">{opp.name}</p>
+            {opp.inGame && <p className="text-xs text-gray-400 truncate">в игре: {opp.inGame}</p>}
             {opp.tag && <p className="text-xs text-gray-500 tabular-nums">{opp.tag}</p>}
           </div>
           {opp.tag && (
@@ -413,6 +523,9 @@ function LeagueTable({ t, entries, matches, people, viewer, collapsed, bare = fa
           <span className={`block truncate text-sm ${mine ? "text-acid-400 font-semibold" : inZone ? "font-semibold" : "text-gray-400"}`}>
             {people[r.userId]?.name ?? "Игрок"}
             {mine && <span className="ml-1.5 text-[10px] font-normal">ты</span>}
+            {people[r.userId]?.inGame && (
+              <span className="ml-1.5 text-[10px] font-normal text-gray-500">{people[r.userId].inGame}</span>
+            )}
           </span>
           {/* сколько из своих матчей уже сыграно и выиграно */}
           <span className="mt-1 flex h-1 rounded-full bg-dark-700 overflow-hidden">
@@ -522,7 +635,10 @@ function LeagueNow({ t, list, people, viewer, pending, run }) {
         </p>
       </div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xl font-bold truncate">{opp.name}</p>
+        <div className="min-w-0">
+          <p className="text-xl font-bold truncate">{opp.name}</p>
+          {opp.inGame && <p className="text-xs text-gray-400 truncate">в игре: {opp.inGame}</p>}
+        </div>
         {opp.tag && (
           <button
             type="button"
@@ -534,6 +650,7 @@ function LeagueNow({ t, list, people, viewer, pending, run }) {
         )}
       </div>
       <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} />
+      <p className="text-xs text-acid-400">{MODE_LINE}</p>
     </div>
   );
 }
@@ -556,7 +673,10 @@ function LeagueRest({ t, list, people, viewer, pending, run }) {
           className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left"
         >
           <span className="shrink-0 w-12 text-[11px] text-gray-500">{m.tour ? `Тур ${m.tour}` : ""}</span>
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{opp.name}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">{opp.name}</span>
+            {opp.inGame && <span className="block truncate text-[11px] text-gray-500">{opp.inGame}</span>}
+          </span>
           {result && (
             <span
               className={`shrink-0 text-[11px] ${
@@ -624,7 +744,12 @@ function MatchRow({ m, people, viewer }) {
     const lose = m.winner_id && !win;
     return (
       <span className={`flex items-center gap-1.5 min-w-0 ${win ? "font-bold" : ""} ${lose ? "text-gray-500" : ""}`}>
-        <span className="truncate">{people[id]?.name ?? "Игрок"}</span>
+        <span className="min-w-0">
+          <span className="block truncate">{people[id]?.name ?? "Игрок"}</span>
+          {people[id]?.inGame && (
+            <span className="block truncate text-[11px] font-normal text-gray-500">{people[id].inGame}</span>
+          )}
+        </span>
         {id === viewer.id && <span className="shrink-0 text-[10px] text-acid-400">ты</span>}
         {win && <Icon name="check" className="w-3.5 h-3.5 shrink-0 text-acid-400" />}
       </span>
@@ -689,6 +814,65 @@ function Bracket({ matches, rounds, people, viewer, bare = false }) {
   );
 }
 
+// Расписание лиги: все пары по турам. Нужно, чтобы в офисе каждый видел
+// не только свой матч, но и кто с кем играет сейчас за соседним столом.
+function Schedule({ matches, people, viewer }) {
+  const league = matches.filter((m) => m.round === 0 && m.status !== "void");
+  if (!league.length) return null;
+  const tours = [...new Set(league.map((m) => m.tour ?? 0))].sort((a, b) => a - b);
+  const pair = (m) => {
+    const mine = m.player_a === viewer.id || m.player_b === viewer.id;
+    const done = m.status === "done";
+    const chip = done ? null : m.status === "reported" ? "ждёт ответа" : m.status === "disputed" ? "спор" : null;
+    return (
+      <div
+        key={m.id}
+        className={`flex items-center gap-2 rounded-xl border bg-dark-800 px-3 py-2 ${
+          mine ? "border-acid-400/40" : "border-dark-600"
+        }`}
+      >
+        <Who
+          p={people[m.player_a]}
+          me={m.player_a === viewer.id}
+          strong={m.winner_id === m.player_a}
+          dim={done && m.winner_id !== m.player_a}
+        />
+        <span className="shrink-0 text-[11px] text-gray-600">vs</span>
+        <Who
+          p={people[m.player_b]}
+          right
+          me={m.player_b === viewer.id}
+          strong={m.winner_id === m.player_b}
+          dim={done && m.winner_id !== m.player_b}
+        />
+        {chip && <span className="shrink-0 text-[10px] text-gray-500">{chip}</span>}
+      </div>
+    );
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-500 px-1">
+        Пары по турам. Туры показывают порядок, а не время: сыграл свой, сразу иди к сопернику следующего.
+      </p>
+      {tours.map((tour) => {
+        const list = league.filter((m) => (m.tour ?? 0) === tour);
+        const played = list.filter((m) => m.status === "done").length;
+        return (
+          <div key={tour} className="space-y-1.5">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-sm font-semibold">{tour ? `Тур ${tour}` : "Матчи лиги"}</p>
+              <p className="text-[11px] text-gray-500">
+                сыграно {played} из {list.length}
+              </p>
+            </div>
+            {list.map(pair)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Participants({ entries, people, viewer }) {
   if (!entries.length) return <p className="text-sm text-gray-500 text-center">Пока никто не записался. Будь первым!</p>;
   return (
@@ -703,6 +887,9 @@ function Participants({ entries, people, viewer }) {
             }`}
           >
             {people[e.userId]?.name ?? "Игрок"}
+            {people[e.userId]?.inGame && (
+              <span className="ml-1.5 text-xs text-gray-500">{people[e.userId].inGame}</span>
+            )}
           </span>
         ))}
       </div>
@@ -724,6 +911,9 @@ function Rules({ t }) {
     <details className="rounded-2xl border border-dark-600 bg-dark-800 p-4 text-sm text-gray-400">
       <summary className="font-semibold text-gray-200 cursor-pointer">Как проходит турнир</summary>
       <ol className="mt-3 space-y-2 list-decimal pl-5">
+        <li>
+          <b className="text-gray-200">{MODE_LINE}</b> {MODE_HOW}
+        </li>
         <li>Взносы всех участников идут в общий банк{t.bonus_coins > 0 ? `, Pacto добавляет ${formatCoins(t.bonus_coins)}` : ""}.</li>
         {league ? (
           <>
@@ -798,6 +988,7 @@ export default function TournamentClient({ data, viewer }) {
   );
   const bracket = (bare) =>
     rounds > 0 ? <Bracket matches={matches} rounds={rounds} people={people} viewer={viewer} bare={bare} /> : null;
+  const schedule = () => <Schedule matches={matches} people={people} viewer={viewer} />;
 
   let sections = null;
   if (leagueOn && stage === "league" && running && inLeague) {
@@ -809,11 +1000,14 @@ export default function TournamentClient({ data, viewer }) {
           onChange={setTab}
           items={[
             { key: "matches", label: "Мои матчи" },
+            { key: "tours", label: "Все туры" },
             { key: "table", label: "Таблица" },
           ]}
         />
         {tab === "matches" ? (
           <LeagueRest t={t} list={myLeague} people={people} viewer={viewer} pending={pending} run={run} />
+        ) : tab === "tours" ? (
+          schedule()
         ) : (
           table(true)
         )}
@@ -828,13 +1022,26 @@ export default function TournamentClient({ data, viewer }) {
           items={[
             { key: "bracket", label: "Плей-офф" },
             { key: "table", label: "Таблица лиги" },
+            { key: "tours", label: "Туры лиги" },
           ]}
         />
-        {tab === "table" ? table(true) : bracket(true)}
+        {tab === "table" ? table(true) : tab === "tours" ? schedule() : bracket(true)}
       </>
     );
   } else if (leagueOn) {
-    sections = table(false);
+    sections = (
+      <>
+        <Tabs
+          value={tab === "table" ? "table" : "tours"}
+          onChange={setTab}
+          items={[
+            { key: "table", label: "Таблица" },
+            { key: "tours", label: "Все туры" },
+          ]}
+        />
+        {tab === "tours" ? schedule() : table(true)}
+      </>
+    );
   } else if (rounds > 0) {
     sections = bracket(false);
   } else {
@@ -851,6 +1058,8 @@ export default function TournamentClient({ data, viewer }) {
       {msg?.error && <p className="text-sm text-red-400 text-center">{msg.error}</p>}
       {!me && !viewer.isGuest && <HowToJoin t={t} />}
       <JoinBlock t={t} me={me} viewer={viewer} pending={pending} run={run} />
+      <MyNickCard t={t} me={me} viewer={viewer} pending={pending} run={run} />
+      {running && <ModeNote />}
       <MyMatch t={t} m={myMatch} people={people} viewer={viewer} rounds={rounds} pending={pending} run={run} />
       <MyOutcome t={t} me={me} />
       {t.status === "cancelled" && (
