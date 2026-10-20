@@ -12,7 +12,7 @@ import {
   adminReplay,
   adminExtend,
 } from "@/lib/tournament";
-import { announceRegistration, notifyCancelled, announceLeagueTable } from "@/lib/tournamentNotify";
+import { announceRegistration, notifyCancelled, announceLeagueTable, messageEntrants } from "@/lib/tournamentNotify";
 import { leagueStandings } from "@/lib/tournamentRounds";
 import { playerNames } from "@/lib/tournament";
 
@@ -151,6 +151,19 @@ export async function sendLeagueTable(tid) {
   const names = await playerNames(admin, ids);
   await announceLeagueTable(t, table, names, league.filter((m) => m.status === "done").length, league.length);
   return { ok: true };
+}
+
+// Написать в личку всем участникам турнира (напомнить о старте и т.п.).
+export async function messageTournamentPlayers(tid, text) {
+  await requireAdmin();
+  const body = (text || "").toString().trim();
+  if (!body) return { error: "Напиши текст" };
+  if (body.length > 1500) return { error: "Слишком длинный текст" };
+  const admin = createAdminClient();
+  const { data: t } = await admin.from("tournaments").select("id").eq("id", tid).maybeSingle();
+  if (!t) return { error: "Турнир не найден" };
+  const { sent, total } = await messageEntrants(admin, t.id, body);
+  return { ok: true, sent, total };
 }
 
 export async function cancelTournament(tid) {
