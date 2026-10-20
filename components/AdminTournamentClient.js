@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
-import { formatCoins } from "@/lib/plural";
+import { formatCoins, plural } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
 import AdminTournamentForm from "@/components/AdminTournamentForm";
@@ -14,6 +14,7 @@ import {
   sendLeagueTable,
   cancelTournament,
   setTournamentHidden,
+  messageTournamentPlayers,
   removeEntry,
   decideMatch,
   replayMatch,
@@ -48,6 +49,66 @@ const METHOD = {
 };
 
 const btn = "rounded-lg border border-dark-600 px-2.5 py-1.5 text-xs text-gray-300 disabled:opacity-50";
+
+// Время «18:00» из даты, по Алматы.
+const hhmm = (v) => formatDateTimeAlmaty(v).match(/\d{1,2}:\d{2}/)?.[0] ?? "";
+
+// Черновик напоминания перед стартом. Лигу обычно запускаем через полчаса
+// после конца записи, выйти с возвратом взноса можно, пока идёт запись.
+function reminderDraft(t, count) {
+  if (t.status !== "registration" || !t.registration_ends_at) return "";
+  const ends = new Date(t.registration_ends_at);
+  const fee = t.entry_fee > 0 ? `, взнос ${formatCoins(t.entry_fee)} вернётся на баланс` : "";
+  return (
+    `Напоминаю: сегодня в ${hhmm(new Date(ends.getTime() + 30 * 60000))} рубимся в Clash Royale 🏆\n` +
+    `Нас ${count} ${plural(count, "человек", "человека", "человек")}, будет жарко.\n\n` +
+    `Если вечером не получается, ничего страшного. Выйди из турнира до ${hhmm(ends)}: ` +
+    `кнопка «Открыть турнир», потом «Выйти»${fee}.`
+  );
+}
+
+// Написать всем участникам в личку от бота, с кнопкой «Открыть турнир».
+function PlayersMessage({ t, count }) {
+  const [text, setText] = useState(() => reminderDraft(t, count));
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState(null);
+
+  function send() {
+    if (!window.confirm(`Отправить это сообщение ${count} ${plural(count, "участнику", "участникам", "участникам")} в личку?`)) return;
+    setMsg(null);
+    start(async () => {
+      const res = await messageTournamentPlayers(t.id, text);
+      setMsg(res?.error ? { error: res.error } : { ok: `Отправлено ${res.sent} из ${res.total}` });
+    });
+  }
+
+  return (
+    <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
+      <p className="font-semibold">Написать участникам</p>
+      <p className="text-xs text-gray-500">Бот пришлёт это каждому участнику в личку, с кнопкой «Открыть турнир».</p>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={6}
+        maxLength={1500}
+        placeholder="Текст сообщения"
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+      />
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={pending || !text.trim()}
+          onClick={send}
+          className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm disabled:opacity-50"
+        >
+          {pending ? "Отправляем…" : `Отправить ${count} ${plural(count, "участнику", "участникам", "участникам")}`}
+        </button>
+        {msg?.error && <span className="text-xs text-red-400">{msg.error}</span>}
+        {msg?.ok && <span className="text-xs text-acid-400">{msg.ok}</span>}
+      </div>
+    </div>
+  );
+}
 
 function MatchAdmin({ m, people, rounds, pending, run, now }) {
   const name = (id) => people[id]?.name ?? "—";
@@ -269,6 +330,10 @@ export default function AdminTournamentClient({ data, now }) {
         {msg?.error && <p className="text-xs text-red-400">{msg.error}</p>}
         {msg?.ok && <p className="text-xs text-acid-400">{msg.ok}</p>}
       </div>
+
+      {["registration", "running"].includes(t.status) && entries.length > 0 && (
+        <PlayersMessage t={t} count={entries.length} />
+      )}
 
       {t.status === "finished" && t.winner_id && (
         <div className="flex items-center gap-3 rounded-2xl border border-acid-400/40 bg-dark-800 p-4">
