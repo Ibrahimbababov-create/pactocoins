@@ -59,27 +59,33 @@ export async function saveClashTag(raw) {
   return { ok: true, tag };
 }
 
-// Ник в игре можно вписать и после записи: над ареной в бою видно именно
-// его, а в списке участников — имя человека. Без связки одного с другим
-// в зале не понять, с кем сел играть.
-export async function saveClashName(tid, raw) {
+// Ник и тег можно поправить и после записи: над ареной в бою видно ник, а
+// не имя, да и в тег нередко попадает тег клана вместо своего. Чинить это
+// через админа — лишний круг, человек должен справиться сам.
+export async function saveClashProfile(tid, nameRaw, tagRaw) {
   const ctx = await me();
   if (!ctx) return { error: "Не авторизован" };
-  if (ctx.profile.is_guest) return { error: "В гостевом режиме ник не сохраняется" };
-  const clashName = String(raw ?? "").trim().slice(0, 40);
+  if (ctx.profile.is_guest) return { error: "В гостевом режиме это не сохраняется" };
+  const clashName = String(nameRaw ?? "").trim().slice(0, 40);
   if (!clashName) return { error: "Впиши ник, как он написан в игре" };
+
+  const tag = normalizeClashTag(tagRaw ?? "");
+  if (tag && tag !== ctx.profile.clash_tag) {
+    const saved = await saveClashTag(tagRaw);
+    if (saved.error) return saved;
+  }
   const { error } = await ctx.admin.from("users").update({ clash_name: clashName }).eq("id", ctx.profile.id);
   if (error) return { error: error.message };
   if (tid) {
     await ctx.admin
       .from("tournament_entries")
-      .update({ clash_name: clashName })
+      .update({ clash_name: clashName, clash_tag: tag || ctx.profile.clash_tag || null })
       .eq("tournament_id", tid)
       .eq("user_id", ctx.profile.id);
   }
   refresh(tid);
   revalidatePath("/mop/settings");
-  return { ok: true, clashName };
+  return { ok: true, clashName, tag: tag || ctx.profile.clash_tag || null };
 }
 
 export async function joinTournament(tid, tagRaw, nameRaw) {

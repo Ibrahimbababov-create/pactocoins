@@ -10,7 +10,7 @@ import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
 import { MODE_NAME, MODE_LINE, MODE_HOW } from "@/lib/clashMode";
 import {
   joinTournament,
-  saveClashName,
+  saveClashProfile,
   withdrawFromTournament,
   reportMatch,
   confirmMatch,
@@ -293,25 +293,29 @@ function JoinBlock({ t, me, viewer, pending, run }) {
   );
 }
 
-// Свой ник в игре. Кто записался раньше, чем мы стали его спрашивать,
-// дописывает здесь: пока ника нет, соперник не поймёт, кто ему попался.
+// Свой ник и тег. Кто записался раньше, чем мы стали спрашивать ник,
+// дописывает здесь; здесь же чинят тег, если в него попал тег клана.
 function MyNickCard({ t, me, viewer, pending, run }) {
-  const saved = me?.clashName || viewer.clashName || "";
-  const [nick, setNick] = useState(saved);
-  const [open, setOpen] = useState(!saved);
+  const savedNick = me?.clashName || viewer.clashName || "";
+  const savedTag = viewer.clashTag || "";
+  const [nick, setNick] = useState(savedNick);
+  const [tag, setTag] = useState(savedTag);
+  const [open, setOpen] = useState(!savedNick);
   useEffect(() => {
-    if (saved) {
-      setNick(saved);
+    if (savedNick) {
+      setNick(savedNick);
+      setTag(savedTag);
       setOpen(false);
     }
-  }, [saved]);
+  }, [savedNick, savedTag]);
   if (!me || viewer.isGuest || ["finished", "cancelled"].includes(t.status)) return null;
 
   if (!open) {
     return (
       <div className="flex items-center gap-2 px-1 text-xs text-gray-500">
         <span className="min-w-0 truncate">
-          Твой ник в игре: <b className="text-gray-300">{saved}</b>
+          Ты в игре: <b className="text-gray-300">{savedNick}</b>
+          {savedTag ? <span className="tabular-nums"> · {savedTag}</span> : null}
         </span>
         <button type="button" onClick={() => setOpen(true)} className="shrink-0 underline">
           изменить
@@ -320,33 +324,47 @@ function MyNickCard({ t, me, viewer, pending, run }) {
     );
   }
   return (
-    <div className={`rounded-2xl border bg-dark-800 p-4 space-y-2 ${saved ? "border-dark-600" : "border-acid-400/50"}`}>
-      <p className="font-semibold">{saved ? "Твой ник в игре" : "Впиши свой ник в игре"}</p>
-      {!saved && (
+    <div className={`rounded-2xl border bg-dark-800 p-4 space-y-3 ${savedNick ? "border-dark-600" : "border-acid-400/50"}`}>
+      <p className="font-semibold">{savedNick ? "Ник и тег в игре" : "Впиши свой ник в игре"}</p>
+      {!savedNick && (
         <p className="text-xs text-gray-400">
           В бою над ареной видно ник, а не имя. Соперник ищет тебя именно по нему.
         </p>
       )}
-      <input
-        value={nick}
-        onChange={(e) => setNick(e.target.value)}
-        placeholder="как написано в игре"
-        className="block w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
-      />
+      <label className="block text-xs text-gray-500">
+        Ник
+        <input
+          value={nick}
+          onChange={(e) => setNick(e.target.value)}
+          placeholder="как написано в игре"
+          className="block w-full mt-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+        />
+      </label>
+      <label className="block text-xs text-gray-500">
+        Тег
+        <input
+          value={tag}
+          onChange={(e) => setTag(e.target.value.toUpperCase())}
+          placeholder="#2PYLQ8"
+          className="block w-full mt-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white uppercase"
+        />
+        <span className="block mt-1 text-gray-600">Свой личный, в игре под ником. Не тег клана</span>
+      </label>
       <div className="flex gap-2">
         <button
           type="button"
           disabled={pending || !nick.trim()}
-          onClick={() => run(() => saveClashName(t.id, nick))}
+          onClick={() => run(() => saveClashProfile(t.id, nick, tag))}
           className="flex-1 bg-acid-400 text-black font-bold rounded-lg py-2.5 text-sm disabled:opacity-50"
         >
           Сохранить
         </button>
-        {saved && (
+        {savedNick && (
           <button
             type="button"
             onClick={() => {
-              setNick(saved);
+              setNick(savedNick);
+              setTag(savedTag);
               setOpen(false);
             }}
             className="px-4 border border-dark-600 text-gray-400 rounded-lg py-2.5 text-sm"
