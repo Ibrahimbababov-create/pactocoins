@@ -110,6 +110,144 @@ function PlayersMessage({ t, count }) {
   );
 }
 
+// Матчи лиги для админа: выбрал тур, видишь пары этого тура и ставишь
+// итог кнопкой с именем. Нужно, когда игрок не может нажать сам: не зашёл
+// в приложение, ушёл домой, играл за другого.
+function LeagueAdmin({ matches, people, pending, run }) {
+  const league = matches.filter((m) => m.round === 0 && m.status !== "void");
+  const tours = [...new Set(league.map((m) => m.tour ?? 0))].sort((a, b) => a - b);
+  const firstOpen = tours.find((x) => league.some((m) => (m.tour ?? 0) === x && m.status !== "done"));
+  const [tour, setTour] = useState(firstOpen ?? tours[0] ?? 0);
+  if (!league.length) return null;
+
+  const name = (id) => people[id]?.name ?? "—";
+  const list = league.filter((m) => (m.tour ?? 0) === tour).sort((a, b) => a.slot - b.slot);
+  const waiting = league.filter((m) => m.status === "reported");
+
+  const row = (m) => {
+    const claimed = m.status === "reported" ? m.reported_winner : null;
+    const other = claimed ? (claimed === m.player_a ? m.player_b : m.player_a) : null;
+    return (
+      <div key={m.id} className="rounded-xl border border-dark-600 bg-dark-800 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 text-sm">
+            <b className={m.winner_id === m.player_a ? "text-acid-400" : ""}>{name(m.player_a)}</b>
+            <span className="text-gray-500"> против </span>
+            <b className={m.winner_id === m.player_b ? "text-acid-400" : ""}>{name(m.player_b)}</b>
+          </p>
+          <span className="shrink-0 text-[11px] text-gray-500">
+            {m.tour ? `тур ${m.tour}` : ""}
+          </span>
+        </div>
+        {m.status === "done" ? (
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-gray-400">Победа: {name(m.winner_id)}</p>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => window.confirm(`Сбросить итог и дать играть заново?`) && run(() => replayMatch(m.id))}
+              className="shrink-0 text-xs text-gray-500 underline disabled:opacity-50"
+            >
+              переиграть
+            </button>
+          </div>
+        ) : (
+          <>
+            {claimed && (
+              <p className="text-xs text-amber-400">{name(claimed)} говорит, что выиграл. Соперник пока не ответил.</p>
+            )}
+            {m.status === "disputed" && <p className="text-xs text-amber-400">Спор: решай сам.</p>}
+            <div className="grid grid-cols-2 gap-2">
+              {claimed ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      window.confirm(`Записать победу: ${name(claimed)}?`) && run(() => decideMatch(m.id, claimed))
+                    }
+                    className="bg-acid-400 text-black font-bold rounded-lg py-2 text-xs disabled:opacity-50"
+                  >
+                    Победа: {name(claimed)}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      window.confirm(`Записать победу: ${name(other)}?`) && run(() => decideMatch(m.id, other))
+                    }
+                    className="border border-dark-600 text-gray-300 rounded-lg py-2 text-xs disabled:opacity-50"
+                  >
+                    Победа: {name(other)}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      window.confirm(`Записать победу: ${name(m.player_a)}?`) &&
+                      run(() => decideMatch(m.id, m.player_a))
+                    }
+                    className="border border-dark-600 text-gray-300 rounded-lg py-2 text-xs disabled:opacity-50"
+                  >
+                    Победа: {name(m.player_a)}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      window.confirm(`Записать победу: ${name(m.player_b)}?`) &&
+                      run(() => decideMatch(m.id, m.player_b))
+                    }
+                    className="border border-dark-600 text-gray-300 rounded-lg py-2 text-xs disabled:opacity-50"
+                  >
+                    Победа: {name(m.player_b)}
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {waiting.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm text-amber-400 px-1">Ждут подтверждения · {waiting.length}</p>
+          {waiting.map(row)}
+        </div>
+      )}
+      <div className="space-y-2">
+        <p className="text-sm text-gray-500 px-1">Матчи лиги: нажми тур, потом победителя</p>
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {tours.map((x) => {
+            const left = league.filter((m) => (m.tour ?? 0) === x && m.status !== "done").length;
+            return (
+              <button
+                key={x}
+                type="button"
+                onClick={() => setTour(x)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${
+                  x === tour ? "bg-acid-400/15 border-acid-400/40 text-acid-400" : "border-dark-600 text-gray-400"
+                }`}
+              >
+                Тур {x}
+                {left > 0 ? ` · ${left}` : " ✓"}
+              </button>
+            );
+          })}
+        </div>
+        {list.map(row)}
+      </div>
+    </div>
+  );
+}
+
 function MatchAdmin({ m, people, rounds, pending, run, now }) {
   const name = (id) => people[id]?.name ?? "—";
   const overdue = m.status === "ready" && m.play_by && new Date(m.play_by).getTime() < now;
@@ -209,13 +347,15 @@ export default function AdminTournamentClient({ data, now }) {
   const table = isLeague ? leagueStandings(entries.map((e) => e.userId), matches) : [];
   const leftLeague = matches.filter((m) => m.round === 0 && ["ready", "reported", "disputed"].includes(m.status)).length;
   const needs = matches.filter(
-    (m) => m.status === "disputed" || (m.status === "ready" && m.play_by && new Date(m.play_by).getTime() < now)
+    (m) =>
+      m.round > 0 &&
+      (m.status === "disputed" || (m.status === "ready" && m.play_by && new Date(m.play_by).getTime() < now))
   );
   // Несыгранные сверху: по ним и нужны кнопки. Матчи лиги (round 0) тоже
   // здесь: если человек не смог зайти в приложение, итог ставит админ.
   const openFirst = (m) => (["ready", "reported", "disputed"].includes(m.status) ? 0 : 1);
   const rest = matches
-    .filter((m) => m.method !== "bye" && !needs.includes(m))
+    .filter((m) => m.round > 0 && m.method !== "bye" && !needs.includes(m))
     .sort(
       (a, b) =>
         openFirst(a) - openFirst(b) || b.round - a.round || (a.tour ?? 0) - (b.tour ?? 0) || a.slot - b.slot
@@ -360,6 +500,10 @@ export default function AdminTournamentClient({ data, now }) {
             </p>
           </div>
         </div>
+      )}
+
+      {isLeague && t.status === "running" && (
+        <LeagueAdmin matches={matches} people={people} pending={pending} run={run} />
       )}
 
       {leagueStage && (
