@@ -69,22 +69,30 @@ export async function saveClashProfile(tid, nameRaw, tagRaw) {
   const clashName = String(nameRaw ?? "").trim().slice(0, 40);
   if (!clashName) return { error: "Впиши ник, как он написан в игре" };
 
-  const tag = normalizeClashTag(tagRaw ?? "");
-  if (tag && tag !== ctx.profile.clash_tag) {
-    const saved = await saveClashTag(tagRaw);
-    if (saved.error) return saved;
-  }
+  // Ник сохраняем первым: если человек заодно опечатался в теге, ник не
+  // должен потеряться вместе с ошибкой.
   const { error } = await ctx.admin.from("users").update({ clash_name: clashName }).eq("id", ctx.profile.id);
   if (error) return { error: error.message };
+
+  const tag = normalizeClashTag(tagRaw ?? "");
+  let tagError = null;
+  if (tag && tag !== ctx.profile.clash_tag) {
+    const saved = await saveClashTag(tagRaw);
+    if (saved.error) tagError = saved.error;
+  }
   if (tid) {
     await ctx.admin
       .from("tournament_entries")
-      .update({ clash_name: clashName, clash_tag: tag || ctx.profile.clash_tag || null })
+      .update({
+        clash_name: clashName,
+        clash_tag: (tagError ? ctx.profile.clash_tag : tag) || ctx.profile.clash_tag || null,
+      })
       .eq("tournament_id", tid)
       .eq("user_id", ctx.profile.id);
   }
   refresh(tid);
   revalidatePath("/mop/settings");
+  if (tagError) return { error: `Ник сохранил. С тегом не вышло: ${tagError}` };
   return { ok: true, clashName, tag: tag || ctx.profile.clash_tag || null };
 }
 
