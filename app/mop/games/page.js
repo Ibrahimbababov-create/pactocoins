@@ -7,6 +7,7 @@ import { isWheelOpen, formatOpensAt } from "@/lib/wheel";
 import { formatCoins, spinsNom } from "@/lib/plural";
 import ChestCard from "@/components/Chest";
 import { getPendingChest, chestEligible } from "@/lib/chest";
+import { MODE_NAME } from "@/lib/clashMode";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,9 @@ function TournamentCard({ t }) {
               {badge}
             </span>
           </span>
-          <span className="block text-xs text-gray-500">Турнир Clash Royale · игроков {t.players}</span>
+          <span className="block text-xs text-gray-500">
+            Clash Royale, {MODE_NAME.toLowerCase()} · игроков {t.players}
+          </span>
         </span>
         <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
       </div>

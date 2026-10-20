@@ -7,6 +7,7 @@ import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
+import { MODE_NAME, MODE_LINE } from "@/lib/clashMode";
 
 // Экран «Наблюдать за игрой»: открыть на ноутбуке и вывести на телевизор
 // в офисе. Обновляется сам: база сообщает об изменениях сразу (Realtime),
@@ -17,6 +18,8 @@ const TOAST_MS = 6000;
 const num = (v) => Number(v || 0).toLocaleString("ru-RU");
 const hhmm = (v) => (v ? (formatDateTimeAlmaty(v).match(/\d{2}:\d{2}/)?.[0] ?? "") : "");
 const nameOf = (people, id) => people[id]?.name ?? "Игрок";
+// Ник в игре: по нему друг друга находят на арене.
+const nickOf = (people, id) => people[id]?.inGame ?? null;
 const loserOf = (m) => (m.winner_id === m.player_a ? m.player_b : m.player_a);
 const whereOf = (m, rounds) => (m.round === 0 ? (m.tour ? `Тур ${m.tour}` : "Лига") : roundLabel(m.round, rounds));
 
@@ -282,7 +285,12 @@ function PairName({ id, m, people, align }) {
       }`}
     >
       {win && align === "right" && <Icon name="trophy" className="w-4 h-4 lg:w-6 lg:h-6 shrink-0" />}
-      <span className="truncate">{id ? nameOf(people, id) : "ждём"}</span>
+      <span className="min-w-0">
+        <span className="block truncate">{id ? nameOf(people, id) : "ждём"}</span>
+        {id && nickOf(people, id) && (
+          <span className="block truncate text-xs lg:text-xl font-normal text-gray-500">{nickOf(people, id)}</span>
+        )}
+      </span>
       {win && align !== "right" && <Icon name="trophy" className="w-4 h-4 lg:w-6 lg:h-6 shrink-0" />}
     </span>
   );
@@ -372,7 +380,12 @@ function BracketMatch({ m, people, final }) {
           win ? "text-acid-400 font-bold" : lose ? "text-gray-500" : "text-gray-100 font-semibold"
         }`}
       >
-        <span className="truncate">{nameOf(people, id)}</span>
+        <span className="min-w-0">
+          <span className="block truncate">{nameOf(people, id)}</span>
+          {nickOf(people, id) && (
+            <span className="block truncate text-xs lg:text-xl font-normal text-gray-500">{nickOf(people, id)}</span>
+          )}
+        </span>
         {win && <Icon name="trophy" className="w-4 h-4 lg:w-6 lg:h-6 shrink-0" />}
       </span>
     );
@@ -534,6 +547,9 @@ function Registration({ d }) {
               className="live-in rounded-full border border-acid-400/40 bg-acid-400/10 px-3.5 lg:px-6 py-1.5 lg:py-3 text-sm lg:text-3xl font-semibold"
             >
               {nameOf(people, e.userId)}
+              {nickOf(people, e.userId) && (
+                <span className="ml-2 font-normal text-gray-400">{nickOf(people, e.userId)}</span>
+              )}
             </span>
           ))}
           {!entries.length && <p className="text-sm lg:text-2xl text-gray-500">Пока никто не записался. Будь первым!</p>}
@@ -543,9 +559,10 @@ function Registration({ d }) {
         <ol className="space-y-3 lg:space-y-5 px-1">
           {[
             "Открой PactoCoins, вкладка «Игры»",
-            "Нажми на турнир и впиши свой тег из Clash Royale",
+            "Нажми на турнир и впиши свой ник и тег из Clash Royale",
             t.entry_fee > 0 ? `«Участвовать»: ${num(t.entry_fee)} коинов уйдут в общий банк` : "Нажми «Участвовать»",
             t.bonus_coins > 0 ? `Pacto добавляет ${num(t.bonus_coins)}, победитель забирает всё` : "Победитель забирает весь банк",
+            MODE_LINE,
           ].map((text, i) => (
             <li key={i} className="flex gap-3 text-sm lg:text-2xl text-gray-300">
               <span className="flex items-center justify-center w-7 h-7 lg:w-11 lg:h-11 shrink-0 rounded-full bg-acid-400/15 text-acid-400 text-xs lg:text-lg font-bold">
@@ -882,7 +899,7 @@ export default function TournamentLive({ initial, apiUrl, backHref, viewerId = n
             </Link>
             <div className="min-w-0">
               <p className="text-xs lg:text-lg text-gray-500">
-                Clash Royale · PactoCoins · {hhmm(now)}
+                Clash Royale · {MODE_NAME.toLowerCase()} · {hhmm(now)}
               </p>
               <h1 className="font-display font-bold text-xl lg:text-5xl leading-tight truncate">{t.title}</h1>
               <p className="mt-1 lg:mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs lg:text-xl">

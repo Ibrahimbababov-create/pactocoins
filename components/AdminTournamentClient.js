@@ -393,9 +393,15 @@ export default function AdminTournamentClient({ data, now }) {
           {entries.map((e) => (
             <div key={e.userId} className="flex items-center justify-between gap-2 px-4 py-2.5">
               <div className="min-w-0">
-                <p className="text-sm truncate">{people[e.userId]?.name ?? "—"}</p>
+                <p className="text-sm truncate">
+                  {people[e.userId]?.name ?? "—"}
+                  {people[e.userId]?.inGame && (
+                    <span className="ml-1.5 text-xs text-gray-500">{people[e.userId].inGame}</span>
+                  )}
+                </p>
                 <p className="text-[11px] text-gray-500 tabular-nums">
                   {people[e.userId]?.tag ?? "без тега"}
+                  {people[e.userId] && !people[e.userId].inGame ? " · без ника" : ""}
                   {e.status !== "active" ? ` · ${e.status === "winner" ? "победитель" : "выбыл"}` : ""}
                 </p>
                 <p className="text-[11px] text-gray-600">

@@ -17,7 +17,7 @@ export default async function TournamentPage({ params }) {
   const admin = createAdminClient();
   const { data: viewer } = await admin
     .from("users")
-    .select("id, role, is_guest, balance, clash_tag")
+    .select("id, role, is_guest, balance, clash_tag, clash_name")
     .eq("id", user.id)
     .single();
 
@@ -37,6 +37,7 @@ export default async function TournamentPage({ params }) {
           isGuest: Boolean(viewer.is_guest),
           balance: viewer.balance ?? 0,
           clashTag: viewer.clash_tag ?? "",
+          clashName: viewer.clash_name ?? "",
         }}
       />
     </div>
