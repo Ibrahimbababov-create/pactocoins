@@ -379,30 +379,47 @@ function MyNickCard({ t, me, viewer, pending, run }) {
 
 function MatchActions({ t, m, opp, viewer, pending, run, compact = false }) {
   const bigBtn = compact ? "rounded-lg py-2 text-xs" : "rounded-xl py-2.5 text-sm";
+  // Серия плей-офф: приложение бои не считает, итог отмечают один раз.
+  // Поэтому прямо на кнопке напоминаем, что отмечать нужно всю серию.
+  const series = m.round > 0 && t.playoff_wins > 1 ? t.playoff_wins : 0;
   if (m.status === "ready") {
     return (
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            window.confirm(`Победа твоя? ${opp.name} получит запрос на подтверждение.`) &&
-            run(() => reportMatch(m.id, "won"))
-          }
-          className={`bg-acid-400 text-black font-bold disabled:opacity-50 ${bigBtn}`}
-        >
-          Моя победа
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            window.confirm(`Победа за ${opp.name}? Это сразу засчитается.`) && run(() => reportMatch(m.id, "lost"))
-          }
-          className={`border border-dark-600 text-gray-300 disabled:opacity-50 ${bigBtn}`}
-        >
-          Победа соперника
-        </button>
+      <div className="space-y-2">
+        {series > 0 && (
+          <p className="text-xs text-amber-400">
+            Серия до {series} побед. Отмечай итог, только когда кто-то выиграл {series} боя, а не после первого.
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              window.confirm(
+                series > 0
+                  ? `Ты выиграл серию, ${series} боя? ${opp.name} получит запрос на подтверждение.`
+                  : `Победа твоя? ${opp.name} получит запрос на подтверждение.`
+              ) && run(() => reportMatch(m.id, "won"))
+            }
+            className={`bg-acid-400 text-black font-bold disabled:opacity-50 ${bigBtn}`}
+          >
+            {series > 0 ? "Серия моя" : "Моя победа"}
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              window.confirm(
+                series > 0
+                  ? `${opp.name} выиграл серию, ${series} боя? Это сразу засчитается.`
+                  : `Победа за ${opp.name}? Это сразу засчитается.`
+              ) && run(() => reportMatch(m.id, "lost"))
+            }
+            className={`border border-dark-600 text-gray-300 disabled:opacity-50 ${bigBtn}`}
+          >
+            {series > 0 ? "Серия за соперником" : "Победа соперника"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -416,7 +433,15 @@ function MatchActions({ t, m, opp, viewer, pending, run, compact = false }) {
   if (m.status === "reported") {
     return (
       <div className="space-y-2">
-        <p className="text-xs text-gray-300">{opp.name} сообщает о своей победе. Так и было?</p>
+        <p className="text-xs text-gray-300">
+          {opp.name} сообщает о своей победе. Так и было?
+        </p>
+        {series > 0 && (
+          <p className="text-xs text-amber-400">
+            Серия до {series} побед: подтверждай только если он реально выиграл {series} боя. Если серия не доиграна,
+            жми «это не так».
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
