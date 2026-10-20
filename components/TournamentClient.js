@@ -249,7 +249,7 @@ function JoinBlock({ t, me, viewer, pending, run }) {
   const short = t.entry_fee > viewer.balance;
   return (
     <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 space-y-3">
-      {/* Ник и тег — разные вещи: по тегу тебя добавят, по нику узна́ют в бою. */}
+      {/* Ник и тег — разные вещи: по тегу тебя добавят, по нику узнают в бою. */}
       <label className="block text-xs text-gray-500">
         Твой ник в Clash Royale
         <input
@@ -444,14 +444,11 @@ function MyMatch({ t, m, people, viewer, rounds, pending, run }) {
     body = (
       <>
         {m.status === "ready" && (
-          <>
-            <p className="text-sm text-gray-400">
-              {t.playoff_wins > 1 ? `Играйте до ${t.playoff_wins} побед` : "Сыграйте один дружеский бой"}
-              {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, успеть до <b className="text-gray-200">{when(m.play_by)}</b>. Потом
-              отметь итог.
-            </p>
-            <p className="text-xs text-acid-400">{MODE_LINE}</p>
-          </>
+          <p className="text-sm text-gray-400">
+            {t.playoff_wins > 1 ? `Играйте до ${t.playoff_wins} побед` : "Сыграйте один дружеский бой"}
+            {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, успеть до <b className="text-gray-200">{when(m.play_by)}</b>. Потом
+            отметь итог.
+          </p>
         )}
         <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} />
       </>
@@ -650,7 +647,6 @@ function LeagueNow({ t, list, people, viewer, pending, run }) {
         )}
       </div>
       <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} />
-      <p className="text-xs text-acid-400">{MODE_LINE}</p>
     </div>
   );
 }
@@ -827,25 +823,25 @@ function Schedule({ matches, people, viewer }) {
     return (
       <div
         key={m.id}
-        className={`flex items-center gap-2 rounded-xl border bg-dark-800 px-3 py-2 ${
-          mine ? "border-acid-400/40" : "border-dark-600"
-        }`}
+        className={`rounded-xl border bg-dark-800 px-3 py-2 ${mine ? "border-acid-400/40" : "border-dark-600"}`}
       >
-        <Who
-          p={people[m.player_a]}
-          me={m.player_a === viewer.id}
-          strong={m.winner_id === m.player_a}
-          dim={done && m.winner_id !== m.player_a}
-        />
-        <span className="shrink-0 text-[11px] text-gray-600">vs</span>
-        <Who
-          p={people[m.player_b]}
-          right
-          me={m.player_b === viewer.id}
-          strong={m.winner_id === m.player_b}
-          dim={done && m.winner_id !== m.player_b}
-        />
-        {chip && <span className="shrink-0 text-[10px] text-gray-500">{chip}</span>}
+        <div className="flex items-center gap-2">
+          <Who
+            p={people[m.player_a]}
+            me={m.player_a === viewer.id}
+            strong={m.winner_id === m.player_a}
+            dim={done && m.winner_id !== m.player_a}
+          />
+          <span className="shrink-0 text-[11px] text-gray-600">vs</span>
+          <Who
+            p={people[m.player_b]}
+            right
+            me={m.player_b === viewer.id}
+            strong={m.winner_id === m.player_b}
+            dim={done && m.winner_id !== m.player_b}
+          />
+        </div>
+        {chip && <p className="mt-1 text-center text-[10px] text-gray-500">{chip}</p>}
       </div>
     );
   };
@@ -1032,7 +1028,7 @@ export default function TournamentClient({ data, viewer }) {
     sections = (
       <>
         <Tabs
-          value={tab === "table" ? "table" : "tours"}
+          value={tab === "tours" ? "tours" : "table"}
           onChange={setTab}
           items={[
             { key: "table", label: "Таблица" },
@@ -1059,7 +1055,7 @@ export default function TournamentClient({ data, viewer }) {
       {!me && !viewer.isGuest && <HowToJoin t={t} />}
       <JoinBlock t={t} me={me} viewer={viewer} pending={pending} run={run} />
       <MyNickCard t={t} me={me} viewer={viewer} pending={pending} run={run} />
-      {running && <ModeNote />}
+      {me && !["finished", "cancelled"].includes(t.status) && <ModeNote />}
       <MyMatch t={t} m={myMatch} people={people} viewer={viewer} rounds={rounds} pending={pending} run={run} />
       <MyOutcome t={t} me={me} />
       {t.status === "cancelled" && (
