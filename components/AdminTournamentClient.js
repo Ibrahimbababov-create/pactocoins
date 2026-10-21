@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { formatCoins, plural } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
-import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
+import { roundLabel, leagueStandings, winsNeeded, battlesPlayed, battleSeq } from "@/lib/tournamentRounds";
 import AdminTournamentForm from "@/components/AdminTournamentForm";
 import {
   openRegistration,
@@ -17,6 +17,7 @@ import {
   messageTournamentPlayers,
   removeEntry,
   decideMatch,
+  setSeriesScore,
   replayMatch,
   extendMatch,
 } from "@/app/admin/tournamentActions";
@@ -248,10 +249,113 @@ function LeagueAdmin({ matches, people, pending, run }) {
   );
 }
 
-function MatchAdmin({ m, people, rounds, pending, run, now }) {
+// Как засчитан бой серии, коротко: для журнала боёв. Фразы без глаголов
+// прошедшего времени, чтобы не гадать с родом.
+const BATTLE_HOW = {
+  loser_report: (loser) => `${loser}: «победа соперника»`,
+  confirmed: (_, by) => `${by}: «подтверждаю»`,
+  auto_confirm: () => "засчитано по сроку",
+  admin: (_, by) => `решение админа, ${by}`,
+  walkover: (_, by) => `техническая победа, ${by}`,
+};
+
+// Журнал серии: «Бой 1: Наиль, Абдрахим подтвердил». Поправки админа тоже тут.
+function BattleLog({ m, name }) {
+  const list = Array.isArray(m.battles) ? m.battles : [];
+  if (!list.length) return null;
+  const other = (id) => (id === m.player_a ? m.player_b : m.player_a);
+  return (
+    <ol className="space-y-0.5 text-[11px] text-gray-500">
+      {list.map((b, i) =>
+        b.fix ? (
+          <li key={i}>
+            {when(b.at)}: счёт поправлен на {b.a} : {b.b}, {name(b.by)}
+          </li>
+        ) : (
+          <li key={i}>
+            Бой {b.n}: <b className="text-gray-300">{name(b.winner)}</b>
+            {BATTLE_HOW[b.method] ? `, ${BATTLE_HOW[b.method](name(other(b.winner)), name(b.by))}` : ""}
+          </li>
+        )
+      )}
+    </ol>
+  );
+}
+
+// Правка счёта серии: игрок ошибся кнопкой, бой засчитали не тому,
+// соперник не пришёл. Если у кого-то нужные победы, серия закрывается.
+function ScoreEditor({ m, need, name, pending, run, onClose }) {
+  const [a, setA] = useState(m.wins_a ?? 0);
+  const [b, setB] = useState(m.wins_b ?? 0);
+  const bad = a === need && b === need;
+  const ends = !bad && (a === need || b === need);
+  const step = (v, set) => (
+    <span className="flex items-center gap-1.5">
+      <button type="button" onClick={() => set(Math.max(0, v - 1))} className={`${btn} w-8`} aria-label="Меньше">
+        −
+      </button>
+      <span className="w-6 text-center font-display font-bold text-lg tabular-nums">{v}</span>
+      <button type="button" onClick={() => set(Math.min(need, v + 1))} className={`${btn} w-8`} aria-label="Больше">
+        +
+      </button>
+    </span>
+  );
+  return (
+    <div className="rounded-lg border border-dark-600 bg-dark-900/60 p-3 space-y-2.5">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="truncate text-xs text-gray-400">{name(m.player_a)}</p>
+          {step(a, setA)}
+        </div>
+        <div className="min-w-0 space-y-1">
+          <p className="truncate text-xs text-gray-400">{name(m.player_b)}</p>
+          {step(b, setB)}
+        </div>
+      </div>
+      <p className={`text-[11px] ${bad ? "text-red-400" : ends ? "text-amber-400" : "text-gray-500"}`}>
+        {bad
+          ? `${need} побед может быть только у одного`
+          : ends
+            ? `Серия закончится: проходит ${name(a === need ? m.player_a : m.player_b)}`
+            : `До ${need} побед. Текущая заявка на бой сбросится, следующий бой играют заново.`}
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending || bad || (a === (m.wins_a ?? 0) && b === (m.wins_b ?? 0))}
+          onClick={() =>
+            window.confirm(
+              ends
+                ? `Поставить ${a} : ${b} и закрыть серию в пользу ${name(a === need ? m.player_a : m.player_b)}?`
+                : `Поставить счёт ${a} : ${b}?`
+            ) && run(() => setSeriesScore(m.id, a, b, battleSeq(m)), onClose)
+          }
+          className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-xs disabled:opacity-50"
+        >
+          Сохранить счёт
+        </button>
+        <button type="button" onClick={onClose} className={btn}>
+          Отмена
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MatchAdmin({ t, m, people, rounds, pending, run, now }) {
+  const [editing, setEditing] = useState(false);
   const name = (id) => people[id]?.name ?? "—";
   const overdue = m.status === "ready" && m.play_by && new Date(m.play_by).getTime() < now;
   const open = ["ready", "reported", "disputed"].includes(m.status);
+  const need = winsNeeded(t, m);
+  const series = need > 1;
+  const n = battlesPlayed(m) + 1;
+  const seen = battleSeq(m);
+  // Старые матчи (до счёта боёв) закрыты со счётом 0 : 0, его не показываем.
+  const showScore = series && m.player_a && m.player_b && m.method !== "bye" && (open || battlesPlayed(m) > 0);
+  const battle = series ? `Бой ${n}: ` : "";
+  const hasLog = series && Array.isArray(m.battles) && m.battles.length > 0;
+  const ask = (id) => (series ? `Бой ${n}: победа ${name(id)}?` : `Победа: ${name(id)}?`);
   return (
     <div
       className={`rounded-xl border bg-dark-800 p-3 space-y-2 ${
@@ -262,66 +366,101 @@ function MatchAdmin({ m, people, rounds, pending, run, now }) {
         <span>
           {roundLabel(m.round, rounds)}
           {m.tour ? ` · тур ${m.tour}` : ""}
+          {series ? ` · до ${need} побед` : ""}
         </span>
         <span className={m.status === "disputed" || overdue ? "text-amber-400" : ""}>
           {overdue ? "просрочен" : MATCH[m.status]}
           {m.method ? ` · ${METHOD[m.method]}` : ""}
         </span>
       </div>
-      <p className="text-sm">
-        <b className={m.winner_id && m.winner_id === m.player_a ? "text-acid-400" : ""}>{name(m.player_a)}</b>
-        <span className="text-gray-500"> против </span>
-        <b className={m.winner_id && m.winner_id === m.player_b ? "text-acid-400" : ""}>{name(m.player_b)}</b>
-      </p>
-      {m.status === "ready" && m.play_by && <p className="text-xs text-gray-500">Сыграть до {when(m.play_by)}</p>}
+      {showScore ? (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm">
+          <b className={`truncate ${m.winner_id && m.winner_id === m.player_a ? "text-acid-400" : ""}`}>{name(m.player_a)}</b>
+          <span className="font-display font-bold text-xl tabular-nums">
+            {m.wins_a ?? 0}
+            <span className="mx-1 text-gray-600">:</span>
+            {m.wins_b ?? 0}
+          </span>
+          <b className={`truncate text-right ${m.winner_id && m.winner_id === m.player_b ? "text-acid-400" : ""}`}>
+            {name(m.player_b)}
+          </b>
+        </div>
+      ) : (
+        <p className="text-sm">
+          <b className={m.winner_id && m.winner_id === m.player_a ? "text-acid-400" : ""}>{name(m.player_a)}</b>
+          <span className="text-gray-500"> против </span>
+          <b className={m.winner_id && m.winner_id === m.player_b ? "text-acid-400" : ""}>{name(m.player_b)}</b>
+        </p>
+      )}
+      {m.status === "ready" && m.play_by && (
+        <p className="text-xs text-gray-500">
+          {series ? `Идёт бой ${n}, серию доиграть до ${when(m.play_by)}` : `Сыграть до ${when(m.play_by)}`}
+        </p>
+      )}
       {m.status === "done" && m.method !== "bye" && (
         <p className="text-xs text-gray-400">
-          {when(m.decided_at)}: победа {name(m.winner_id)}.{" "}
-          {m.method === "loser_report" &&
+          {when(m.decided_at)}: победа {name(m.winner_id)}
+          {showScore ? `, серия ${Math.max(m.wins_a ?? 0, m.wins_b ?? 0)} : ${Math.min(m.wins_a ?? 0, m.wins_b ?? 0)}` : ""}.{" "}
+          {/* в серии как засчитан каждый бой, видно в журнале ниже */}
+          {!hasLog && m.method === "loser_report" &&
             `${name(m.winner_id === m.player_a ? m.player_b : m.player_a)}: «победа соперника».`}
-          {m.method === "confirmed" && `${name(m.reported_winner)}: «моя победа», ${name(m.decided_by)}: «подтверждаю».`}
-          {m.method === "auto_confirm" && `${name(m.reported_winner)}: «моя победа», соперник не ответил, засчитано по сроку.`}
-          {(m.method === "admin" || m.method === "walkover") && `Решил админ ${name(m.decided_by)}.`}
+          {!hasLog && m.method === "confirmed" && `${name(m.reported_winner)}: «моя победа», ${name(m.decided_by)}: «подтверждаю».`}
+          {!hasLog && m.method === "auto_confirm" && `${name(m.reported_winner)}: «моя победа», соперник не ответил, засчитано по сроку.`}
+          {!hasLog && (m.method === "admin" || m.method === "walkover") && `Решил админ ${name(m.decided_by)}.`}
         </p>
       )}
       {m.status === "reported" && (
         <p className="text-xs text-gray-400">
+          {battle}
           {name(m.reported_winner)}: «моя победа». Засчитаем сами {when(m.confirm_by)}
         </p>
       )}
       {m.status === "disputed" && (
         <p className="text-xs text-amber-400">
-          Спор. {name(m.reported_winner)}: «моя победа». {name(m.disputed_by)}: «это не так»
+          Спор{series ? ` по бою ${n}` : ""}. {name(m.reported_winner)}: «моя победа». {name(m.disputed_by)}: «это не так»
           {m.dispute_note ? `, «${m.dispute_note}»` : ""}
         </p>
       )}
+      {hasLog && <BattleLog m={m} name={name} />}
       {open && m.player_a && m.player_b && (
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             disabled={pending}
             className={btn}
-            onClick={() => window.confirm(`Победа: ${name(m.player_a)}?`) && run(() => decideMatch(m.id, m.player_a))}
+            onClick={() =>
+              window.confirm(ask(m.player_a)) && run(() => decideMatch(m.id, m.player_a, false, seen))
+            }
           >
-            Победа: {name(m.player_a)}
+            {series ? `Бой ${n}: ${name(m.player_a)}` : `Победа: ${name(m.player_a)}`}
           </button>
           <button
             type="button"
             disabled={pending}
             className={btn}
-            onClick={() => window.confirm(`Победа: ${name(m.player_b)}?`) && run(() => decideMatch(m.id, m.player_b))}
+            onClick={() =>
+              window.confirm(ask(m.player_b)) && run(() => decideMatch(m.id, m.player_b, false, seen))
+            }
           >
-            Победа: {name(m.player_b)}
+            {series ? `Бой ${n}: ${name(m.player_b)}` : `Победа: ${name(m.player_b)}`}
           </button>
           <button type="button" disabled={pending} className={btn} onClick={() => run(() => replayMatch(m.id))}>
-            Переиграть
+            {series ? "Переиграть бой" : "Переиграть"}
           </button>
           {m.status === "ready" && (
             <button type="button" disabled={pending} className={btn} onClick={() => run(() => extendMatch(m.id, 12))}>
               +12 ч
             </button>
           )}
+          {series && !editing && (
+            <button type="button" disabled={pending} className={btn} onClick={() => setEditing(true)}>
+              Поправить счёт
+            </button>
+          )}
         </div>
+      )}
+      {open && series && editing && (
+        <ScoreEditor m={m} need={need} name={name} pending={pending} run={run} onClose={() => setEditing(false)} />
       )}
     </div>
   );
@@ -333,11 +472,12 @@ export default function AdminTournamentClient({ data, now }) {
   const [msg, setMsg] = useState(null);
   const { tournament: t, people, entries, matches, rounds } = data;
 
-  const run = (fn) => {
+  const run = (fn, onDone) => {
     setMsg(null);
     start(async () => {
       const res = await fn();
       setMsg(res?.error ? { error: res.error } : { ok: "Готово" });
+      if (!res?.error) onDone?.();
       router.refresh();
     });
   };
@@ -535,7 +675,7 @@ export default function AdminTournamentClient({ data, now }) {
         <div className="space-y-2">
           <p className="text-sm text-amber-400 px-1">Нужно решение · {needs.length}</p>
           {needs.map((m) => (
-            <MatchAdmin key={m.id} m={m} people={people} rounds={rounds} pending={pending} run={run} now={now} />
+            <MatchAdmin key={m.id} t={t} m={m} people={people} rounds={rounds} pending={pending} run={run} now={now} />
           ))}
         </div>
       )}
@@ -586,7 +726,7 @@ export default function AdminTournamentClient({ data, now }) {
         <div className="space-y-2">
           <p className="text-sm text-gray-500 px-1">Матчи</p>
           {rest.map((m) => (
-            <MatchAdmin key={m.id} m={m} people={people} rounds={rounds} pending={pending} run={run} now={now} />
+            <MatchAdmin key={m.id} t={t} m={m} people={people} rounds={rounds} pending={pending} run={run} now={now} />
           ))}
         </div>
       )}

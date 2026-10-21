@@ -9,6 +9,7 @@ import {
   startTournament,
   startPlayoff,
   adminDecide,
+  adminSetScore,
   adminReplay,
   adminExtend,
 } from "@/lib/tournament";
@@ -219,8 +220,20 @@ async function withMatch(matchId, fn) {
   return res;
 }
 
-export async function decideMatch(matchId, winnerId, walkover = false) {
-  return withMatch(matchId, (admin, actor) => adminDecide(admin, matchId, winnerId, actor, walkover ? "walkover" : "admin"));
+const seenOf = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+
+// Итог текущего боя: в лиге это итог матча, в серии плей-офф — один бой.
+export async function decideMatch(matchId, winnerId, walkover = false, seen = null) {
+  return withMatch(matchId, (admin, actor) =>
+    adminDecide(admin, matchId, winnerId, actor, walkover ? "walkover" : "admin", seenOf(seen))
+  );
+}
+
+// Поправить счёт серии плей-офф. Набрал кто-то нужные победы — серия закрыта.
+export async function setSeriesScore(matchId, winsA, winsB, seen = null) {
+  return withMatch(matchId, (admin, actor) =>
+    adminSetScore(admin, matchId, int(winsA, 0, 3, 0), int(winsB, 0, 3, 0), actor, seenOf(seen))
+  );
 }
 
 export async function replayMatch(matchId) {
