@@ -384,3 +384,133 @@ alter publication supabase_realtime add table public.tournament_matches, public.
 -- Админ жмёт «Скрыть из игр»: турнир пропадает из «Игр» и с главной,
 -- страница по ссылке остаётся. Применено 17.10.2026.
 alter table public.tournaments add column if not exists hidden_at timestamptz;
+
+-- ---------- Счёт серии в плей-офф ----------
+-- Матч плей-офф идёт до tournaments.playoff_wins побед. Раньше итог серии
+-- отмечали один раз, и кнопку жали после первого же боя (турнир 20.10.2026).
+-- Теперь отмечается каждый бой тем же путём (заявка, подтверждение, спор,
+-- автозачёт по сроку), а приложение ведёт счёт. Матч лиги (round 0) — это
+-- серия из одного боя: первый же засчитанный бой закрывает матч, как раньше.
+--
+-- wins_a / wins_b — побед у player_a / player_b в серии.
+-- battles — журнал для экранов: {"n", "winner", "method", "by", "at"} на
+--   каждый бой и {"fix": true, "a", "b", "by", "at"}, когда счёт правит админ.
+--   Длина журнала только растёт, по ней же «захватываем» бой: кнопка несёт
+--   номер записи, которую видел человек, и второй тап по тому же бою не пройдёт.
+alter table public.tournament_matches add column if not exists wins_a smallint not null default 0
+  check (wins_a >= 0);
+alter table public.tournament_matches add column if not exists wins_b smallint not null default 0
+  check (wins_b >= 0);
+alter table public.tournament_matches add column if not exists battles jsonb not null default '[]'::jsonb;
+
+-- Засчитать один бой. p_seq — длина журнала, которую видел вызывающий.
+-- Набрал победитель playoff_wins — матч закрывается через
+-- tournament_finish_match (сетка, банк). Иначе матч снова «играют»:
+-- заявка прошлого боя стирается, следующий бой с чистого листа.
+create or replace function public.tournament_record_battle(
+  p_match uuid, p_winner uuid, p_method text, p_actor uuid, p_from text[], p_seq integer
+)
+ returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  m public.tournament_matches;
+  need integer;
+  won integer;
+  res jsonb;
+  score jsonb;
+begin
+  update public.tournament_matches mt
+     set wins_a = mt.wins_a + case when p_winner = mt.player_a then 1 else 0 end,
+         wins_b = mt.wins_b + case when p_winner = mt.player_b then 1 else 0 end,
+         battles = mt.battles || jsonb_build_array(jsonb_build_object(
+           'n', mt.wins_a + mt.wins_b + 1, 'winner', p_winner, 'method', p_method,
+           'by', p_actor, 'at', now()))
+   where mt.id = p_match
+     and mt.status = any (p_from)
+     and jsonb_array_length(mt.battles) = p_seq
+     and p_winner is not null
+     and p_winner in (mt.player_a, mt.player_b)
+     and (p_method not in ('confirmed', 'auto_confirm') or mt.reported_winner = p_winner)
+     and (p_method <> 'auto_confirm' or mt.confirm_by <= now())
+     and exists (select 1 from public.tournaments t where t.id = mt.tournament_id and t.status = 'running')
+  returning * into m;
+  if not found then return jsonb_build_object('error', 'already'); end if;
+
+  select case when m.round = 0 then 1 else greatest(1, t.playoff_wins) end into need
+    from public.tournaments t where t.id = m.tournament_id;
+  won := case when p_winner = m.player_a then m.wins_a else m.wins_b end;
+  score := jsonb_build_object('wins_a', m.wins_a, 'wins_b', m.wins_b, 'need', need,
+    'battle', m.wins_a + m.wins_b, 'player_a', m.player_a);
+
+  if won >= need then
+    res := public.tournament_finish_match(m.id, p_winner, p_method, p_actor, array[m.status]);
+    if res ? 'error' then raise exception 'tournament_record_battle: %', res; end if;
+    return res || score;
+  end if;
+
+  update public.tournament_matches
+     set status = 'ready', reported_by = null, reported_winner = null, reported_at = null,
+         confirm_by = null, disputed_by = null, dispute_note = null
+   where id = m.id;
+  return jsonb_build_object('ok', true, 'ongoing', true, 'tournament', m.tournament_id, 'match', m.id,
+    'winner', p_winner, 'loser', case when m.player_a = p_winner then m.player_b else m.player_a end,
+    'final', false) || score;
+end; $$;
+
+-- Админ правит счёт серии (ошибся игрок, бой сыгран не так, неявка).
+-- У одного из игроков playoff_wins — серия закрывается в его пользу.
+create or replace function public.tournament_set_series_score(
+  p_match uuid, p_wins_a integer, p_wins_b integer, p_actor uuid, p_seq integer
+)
+ returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  m public.tournament_matches;
+  need integer;
+  winner uuid;
+  res jsonb;
+  score jsonb;
+begin
+  select greatest(1, t.playoff_wins) into need
+    from public.tournament_matches mt join public.tournaments t on t.id = mt.tournament_id
+   where mt.id = p_match;
+  if not found then return jsonb_build_object('error', 'not_found'); end if;
+  if p_wins_a is null or p_wins_b is null or p_wins_a < 0 or p_wins_b < 0
+     or p_wins_a > need or p_wins_b > need or (p_wins_a = need and p_wins_b = need) then
+    return jsonb_build_object('error', 'bad_score', 'need', need);
+  end if;
+
+  update public.tournament_matches mt
+     set wins_a = p_wins_a, wins_b = p_wins_b,
+         battles = mt.battles || jsonb_build_array(jsonb_build_object(
+           'fix', true, 'a', p_wins_a, 'b', p_wins_b, 'by', p_actor, 'at', now()))
+   where mt.id = p_match
+     and mt.round > 0
+     and mt.status in ('ready', 'reported', 'disputed')
+     and mt.player_a is not null and mt.player_b is not null
+     and jsonb_array_length(mt.battles) = p_seq
+     and exists (select 1 from public.tournaments t where t.id = mt.tournament_id and t.status = 'running')
+  returning * into m;
+  if not found then return jsonb_build_object('error', 'already'); end if;
+
+  score := jsonb_build_object('wins_a', m.wins_a, 'wins_b', m.wins_b, 'need', need,
+    'battle', m.wins_a + m.wins_b, 'player_a', m.player_a, 'fixed', true);
+  if p_wins_a = need or p_wins_b = need then
+    winner := case when p_wins_a = need then m.player_a else m.player_b end;
+    res := public.tournament_finish_match(m.id, winner, 'admin', p_actor, array[m.status]);
+    if res ? 'error' then raise exception 'tournament_set_series_score: %', res; end if;
+    return res || score;
+  end if;
+
+  update public.tournament_matches
+     set status = 'ready', reported_by = null, reported_winner = null, reported_at = null,
+         confirm_by = null, disputed_by = null, dispute_note = null
+   where id = m.id;
+  return jsonb_build_object('ok', true, 'ongoing', true, 'tournament', m.tournament_id, 'match', m.id,
+    'final', false) || score;
+end; $$;
+
+revoke all on function public.tournament_record_battle(uuid, uuid, text, uuid, text[], integer) from public, anon, authenticated;
+revoke all on function public.tournament_set_series_score(uuid, integer, integer, uuid, integer) from public, anon, authenticated;
+grant execute on function public.tournament_record_battle(uuid, uuid, text, uuid, text[], integer) to service_role;
+grant execute on function public.tournament_set_series_score(uuid, integer, integer, uuid, integer) to service_role;

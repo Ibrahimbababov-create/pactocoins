@@ -159,15 +159,19 @@ async function matchAction(matchId, fn) {
   return res;
 }
 
-export async function reportMatch(matchId, outcome) {
+// seen — сколько записей в журнале боёв было на экране у человека: так
+// второй тап по тому же бою не засчитается как следующий бой серии.
+const seenOf = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+
+export async function reportMatch(matchId, outcome, seen = null) {
   if (outcome !== "won" && outcome !== "lost") return { error: "Неизвестный итог" };
-  return matchAction(matchId, (admin, id, uid) => reportResult(admin, id, uid, outcome));
+  return matchAction(matchId, (admin, id, uid) => reportResult(admin, id, uid, outcome, seenOf(seen)));
 }
 
-export async function confirmMatch(matchId) {
-  return matchAction(matchId, confirmResult);
+export async function confirmMatch(matchId, seen = null) {
+  return matchAction(matchId, (admin, id, uid) => confirmResult(admin, id, uid, seenOf(seen)));
 }
 
-export async function disputeMatch(matchId, note) {
-  return matchAction(matchId, (admin, id, uid) => disputeResult(admin, id, uid, note));
+export async function disputeMatch(matchId, note, seen = null) {
+  return matchAction(matchId, (admin, id, uid) => disputeResult(admin, id, uid, note, seenOf(seen)));
 }

@@ -6,7 +6,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
-import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
+import { roundLabel, leagueStandings, winsNeeded, battlesPlayed } from "@/lib/tournamentRounds";
 import { MODE_NAME, MODE_LINE } from "@/lib/clashMode";
 
 // Экран «Наблюдать за игрой»: открыть на ноутбуке и вывести на телевизор
@@ -46,8 +46,56 @@ const HOW = {
   api: () => "по данным из игры",
 };
 
+// Серия плей-офф: счёт виден, если матч ещё идёт или его уже вели по боям
+// (у старых матчей, сыгранных до счёта боёв, его нет).
+const hasScore = (t, m) =>
+  winsNeeded(t, m) > 1 &&
+  m.method !== "bye" &&
+  m.player_a &&
+  m.player_b &&
+  m.status !== "waiting" &&
+  (m.status !== "done" || battlesPlayed(m) > 0);
+// «2 : 1» в пользу победителя матча.
+const finalScore = (m) => `${Math.max(m.wins_a ?? 0, m.wins_b ?? 0)} : ${Math.min(m.wins_a ?? 0, m.wins_b ?? 0)}`;
+
+// Бои серии из журнала: каждый засчитанный бой, кроме последнего (его
+// покажет победа в матче), и поправки счёта админом.
+function battleItems(t, m, where) {
+  const log = Array.isArray(m.battles) ? m.battles : [];
+  if (winsNeeded(t, m) < 2 || !log.length) return [];
+  const items = [];
+  let a = 0;
+  let b = 0;
+  log.forEach((e, i) => {
+    if (e.fix) {
+      a = e.a;
+      b = e.b;
+      items.push({ id: `f-${m.id}-${i}`, at: e.at, kind: "fix", a: m.player_a, b: m.player_b, where, wa: a, wb: b, sub: "админ поправил счёт" });
+      return;
+    }
+    if (e.winner === m.player_a) a++;
+    else b++;
+    const closes = m.status === "done" && i === log.length - 1;
+    if (closes) return;
+    items.push({
+      id: `b-${m.id}-${i}`,
+      at: e.at,
+      kind: "battle",
+      a: m.player_a,
+      b: m.player_b,
+      winner: e.winner,
+      loser: e.winner === m.player_a ? m.player_b : m.player_a,
+      where: `${where} · бой ${e.n}`,
+      wa: a,
+      wb: b,
+    });
+  });
+  return items;
+}
+
 // Лента «кто когда нажал». Отдельной таблицы событий нет: всё видно по
-// самим матчам (когда отметили победу, когда засчитали и как).
+// самим матчам (когда отметили победу, когда засчитали и как) и по журналу
+// боёв серии.
 function buildFeed(d) {
   const { tournament: t, people, entries, matches, rounds } = d;
   const n = (id) => nameOf(people, id);
@@ -58,14 +106,16 @@ function buildFeed(d) {
   for (const m of matches) {
     if (m.method === "bye") continue;
     const where = whereOf(m, rounds);
+    items.push(...battleItems(t, m, where));
     if (m.reported_at && m.reported_by) {
+      const battle = winsNeeded(t, m) > 1 && m.status !== "done" ? ` · бой ${battlesPlayed(m) + 1}` : "";
       items.push({
         id: `r-${m.id}-${m.reported_at}`,
         at: m.reported_at,
         kind: "report",
         a: m.player_a,
         b: m.player_b,
-        where,
+        where: `${where}${battle}`,
         sub: `${n(m.reported_by)} сообщает о победе${
           m.status === "reported" ? ", ждём ответа" : m.status === "disputed" ? ", спор" : ""
         }`,
@@ -82,6 +132,7 @@ function buildFeed(d) {
         winner: m.winner_id,
         where,
         sub: HOW[m.method]?.(l) ?? null,
+        score: hasScore(t, m) ? finalScore(m) : null,
       });
     }
   }
@@ -369,11 +420,16 @@ function TourPanel({ d, className }) {
   );
 }
 
-function BracketMatch({ m, people, final }) {
+function BracketMatch({ t, m, people, final }) {
+  const score = hasScore(t, m);
+  const n = battlesPlayed(m) + 1;
   const line = (id) => {
     if (!id) return <span className="text-gray-600">{m.method === "bye" ? "без соперника" : "ждём"}</span>;
     const win = m.winner_id === id;
     const lose = m.winner_id && !win;
+    const wins = id === m.player_a ? (m.wins_a ?? 0) : (m.wins_b ?? 0);
+    // Кто ведёт в серии — его цифра горит, даже пока матч не закрыт.
+    const leads = !m.winner_id && wins > (id === m.player_a ? (m.wins_b ?? 0) : (m.wins_a ?? 0));
     return (
       <span
         className={`flex items-center justify-between gap-2 min-w-0 ${
@@ -386,7 +442,19 @@ function BracketMatch({ m, people, final }) {
             <span className="block truncate text-xs lg:text-xl font-normal text-gray-500">{nickOf(people, id)}</span>
           )}
         </span>
-        {win && <Icon name="trophy" className="w-4 h-4 lg:w-6 lg:h-6 shrink-0" />}
+        <span className="flex items-center gap-2 lg:gap-3 shrink-0">
+          {win && <Icon name="trophy" className="w-4 h-4 lg:w-6 lg:h-6 shrink-0" />}
+          {score && (
+            <span
+              key={wins}
+              className={`live-in font-display font-bold tabular-nums text-xl lg:text-4xl leading-none ${
+                win || leads ? "text-acid-400" : lose ? "text-gray-600" : "text-gray-300"
+              }`}
+            >
+              {wins}
+            </span>
+          )}
+        </span>
       </span>
     );
   };
@@ -394,11 +462,13 @@ function BracketMatch({ m, people, final }) {
     m.method === "bye"
       ? "проходит без игры"
       : m.status === "reported"
-        ? `${nameOf(people, m.reported_by)} сообщает о победе`
+        ? `${score ? `бой ${n}: ` : ""}${nameOf(people, m.reported_by)} сообщает о победе`
         : m.status === "disputed"
-          ? "спор, решает админ"
+          ? `${score ? `бой ${n}: ` : ""}спор, решает админ`
           : m.status === "ready"
-            ? "играют"
+            ? score
+              ? `играют бой ${n}`
+              : "играют"
             : m.status === "waiting"
               ? "ждём соперников"
               : null;
@@ -445,7 +515,7 @@ function LiveBracket({ d, className = "" }) {
             <p className="text-center text-xs lg:text-xl text-gray-400 mb-2 lg:mb-4">{roundLabel(c.r, rounds)}</p>
             <div className="flex-1 flex flex-col justify-around gap-3 lg:gap-5">
               {c.list.map((m) => (
-                <BracketMatch key={m.id} m={m} people={people} final={c.r === rounds} />
+                <BracketMatch key={m.id} t={t} m={m} people={people} final={c.r === rounds} />
               ))}
             </div>
           </div>
@@ -458,6 +528,28 @@ function LiveBracket({ d, className = "" }) {
 function FeedLine({ it, people }) {
   const n = (id) => nameOf(people, id);
   if (it.kind === "join") return <span className="font-semibold">{n(it.a)} в турнире</span>;
+  if (it.kind === "battle") {
+    return (
+      <span>
+        <span className={it.winner === it.a ? "font-bold text-acid-400" : "text-gray-400"}>{n(it.a)}</span>{" "}
+        <b className="font-display tabular-nums">
+          {it.wa} : {it.wb}
+        </b>{" "}
+        <span className={it.winner === it.b ? "font-bold text-acid-400" : "text-gray-400"}>{n(it.b)}</span>
+      </span>
+    );
+  }
+  if (it.kind === "fix") {
+    return (
+      <span>
+        {n(it.a)}{" "}
+        <b className="font-display tabular-nums">
+          {it.wa} : {it.wb}
+        </b>{" "}
+        {n(it.b)}
+      </span>
+    );
+  }
   if (it.kind === "info") return <span className="font-semibold text-acid-400">{it.text}</span>;
   if (it.kind === "win" || it.kind === "final") {
     return (
@@ -494,7 +586,7 @@ function Feed({ items, fresh, people, className = "", limit = 14 }) {
                 <FeedLine it={it} people={people} />
                 {(it.where || it.sub) && (
                   <span className="block text-[11px] lg:text-base text-gray-500">
-                    {[it.where, it.sub].filter(Boolean).join(" · ")}
+                    {[it.where, it.score && `серия ${it.score}`, it.sub].filter(Boolean).join(" · ")}
                   </span>
                 )}
               </span>
@@ -591,14 +683,18 @@ function Toast({ it, d }) {
     small = "Новый участник";
     big = n(it.a);
     sub = `в банке ${num(d.tournament.pot)} коинов`;
+  } else if (it.kind === "battle") {
+    small = it.where;
+    big = n(it.winner);
+    sub = `${n(it.a)} ${it.wa} : ${it.wb} ${n(it.b)}`;
   } else if (it.kind === "final") {
     small = "Финал";
     big = `Победа: ${n(it.winner)}`;
-    sub = `соперник: ${n(it.b)}`;
+    sub = `соперник: ${n(it.b)}${it.score ? ` · серия ${it.score}` : ""}`;
   } else {
     small = `${it.where} · победа`;
     big = n(it.winner);
-    sub = `соперник: ${n(it.b)}${it.sub ? ` · ${it.sub}` : ""}`;
+    sub = `соперник: ${n(it.b)}${it.score ? ` · серия ${it.score}` : it.sub ? ` · ${it.sub}` : ""}`;
   }
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-6 lg:bottom-12 z-[110] flex justify-center px-4">
@@ -754,7 +850,7 @@ export default function TournamentLive({ initial, apiUrl, backHref, viewerId = n
       const added = feed.filter((f) => !seen.current.has(f.id));
       seen.current = ids;
       setFresh(new Set(added.map((f) => f.id)));
-      const loud = added.filter((f) => ["win", "final", "join", "info"].includes(f.kind)).reverse();
+      const loud = added.filter((f) => ["win", "final", "join", "info", "battle"].includes(f.kind)).reverse();
       if (loud.length) setToasts((q) => [...q, ...loud].slice(-6));
     }
 

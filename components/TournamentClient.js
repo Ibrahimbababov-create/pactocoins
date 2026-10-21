@@ -6,7 +6,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { formatCoins } from "@/lib/plural";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
-import { roundLabel, leagueStandings } from "@/lib/tournamentRounds";
+import { roundLabel, leagueStandings, winsNeeded, battlesPlayed, battleSeq, scoreFor } from "@/lib/tournamentRounds";
 import { MODE_NAME, MODE_LINE, MODE_HOW } from "@/lib/clashMode";
 import {
   joinTournament,
@@ -377,56 +377,53 @@ function MyNickCard({ t, me, viewer, pending, run }) {
   );
 }
 
+// Кнопки итога. Отмечается один бой: в лиге он и есть матч, в серии
+// плей-офф приложение само ведёт счёт и закрывает матч, когда кто-то набрал
+// нужные победы. Номер записи в журнале боёв уходит вместе с нажатием,
+// поэтому второй тап по тому же бою не засчитается как следующий.
 function MatchActions({ t, m, opp, viewer, pending, run, compact = false }) {
   const bigBtn = compact ? "rounded-lg py-2 text-xs" : "rounded-xl py-2.5 text-sm";
-  // Серия плей-офф: приложение бои не считает, итог отмечают один раз.
-  // Поэтому прямо на кнопке напоминаем, что отмечать нужно всю серию.
-  const series = m.round > 0 && t.playoff_wins > 1 ? t.playoff_wins : 0;
+  const series = winsNeeded(t, m) > 1;
+  const n = battlesPlayed(m) + 1;
+  const seen = battleSeq(m);
   if (m.status === "ready") {
     return (
-      <div className="space-y-2">
-        {series > 0 && (
-          <p className="text-xs text-amber-400">
-            Серия до {series} побед. Отмечай итог, только когда кто-то выиграл {series} боя, а не после первого.
-          </p>
-        )}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              window.confirm(
-                series > 0
-                  ? `Ты выиграл серию, ${series} боя? ${opp.name} получит запрос на подтверждение.`
-                  : `Победа твоя? ${opp.name} получит запрос на подтверждение.`
-              ) && run(() => reportMatch(m.id, "won"))
-            }
-            className={`bg-acid-400 text-black font-bold disabled:opacity-50 ${bigBtn}`}
-          >
-            {series > 0 ? "Серия моя" : "Моя победа"}
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              window.confirm(
-                series > 0
-                  ? `${opp.name} выиграл серию, ${series} боя? Это сразу засчитается.`
-                  : `Победа за ${opp.name}? Это сразу засчитается.`
-              ) && run(() => reportMatch(m.id, "lost"))
-            }
-            className={`border border-dark-600 text-gray-300 disabled:opacity-50 ${bigBtn}`}
-          >
-            {series > 0 ? "Серия за соперником" : "Победа соперника"}
-          </button>
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            window.confirm(
+              series
+                ? `Бой ${n} твой? ${opp.name} получит запрос на подтверждение.`
+                : `Победа твоя? ${opp.name} получит запрос на подтверждение.`
+            ) && run(() => reportMatch(m.id, "won", seen))
+          }
+          className={`bg-acid-400 text-black font-bold disabled:opacity-50 ${bigBtn}`}
+        >
+          Моя победа
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            window.confirm(
+              series ? `Бой ${n} за ${opp.name}? Это сразу засчитается.` : `Победа за ${opp.name}? Это сразу засчитается.`
+            ) && run(() => reportMatch(m.id, "lost", seen))
+          }
+          className={`border border-dark-600 text-gray-300 disabled:opacity-50 ${bigBtn}`}
+        >
+          Победа соперника
+        </button>
       </div>
     );
   }
   if (m.status === "reported" && m.reported_by === viewer.id) {
     return (
       <p className="text-xs text-gray-400">
-        Ждём подтверждения до {when(m.confirm_by)}, потом засчитаем сами.
+        {series
+          ? `Ждём, пока ${opp.name} подтвердит бой ${n}, до ${when(m.confirm_by)}. Потом засчитаем сами.`
+          : `Ждём подтверждения до ${when(m.confirm_by)}, потом засчитаем сами.`}
       </p>
     );
   }
@@ -434,19 +431,13 @@ function MatchActions({ t, m, opp, viewer, pending, run, compact = false }) {
     return (
       <div className="space-y-2">
         <p className="text-xs text-gray-300">
-          {opp.name} сообщает о своей победе. Так и было?
+          {series ? `Бой ${n}: ${opp.name} сообщает о своей победе. Так и было?` : `${opp.name} сообщает о своей победе. Так и было?`}
         </p>
-        {series > 0 && (
-          <p className="text-xs text-amber-400">
-            Серия до {series} побед: подтверждай только если он реально выиграл {series} боя. Если серия не доиграна,
-            жми «это не так».
-          </p>
-        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             disabled={pending}
-            onClick={() => run(() => confirmMatch(m.id))}
+            onClick={() => run(() => confirmMatch(m.id, seen))}
             className={`bg-acid-400 text-black font-bold disabled:opacity-50 ${bigBtn}`}
           >
             Подтверждаю
@@ -456,7 +447,7 @@ function MatchActions({ t, m, opp, viewer, pending, run, compact = false }) {
             disabled={pending}
             onClick={() => {
               const note = window.prompt("Что было на самом деле? Админ увидит это и решит.");
-              if (note !== null) run(() => disputeMatch(m.id, note));
+              if (note !== null) run(() => disputeMatch(m.id, note, seen));
             }}
             className={`border border-dark-600 text-gray-300 disabled:opacity-50 ${bigBtn}`}
           >
@@ -466,12 +457,57 @@ function MatchActions({ t, m, opp, viewer, pending, run, compact = false }) {
       </div>
     );
   }
-  if (m.status === "disputed") return <p className="text-xs text-amber-400">Спор, решит админ.</p>;
+  if (m.status === "disputed") {
+    return <p className="text-xs text-amber-400">{series ? `Спор по бою ${n}, решит админ.` : "Спор, решит админ."}</p>;
+  }
   if (m.status === "done") {
     const won = m.winner_id === viewer.id;
     return <p className={`text-xs ${won ? "text-acid-400" : "text-gray-500"}`}>{won ? "Победа" : "Поражение"}</p>;
   }
   return null;
+}
+
+// Счёт серии плей-офф: крупно, свои победы слева. Полоски под именами —
+// сколько побед нужно, закрашены уже взятые.
+function SeriesScore({ t, m, viewer, opp }) {
+  const need = winsNeeded(t, m);
+  if (need < 2) return null;
+  const { mine, theirs } = scoreFor(m, viewer.id);
+  const pips = (k, mineSide) => (
+    <span className={`mt-1.5 flex gap-1 ${mineSide ? "" : "justify-end"}`}>
+      {Array.from({ length: need }, (_, i) => (
+        <span
+          key={i}
+          className={`h-1.5 w-6 rounded-full ${i < k ? (mineSide ? "bg-acid-400" : "bg-gray-300") : "bg-dark-600"}`}
+        />
+      ))}
+    </span>
+  );
+  return (
+    <div className="rounded-xl border border-dark-600 bg-dark-900/60 px-3.5 py-3">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <span className="min-w-0">
+          <span className="block text-xs text-gray-400">Ты</span>
+          {pips(mine, true)}
+        </span>
+        <span
+          key={`${mine}:${theirs}`}
+          className="live-in font-display font-bold text-4xl tabular-nums leading-none"
+        >
+          <span className={mine > theirs ? "text-acid-400" : ""}>{mine}</span>
+          <span className="mx-1.5 text-gray-600">:</span>
+          <span>{theirs}</span>
+        </span>
+        <span className="min-w-0 text-right">
+          <span className="block truncate text-xs text-gray-400">{opp.name}</span>
+          {pips(theirs, false)}
+        </span>
+      </div>
+      <p className="mt-2 text-center text-[11px] text-gray-500">
+        до {need} побед · сейчас бой {battlesPlayed(m) + 1}
+      </p>
+    </div>
+  );
 }
 
 function MyMatch({ t, m, people, viewer, rounds, pending, run }) {
@@ -486,13 +522,21 @@ function MyMatch({ t, m, people, viewer, rounds, pending, run }) {
   } else {
     body = (
       <>
-        {m.status === "ready" && (
-          <p className="text-sm text-gray-400">
-            {t.playoff_wins > 1 ? `Играйте до ${t.playoff_wins} побед` : "Сыграйте один дружеский бой"}
-            {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, успеть до <b className="text-gray-200">{when(m.play_by)}</b>. Потом
-            отметь итог.
-          </p>
-        )}
+        <SeriesScore t={t} m={m} viewer={viewer} opp={opp} />
+        {m.status === "ready" &&
+          (winsNeeded(t, m) > 1 ? (
+            <p className="text-sm text-gray-400">
+              Сыграйте бой {battlesPlayed(m) + 1}
+              {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, серию доиграть до{" "}
+              <b className="text-gray-200">{when(m.play_by)}</b>. После каждого боя отметь, кто выиграл.
+            </p>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Сыграйте один дружеский бой
+              {t.clan_tag ? ` в клане ${t.clan_tag}` : ""}, успеть до <b className="text-gray-200">{when(m.play_by)}</b>. Потом
+              отметь итог.
+            </p>
+          ))}
         <MatchActions t={t} m={m} opp={opp} viewer={viewer} pending={pending} run={run} />
       </>
     );
@@ -776,7 +820,15 @@ function MyOutcome({ t, me }) {
   return null;
 }
 
-function MatchRow({ m, people, viewer }) {
+function MatchRow({ t, m, people, viewer }) {
+  // Счёт серии справа от имён. У старых матчей (до счёта боёв) его нет.
+  const series =
+    winsNeeded(t, m) > 1 &&
+    m.method !== "bye" &&
+    m.player_a &&
+    m.player_b &&
+    (m.status !== "done" || battlesPlayed(m) > 0);
+  const n = battlesPlayed(m) + 1;
   const line = (id) => {
     if (!id) return <span className="text-gray-600">{m.method === "bye" ? "без соперника" : "ждём"}</span>;
     const win = m.winner_id === id;
@@ -791,6 +843,11 @@ function MatchRow({ m, people, viewer }) {
         </span>
         {id === viewer.id && <span className="shrink-0 text-[10px] text-acid-400">ты</span>}
         {win && <Icon name="check" className="w-3.5 h-3.5 shrink-0 text-acid-400" />}
+        {series && (
+          <span className="ml-auto shrink-0 pl-2 font-display font-bold tabular-nums">
+            {id === m.player_a ? (m.wins_a ?? 0) : (m.wins_b ?? 0)}
+          </span>
+        )}
       </span>
     );
   };
@@ -798,11 +855,17 @@ function MatchRow({ m, people, viewer }) {
     m.method === "bye"
       ? "проходит без игры"
       : m.status === "ready"
-        ? `до ${when(m.play_by)}`
+        ? series && n > 1
+          ? `бой ${n} · до ${when(m.play_by)}`
+          : `до ${when(m.play_by)}`
         : m.status === "reported"
-          ? "ждёт подтверждения"
+          ? series
+            ? `бой ${n} ждёт подтверждения`
+            : "ждёт подтверждения"
           : m.status === "disputed"
-            ? "спор"
+            ? series
+              ? `спор по бою ${n}`
+              : "спор"
             : m.status === "waiting"
               ? "ждёт игроков"
               : null;
@@ -818,7 +881,7 @@ function MatchRow({ m, people, viewer }) {
   );
 }
 
-function Bracket({ matches, rounds, people, viewer, bare = false }) {
+function Bracket({ t, matches, rounds, people, viewer, bare = false }) {
   const current = Math.min(
     rounds,
     ...matches.filter((m) => ["ready", "reported", "disputed"].includes(m.status)).map((m) => m.round),
@@ -846,7 +909,7 @@ function Bracket({ matches, rounds, people, viewer, bare = false }) {
       </div>
       <div className="space-y-2">
         {list.map((m) => (
-          <MatchRow key={m.id} m={m} people={people} viewer={viewer} />
+          <MatchRow key={m.id} t={t} m={m} people={people} viewer={viewer} />
         ))}
       </div>
     </div>
@@ -944,6 +1007,9 @@ function Rules({ t }) {
     <li>
       После боя отметьте итог здесь. «Победа соперника» засчитывается сразу. «Моя победа» ждёт подтверждения соперника{" "}
       {t.confirm_hours} ч, потом засчитывается сама.
+      {t.playoff_wins > 1
+        ? " В плей-офф так отмечается каждый бой серии: счёт приложение ведёт само, матч закрывается, когда кто-то набрал нужные победы."
+        : ""}
     </li>
   );
   return (
@@ -1026,7 +1092,7 @@ export default function TournamentClient({ data, viewer }) {
     <LeagueTable t={t} entries={entries} matches={matches} people={people} viewer={viewer} bare={bare} />
   );
   const bracket = (bare) =>
-    rounds > 0 ? <Bracket matches={matches} rounds={rounds} people={people} viewer={viewer} bare={bare} /> : null;
+    rounds > 0 ? <Bracket t={t} matches={matches} rounds={rounds} people={people} viewer={viewer} bare={bare} /> : null;
   const schedule = () => <Schedule matches={matches} people={people} viewer={viewer} />;
 
   let sections = null;
