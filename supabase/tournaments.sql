@@ -397,6 +397,7 @@ alter table public.tournaments add column if not exists hidden_at timestamptz;
 --   каждый бой и {"fix": true, "a", "b", "by", "at"}, когда счёт правит админ.
 --   Длина журнала только растёт, по ней же «захватываем» бой: кнопка несёт
 --   номер записи, которую видел человек, и второй тап по тому же бою не пройдёт.
+-- Применено 21.10.2026 (миграция tournament_series_score).
 alter table public.tournament_matches add column if not exists wins_a smallint not null default 0
   check (wins_a >= 0);
 alter table public.tournament_matches add column if not exists wins_b smallint not null default 0
