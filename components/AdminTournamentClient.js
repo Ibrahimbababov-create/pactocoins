@@ -123,6 +123,8 @@ function LeagueAdmin({ matches, people, pending, run }) {
 
   const name = (id) => people[id]?.name ?? "—";
   const list = league.filter((m) => (m.tour ?? 0) === tour).sort((a, b) => a.slot - b.slot);
+  // После старта плей-офф итоги лиги уже не меняются: по ним собрана сетка.
+  const canReplay = !matches.some((m) => m.round > 0);
   const waiting = league.filter((m) => m.status === "reported");
 
   const row = (m) => {
@@ -143,14 +145,20 @@ function LeagueAdmin({ matches, people, pending, run }) {
         {m.status === "done" ? (
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-gray-400">Победа: {name(m.winner_id)}</p>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => window.confirm(`Сбросить итог и дать играть заново?`) && run(() => replayMatch(m.id))}
-              className="shrink-0 text-xs text-gray-500 underline disabled:opacity-50"
-            >
-              переиграть
-            </button>
+            {canReplay && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  window.confirm(
+                    `Сбросить итог матча ${name(m.player_a)} против ${name(m.player_b)}? Победа уйдёт из таблицы, бот напишет обоим сыграть заново.`
+                  ) && run(() => replayMatch(m.id))
+                }
+                className="shrink-0 text-xs text-gray-500 underline disabled:opacity-50"
+              >
+                переиграть
+              </button>
+            )}
           </div>
         ) : (
           <>
