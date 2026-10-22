@@ -396,11 +396,21 @@ function ProgramCostCard({ cost }) {
         ))}
       </div>
 
+      {cost.mentorCoins > 0 && (
+        <div className="mt-2 flex justify-between gap-3 text-xs text-gray-600">
+          <span>Наставникам, не в расходах: платится из ЗП стажёров (−1%)</span>
+          <span className="tabular-nums shrink-0">
+            {formatCoins(cost.mentorCoins)} · {kzt(cost.mentorKzt)}
+          </span>
+        </div>
+      )}
+
       <p className="text-[11px] text-gray-600 mt-3 leading-relaxed">
         Считаем по выданным коинам (их всё равно потратят), без возвратов и без
         админов. 1 коин ≈ {cost.kztPerCoin.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₸
-        — по реальным покупкам за 90 дней. Прибыль ≈ {(NET_MARGIN * 100).toLocaleString("ru-RU")}% от
-        выручки {kzt(cost.revenueKzt)} = {kzt(cost.profitKzt)}. Бюджет — 5–10% прибыли.
+        — по реальным покупкам за 90 дней. Прибыль компании (выручка − ФОТ, до офиса) ≈{" "}
+        {(NET_MARGIN * 100).toLocaleString("ru-RU")}% от кассы {kzt(cost.revenueKzt)} = {kzt(cost.profitKzt)}. Бюджет — 5–10%
+        этой прибыли. Итог месяца ставь в таблицу финансов, «Отчисление в ПактоКоинс».
       </p>
     </div>
   );
