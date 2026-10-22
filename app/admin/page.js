@@ -19,6 +19,7 @@ import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getProgramCost, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { forecastRevenueCoins } from "@/lib/revenueForecast";
+import MonthProfitInput from "@/components/MonthProfitInput";
 
 const QUEUE_LINKS = [
   // Коротко: на телефоне три плитки в ряд, «Заявки на выручку» обрезалось.
@@ -160,7 +161,7 @@ export default async function AdminOverview({ searchParams }) {
 
   const [earnedMap, cost, nextForecast] = await Promise.all([
     getEarnedMap(supabase, (users ?? []).map((u) => u.id), { start, end }),
-    getProgramCost(createAdminClient(), { start, end }),
+    getProgramCost(createAdminClient(), { start, end, monthKey: selectedMonth }),
     forecastRevenueCoins(createAdminClient(), nextRevenue ?? []),
   ]);
 
@@ -266,7 +267,7 @@ export default async function AdminOverview({ searchParams }) {
             </p>
           </div>
 
-          <ProgramCostCard cost={cost} />
+          <ProgramCostCard cost={cost} monthKey={selectedMonth} />
 
           <ThemePicker current={myTheme} />
 
@@ -354,7 +355,7 @@ export default async function AdminOverview({ searchParams }) {
 
 // Сколько программа стоит компании за месяц — по выданным коинам. Цвет:
 // в рамках (до 7% прибыли), на грани (7–10%), перебор (больше 10%).
-function ProgramCostCard({ cost }) {
+function ProgramCostCard({ cost, monthKey }) {
   const pct = cost.share == null ? null : cost.share * 100;
   const tone =
     pct == null
@@ -405,12 +406,18 @@ function ProgramCostCard({ cost }) {
         </div>
       )}
 
+      <p className="text-[11px] text-gray-500 mt-3 leading-relaxed">
+        {cost.profitFromTable
+          ? `Прибыль компании ${kzt(cost.profitKzt)} из таблицы: выручка компании минус зарплаты команд, до офиса. Бюджет программы 5–10% от неё.`
+          : `Прибыль компании за месяц ещё не вписана, пока прикидка: ${(NET_MARGIN * 100).toLocaleString("ru-RU")}% от кассы ${kzt(cost.revenueKzt)} = ${kzt(cost.profitKzt)}. Фиксы прикидка не видит, впиши точную из таблицы.`}
+      </p>
+
+      <MonthProfitInput monthKey={monthKey} value={cost.profitFromTable ? cost.profitKzt : null} />
+
       <p className="text-[11px] text-gray-600 mt-3 leading-relaxed">
-        Считаем по выданным коинам (их всё равно потратят), без возвратов и без
-        админов. 1 коин ≈ {cost.kztPerCoin.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₸
-        — по реальным покупкам за 90 дней. Прибыль компании (выручка − ФОТ, до офиса) ≈{" "}
-        {(NET_MARGIN * 100).toLocaleString("ru-RU")}% от кассы {kzt(cost.revenueKzt)} = {kzt(cost.profitKzt)}. Бюджет — 5–10%
-        этой прибыли. Итог месяца ставь в таблицу финансов, «Отчисление в ПактоКоинс».
+        Считаем по выданным коинам (их всё равно потратят), без возвратов и без админов. 1 коин ≈{" "}
+        {cost.kztPerCoin.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₸ по реальным покупкам за 90 дней. Итог
+        месяца в тенге ставь в таблицу финансов, «Отчисление в ПактоКоинс».
       </p>
     </div>
   );
