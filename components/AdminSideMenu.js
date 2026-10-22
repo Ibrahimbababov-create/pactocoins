@@ -8,6 +8,7 @@ import AddToHomeScreen from "@/components/AddToHomeScreen";
 import Icon from "@/components/Icon";
 
 const ITEMS = [
+  { href: "/admin/attendance", label: "Приход вовремя", icon: "clock" },
   { href: "/admin/wheel", label: "Колесо фортуны", icon: "wheel" },
   { href: "/admin/tournaments", label: "Турниры", icon: "trophy" },
   { href: "/admin/broadcast", label: "Рассылка", icon: "megaphone" },

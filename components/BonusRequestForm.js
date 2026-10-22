@@ -99,6 +99,12 @@ export default function BonusRequestForm({ open, onOpenChange }) {
                 </option>
               ))}
             </select>
+            {category === "attendance" && (
+              <p className="mt-2 text-xs text-gray-400">
+                Приход теперь засчитывается сам: кинь кружок в тему «Приступил вовремя к работе», и крутка придёт без
+                заявки. Здесь подавай, только если сегодня у тебя другой график, и напиши почему.
+              </p>
+            )}
           </div>
 
           {isVariable && (

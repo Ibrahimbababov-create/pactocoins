@@ -25,6 +25,7 @@ import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { lastWeekRangeAlmaty, lastMonthRangeAlmaty } from "@/lib/timezone";
 import { renderRevenueCommand } from "@/lib/revenueTop";
 import { syncBotCommands } from "@/lib/botCommands";
+import { handleAttendanceVideoNote } from "@/lib/attendance";
 
 export const maxDuration = 30;
 
@@ -737,6 +738,17 @@ export async function POST(request) {
       } catch (err) {
         console.error("[welcome] failed:", err);
       }
+    }
+  }
+
+  // Кружок в теме «Приступил вовремя к работе»: приход засчитывается сам
+  // или уходит админу на решение (lib/attendance.js). Только новые
+  // сообщения: правка старого кружка не должна давать второй приход.
+  if (update.message?.video_note) {
+    try {
+      if (await handleAttendanceVideoNote(update.message)) return NextResponse.json({ ok: true });
+    } catch (err) {
+      console.error("[attendance] failed:", err);
     }
   }
 
