@@ -17,6 +17,7 @@ import {
   PrepayCard,
   ManagersCharts,
 } from "@/components/SalesScreens";
+import { TeamScreen, QuotaToday } from "@/components/SalesTeam";
 
 // Экраны раздела «Аналитика»: Сводка, Менеджеры, страница менеджера.
 // Все цифры уже посчитаны на сервере (lib/sales/metrics.js) — тут только вид.
@@ -44,6 +45,7 @@ const TABS = [
   ["dyn", "Динамика"],
   ["quota", "Квота"],
   ["deals", "Сделки"],
+  ["team", "Команда"],
 ];
 
 function tone(pct, need) {
@@ -64,6 +66,7 @@ export default function SalesDashboard({
   notice,
   issues = [],
   unassigned = [],
+  amo = false,
 }) {
   const router = useRouter();
   const [tab, setTab] = useState("summary");
@@ -126,7 +129,7 @@ export default function SalesDashboard({
         <>
           <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
           <div className="flex gap-1 bg-dark-800 border border-dark-700 rounded-xl p-1 w-max" role="tablist">
-            {TABS.filter(([k]) => k !== "deals" || (lead && view.deals)).map(([k, l]) => (
+            {TABS.filter(([k]) => (k !== "deals" || (lead && view.deals)) && (k !== "team" || (lead && amo))).map(([k, l]) => (
               <button
                 key={k}
                 role="tab"
@@ -150,7 +153,7 @@ export default function SalesDashboard({
             </p>
           )}
           {tab === "summary" && issues.length > 0 && <Issues issues={issues} />}
-          {tab === "summary" && <Summary view={view} meName={meName} onOpen={setMgr} />}
+          {tab === "summary" && <Summary view={view} meName={meName} onOpen={setMgr} quota={amo && view.frac.isCur ? <QuotaToday deptId={deptId} /> : null} />}
           {tab === "managers" && <Managers view={view} meName={meName} onOpen={setMgr} />}
           {tab === "pay" && <PayScreen view={view} />}
           {tab === "sources" && <SourcesScreen view={view} />}
@@ -158,6 +161,7 @@ export default function SalesDashboard({
           {tab === "dyn" && <DynamicsScreen view={view} />}
           {tab === "quota" && <QuotaScreen view={view} />}
           {tab === "deals" && <DealsScreen view={view} />}
+          {tab === "team" && <TeamScreen deptId={deptId} monthKey={view.key} people={view.people} />}
         </>
       )}
     </div>
@@ -173,7 +177,7 @@ function Issues({ issues }) {
         <span className="font-semibold text-amber-400">
           Не попали в расчёт: {issues.length} {plural(issues.length, "оплата", "оплаты", "оплат")} на {mln(total)}
         </span>
-        <span className="block text-xs text-gray-500 mt-0.5">В таблице не читается дата продажи. Поправьте — и через пару минут цифры обновятся.</span>
+        <span className="block text-xs text-gray-500 mt-0.5">В таблице не читается дата продажи или она в будущем (опечатка в годе). Поправьте — и через пару минут цифры обновятся.</span>
       </summary>
       <ul className="mt-3 space-y-1.5">
         {issues.slice(0, 30).map((i, k) => (
@@ -213,7 +217,7 @@ function Select({ id, label, value, onChange, options }) {
   );
 }
 
-function Summary({ view, meName, onOpen }) {
+function Summary({ view, meName, onOpen, quota }) {
   const [f, setF] = useState("all");
   const cur = view.filters[f];
   const fr = view.frac;
@@ -323,6 +327,8 @@ function Summary({ view, meName, onOpen }) {
           </ul>
         </Card>
       )}
+
+      {quota}
 
       <div className="grid sm:grid-cols-2 gap-4">
         <AdsCard ads={view.ads} />

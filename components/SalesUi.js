@@ -9,6 +9,7 @@ import { mln, money } from "@/lib/sales/format";
 // дальтонизме) на тёмном фоне всех тем сайта. Цвет закреплён за человеком по
 // алфавиту (view.people), а не по месту в рейтинге; девятый и дальше — серые.
 const SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+export const seriesOf = (i) => (i < SERIES.length ? SERIES[i] : "rgb(var(--c-dim))");
 export function colorFor(name, people) {
   const i = people.indexOf(name);
   return i >= 0 && i < SERIES.length ? SERIES[i] : "rgb(var(--c-dim))";

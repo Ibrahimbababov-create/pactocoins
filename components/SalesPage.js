@@ -4,6 +4,7 @@ import SalesDashboard from "@/components/SalesDashboard";
 import { getSalesAccess } from "@/lib/sales/access";
 import { isConnected } from "@/lib/sales/departments";
 import { hasGoogleKey } from "@/lib/sales/google";
+import { hasAmo } from "@/lib/sales/amo";
 import { getDepartmentMonths } from "@/lib/sales/data";
 import { buildMonthView, monthList } from "@/lib/sales/metrics";
 import { currentMonthKeyAlmaty } from "@/lib/timezone";
@@ -104,6 +105,7 @@ export default async function SalesPage({ searchParams = {}, basePath }) {
       lead={lead}
       meName={me?.name ?? null}
       notice={null}
+      amo={hasAmo(dept)}
       issues={lead ? data.issues ?? [] : []}
       unassigned={lead ? data.unassigned ?? [] : []}
     />
