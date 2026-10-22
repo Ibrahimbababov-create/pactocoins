@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
 import { money, mln, plural } from "@/lib/sales/format";
-import { Card, CardTitle, Stat, Bars, CumChart, Donut, StackBar, STATUS, colorFor } from "@/components/SalesUi";
+import { Card, CardTitle, Stat, Bars, CumChart, Donut, StackBar, STATUS, colorFor, CountUp } from "@/components/SalesUi";
 import {
   PayScreen,
   SourcesScreen,
@@ -18,6 +18,7 @@ import {
   ManagersCharts,
 } from "@/components/SalesScreens";
 import { TeamScreen, QuotaToday } from "@/components/SalesTeam";
+import OwnerOverview from "@/components/SalesOwner";
 
 // Экраны раздела «Аналитика»: Сводка, Менеджеры, страница менеджера.
 // Все цифры уже посчитаны на сервере (lib/sales/metrics.js) — тут только вид.
@@ -67,13 +68,15 @@ export default function SalesDashboard({
   issues = [],
   unassigned = [],
   amo = false,
+  owner = null,
+  monthKey = null,
 }) {
   const router = useRouter();
   const [tab, setTab] = useState("summary");
   const [mgr, setMgr] = useState(null);
 
   const go = (params) => {
-    const q = new URLSearchParams({ dept: deptId, ...(view ? { month: view.key } : {}), ...params });
+    const q = new URLSearchParams({ dept: deptId, ...(view || monthKey ? { month: view?.key || monthKey } : {}), ...params });
     setMgr(null);
     router.push(`${basePath}?${q}`);
   };
@@ -86,8 +89,12 @@ export default function SalesDashboard({
     router.push(`${basePath}?${q}`);
   };
 
+  // цвет команды: акцент всей аналитики перекрашивается через CSS-переменные
+  const team = departments.find((d) => d.id === deptId)?.color;
+  const teamStyle = team ? { "--c-accent": team.accent, "--c-accent-strong": team.strong } : undefined;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={teamStyle}>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-display font-bold mr-auto">Аналитика</h1>
         {departments.length > 1 && (
@@ -103,7 +110,7 @@ export default function SalesDashboard({
           <Select
             id="sales-month"
             label="Месяц"
-            value={view?.key}
+            value={view?.key || monthKey}
             onChange={(k) => go({ month: k })}
             options={months.map((m) => ({ value: m.key, label: m.label }))}
           />
@@ -113,7 +120,9 @@ export default function SalesDashboard({
         <p className="text-sm text-gray-500 -mt-2">{departments[0].name}</p>
       )}
 
-      {notice ? (
+      {owner ? (
+        <OwnerOverview teams={owner.teams} broken={owner.broken} onOpen={pickDept} />
+      ) : notice ? (
         <div className="bg-dark-800 border border-dark-700 rounded-2xl">
           <EmptyState icon="chart" title={notice.title} hint={notice.hint} />
         </div>
@@ -270,7 +279,7 @@ function Summary({ view, meName, onOpen, quota }) {
           </div>
         </div>
         <p className="font-display font-bold text-[34px] leading-none tabular-nums">
-          {money(cur.total).replace(" ₸", "")}
+          <CountUp key={`${view.key}-${f}`} value={cur.total} format={(v) => money(v).replace(" ₸", "")} />
           <span className="text-lg text-gray-500 ml-1">₸</span>
         </p>
         <p className="text-sm text-gray-400 mt-2 flex flex-wrap gap-x-2">
@@ -404,7 +413,7 @@ function ManagerRulers({ view, meName, onOpen }) {
             {m.plan > 0 && (
               <div className="relative h-1.5 rounded-full bg-dark-700 mt-2 overflow-hidden">
                 <span
-                  className="absolute inset-y-0 left-0 rounded-full bg-acid-400"
+                  className="sa-grow absolute inset-y-0 left-0 rounded-full bg-acid-400"
                   style={{ width: `${Math.min(100, (m.s / m.plan) * 100)}%` }}
                 />
               </div>

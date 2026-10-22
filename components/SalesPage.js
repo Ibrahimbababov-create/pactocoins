@@ -12,7 +12,7 @@ import { currentMonthKeyAlmaty } from "@/lib/timezone";
 // Общая серверная часть раздела «Аналитика» для кабинета, админки и
 // наблюдателей. Данные собираются здесь, в браузер уходят только цифры.
 export default async function SalesPage({ searchParams = {}, basePath }) {
-  const { me, departments, lead } = await getSalesAccess();
+  const { me, departments, lead, all } = await getSalesAccess();
 
   if (!departments.length) {
     return (
@@ -24,13 +24,60 @@ export default async function SalesPage({ searchParams = {}, basePath }) {
     );
   }
 
+  // руководству (админ, наблюдатель) первым пунктом — «Все отделы», пульт
+  const ownerMode = all && departments.length > 1;
   const remembered = cookies().get("sales_dept")?.value;
-  const dept =
-    departments.find((d) => d.id === searchParams.dept) ||
-    departments.find((d) => d.id === remembered) ||
-    departments[0];
+  const wanted = searchParams.dept || remembered || (ownerMode ? "all" : null);
+  const deptOptions = [
+    ...(ownerMode ? [{ id: "all", name: "Все отделы", color: null }] : []),
+    ...departments.map((d) => ({ id: d.id, name: d.name, color: d.color || null })),
+  ];
 
-  const deptOptions = departments.map((d) => ({ id: d.id, name: d.name }));
+  if (ownerMode && wanted === "all") {
+    if (!hasGoogleKey()) {
+      return (
+        <SalesDashboard basePath={basePath} departments={deptOptions} deptId="all" months={[]} view={null} lead={lead} meName={me?.name ?? null}
+          notice={{ title: "Ключ Google ещё не добавлен", hint: "Без него таблицы оплат не читаются." }} />
+      );
+    }
+    const loaded = await Promise.all(
+      departments.filter(isConnected).map(async (d) => {
+        try {
+          return { d, data: await getDepartmentMonths(d) };
+        } catch (e) {
+          console.error("sales owner", d.id, e.message);
+          return { d, data: null };
+        }
+      })
+    );
+    const keys = [...new Set(loaded.flatMap((x) => Object.keys(x.data?.months || {})))].sort().reverse();
+    const current = currentMonthKeyAlmaty();
+    const key = (searchParams.month && keys.includes(searchParams.month) && searchParams.month) || (keys.includes(current) ? current : keys[0]);
+    const labelOf = Object.fromEntries(loaded.flatMap((x) => Object.values(x.data?.months || {}).map((m) => [m.key, m.label])));
+    const teams = loaded.map(({ d, data }) => ({
+      id: d.id,
+      name: d.name,
+      color: d.color,
+      amo: hasAmo(d),
+      view: data?.months?.[key] ? buildMonthView(data.months, key) : null,
+    }));
+    return (
+      <SalesDashboard
+        basePath={basePath}
+        departments={deptOptions}
+        deptId="all"
+        months={keys.map((k) => ({ key: k, label: labelOf[k] }))}
+        monthKey={key}
+        view={null}
+        lead={lead}
+        meName={me?.name ?? null}
+        notice={null}
+        owner={{ teams, broken: teams.filter((t) => !t.view).map((t) => t.name) }}
+      />
+    );
+  }
+
+  const dept = departments.find((d) => d.id === wanted) || departments[0];
   const shell = (body) => (
     <SalesDashboard
       basePath={basePath}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { mln, money } from "@/lib/sales/format";
 
 // Общие кусочки экранов аналитики.
@@ -16,7 +16,7 @@ export function colorFor(name, people) {
 }
 
 export function Card({ children, className = "" }) {
-  return <section className={`bg-dark-800 border border-dark-700 rounded-2xl p-4 ${className}`}>{children}</section>;
+  return <section className={`sa-rise bg-dark-800 border border-dark-700 rounded-2xl p-4 ${className}`}>{children}</section>;
 }
 
 export function CardTitle({ children, hint }) {
@@ -59,7 +59,7 @@ export function Bars({ items, value = (it) => `${it.n} · ${mln(it.s)}`, measure
           </div>
           <div className="h-1.5 rounded-full bg-dark-700 mt-1 overflow-hidden">
             <span
-              className="block h-full rounded-full"
+              className="sa-grow block h-full rounded-full"
               style={{ width: `${(measure(it) / mx) * 100}%`, background: it.color || "rgb(var(--c-accent) / 0.7)" }}
             />
           </div>
@@ -134,7 +134,7 @@ export function Donut({ items, center, fmt = (v) => v, label }) {
   return (
     <div className="flex flex-col items-center gap-4">
       <svg viewBox="0 0 140 140" className="w-36 h-36 shrink-0" role="img" aria-label={label}>
-        <g transform="rotate(-90 70 70)">
+        <g transform="rotate(-90 70 70)" className="sa-fade">
         <circle cx="70" cy="70" r={R} fill="none" strokeWidth="16" style={{ stroke: "rgb(var(--c-line))" }} />
         {list.map((it) => {
           const len = (it.v / total) * C;
@@ -188,7 +188,7 @@ export function StackBar({ items, total, fmt = (v) => v }) {
   const T = total || items.reduce((a, i) => a + i.v, 0) || 1;
   return (
     <div>
-      <div className="flex h-2.5 rounded-full overflow-hidden bg-dark-700 gap-0.5">
+      <div className="sa-grow flex h-2.5 rounded-full overflow-hidden bg-dark-700 gap-0.5">
         {items
           .filter((i) => i.v > 0)
           .map((i) => (
@@ -255,8 +255,8 @@ export function CumChart({ cum, dim, plan, label, monthGen = "" }) {
         )}
         {cum.length > 0 && (
           <>
-            <path d={`${line}L${lx},${H}L0,${H}Z`} style={{ fill: "rgb(var(--c-accent) / 0.14)" }} />
-            <path d={line} fill="none" style={{ stroke: "rgb(var(--c-accent))" }} strokeWidth="2.2" strokeLinejoin="round" />
+            <path className="sa-fade" d={`${line}L${lx},${H}L0,${H}Z`} style={{ fill: "rgb(var(--c-accent) / 0.14)" }} />
+            <path className="sa-draw" pathLength="1" d={line} fill="none" style={{ stroke: "rgb(var(--c-accent))" }} strokeWidth="2.2" strokeLinejoin="round" />
             <circle cx={lx} cy={y(last)} r="4" style={{ fill: "rgb(var(--c-accent))", stroke: "rgb(var(--c-card))" }} strokeWidth="2" />
           </>
         )}
@@ -283,4 +283,26 @@ export function CumChart({ cum, dim, plan, label, monthGen = "" }) {
       </div>
     </div>
   );
+}
+
+// Крупная цифра «набегает» от нуля при появлении, как в дашборде.
+// На сервере и до запуска анимации показывается готовое значение.
+export function CountUp({ value, format = (v) => String(Math.round(v)), duration = 900 }) {
+  const [shown, setShown] = useState(value);
+  useEffect(() => {
+    if (typeof window === "undefined" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setShown(value);
+      return;
+    }
+    let raf;
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / duration);
+      setShown(value * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{format(shown)}</>;
 }

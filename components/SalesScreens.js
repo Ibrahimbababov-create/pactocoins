@@ -231,7 +231,7 @@ function StackedColumns({ days, people, label }) {
                 const h = (d.by[p] / mx) * (H - 14);
                 y -= h;
                 return (
-                  <rect key={p} x={x} y={y} width={bw} height={Math.max(h - 1, 1)} rx="2" style={{ fill: colorFor(p, people) }}>
+                  <rect className="sa-grow-y" key={p} x={x} y={y} width={bw} height={Math.max(h - 1, 1)} rx="2" style={{ fill: colorFor(p, people) }}>
                     <title>{`${d.label} — ${p}: ${d.by[p]}`}</title>
                   </rect>
                 );
@@ -352,7 +352,7 @@ function DailyBars({ days, lastDay, people }) {
                 const h = (d.by[p] / mx) * (H - 4);
                 y -= h;
                 return (
-                  <rect key={p} x={x} y={y} width={bw} height={Math.max(h - 1, 1)} rx="1.5" style={{ fill: colorFor(p, people) }}>
+                  <rect className="sa-grow-y" key={p} x={x} y={y} width={bw} height={Math.max(h - 1, 1)} rx="1.5" style={{ fill: colorFor(p, people) }}>
                     <title>{`${d.day} число — ${p}: ${money(d.by[p])}`}</title>
                   </rect>
                 );
@@ -684,7 +684,7 @@ function FactPlanColumns({ rows, people }) {
         const c = colorFor(r.name, people);
         return (
           <g key={r.name}>
-            <rect x={x} y={y(r.s)} width={bw} height={Math.max(H - y(r.s), 1)} rx="4" style={{ fill: c }}>
+            <rect className="sa-grow-y" x={x} y={y(r.s)} width={bw} height={Math.max(H - y(r.s), 1)} rx="4" style={{ fill: c }}>
               <title>{`${r.name}: ${mln(r.s)}${r.plan ? ` из ${mln(r.plan)}` : ""}`}</title>
             </rect>
             {r.plan > 0 && (
