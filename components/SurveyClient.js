@@ -60,6 +60,9 @@ export default function SurveyClient({ preview = false }) {
   const canNext = ok || (q.type === "text" && !q.required);
 
   const set = (id, v) => setAnswers((a) => ({ ...a, [id]: v }));
+  // Правки по предыдущему ответу считаем от свежего состояния, а не от
+  // того, что было на экране: два быстрых нажатия подряд не затрут друг друга.
+  const update = (id, fn) => setAnswers((a) => ({ ...a, [id]: fn(a[id]) }));
 
   // Ответ нажатием: записываем и через мгновение листаем дальше.
   const pick = (v) => {
@@ -218,10 +221,13 @@ export default function SurveyClient({ preview = false }) {
                   active={picked}
                   square
                   disabled={full}
-                  onClick={() => {
-                    const cur = Array.isArray(value) ? value : [];
-                    set(q.id, picked ? cur.filter((x) => x !== o) : [...cur, o]);
-                  }}
+                  onClick={() =>
+                    update(q.id, (v) => {
+                      const cur = Array.isArray(v) ? v : [];
+                      if (cur.includes(o)) return cur.filter((x) => x !== o);
+                      return cur.length >= q.max ? cur : [...cur, o];
+                    })
+                  }
                 >
                   {o}
                 </Choice>
@@ -264,7 +270,7 @@ export default function SurveyClient({ preview = false }) {
                       <button
                         key={n}
                         type="button"
-                        onClick={() => set(q.id, { ...(value ?? {}), [r.id]: n })}
+                        onClick={() => update(q.id, (v) => ({ ...(v ?? {}), [r.id]: n }))}
                         className={`flex-1 h-10 rounded-lg border text-sm font-bold tabular-nums transition ${
                           v === n
                             ? "bg-acid-400 border-acid-400 text-black"
@@ -276,7 +282,7 @@ export default function SurveyClient({ preview = false }) {
                     ))}
                     <button
                       type="button"
-                      onClick={() => set(q.id, { ...(value ?? {}), [r.id]: 0 })}
+                      onClick={() => update(q.id, (v) => ({ ...(v ?? {}), [r.id]: 0 }))}
                       className={`shrink-0 h-10 px-2.5 rounded-lg border text-[11px] leading-tight transition ${
                         v === 0
                           ? "bg-dark-600 border-gray-500 text-white"
