@@ -26,6 +26,8 @@ import { getFeaturedTournament } from "@/lib/tournamentView";
 import TournamentHomeCard from "@/components/TournamentHomeCard";
 import ChestCard from "@/components/Chest";
 import { getPendingChest, chestEligible } from "@/lib/chest";
+import { showSurveyCard } from "@/lib/survey";
+import SurveyPromoCard from "@/components/SurveyPromoCard";
 
 export default async function MopDashboard() {
   const supabase = createClient();
@@ -58,6 +60,7 @@ export default async function MopDashboard() {
     monthTier,
     tournament,
     chest,
+    surveyForMe,
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", viewId).single(),
     supabase
@@ -110,6 +113,8 @@ export default async function MopDashboard() {
     getFeaturedTournament(createAdminClient(), { id: viewId }).catch(() => null),
     // Сундук открывает только сам человек, не админ в режиме просмотра.
     viewId === user.id ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
+    // Опрос команды: карточка, пока он открыт и человек его не прошёл.
+    viewId === user.id ? showSurveyCard(createAdminClient(), user.id) : false,
   ]);
 
   const hasPending =
@@ -201,6 +206,8 @@ export default async function MopDashboard() {
       </div>
 
       {chestEligible(profile) && <ChestCard chest={chest} />}
+
+      {surveyForMe && <SurveyPromoCard dismissible />}
 
       {isTrainee && (
         <OnboardingTrainee days={onboardingDays ?? []} ropName={ropName} />

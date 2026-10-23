@@ -82,7 +82,7 @@ export default function SurveyClient({ preview = false }) {
   const send = () =>
     start(async () => {
       setError(null);
-      const res = await submitSurvey(answers);
+      const res = preview ? { ok: true, preview: true } : await submitSurvey(answers);
       if (res?.error) return setError(res.error);
       try {
         localStorage.removeItem(DRAFT_KEY);

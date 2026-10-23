@@ -121,7 +121,7 @@ export default function SurveyResultsClient({ open, responses, done, staff }) {
           <div>
             <p className="font-semibold">{open ? "Опрос открыт" : "Опрос закрыт"}</p>
             <p className="text-xs text-gray-500">
-              {open ? "Команда видит его в «Ещё» и может пройти." : "Команда пока не видит его. Ты можешь пройти понарошку."}
+              {open ? "Команда видит его на главной и в «Ещё» и может пройти." : "Команда пока не видит его. Ты можешь пройти первым, по-настоящему."}
             </p>
           </div>
           <button
@@ -161,6 +161,12 @@ export default function SurveyResultsClient({ open, responses, done, staff }) {
           >
             {copied === "link" ? "Скопировано" : "Скопировать ссылку"}
           </button>
+          <Link href="/mop/survey" className="rounded-lg border border-acid-400/40 px-3 py-2 text-xs text-acid-400">
+            Пройти самому
+          </Link>
+          <Link href="/mop/survey?preview=1" className="rounded-lg border border-dark-600 px-3 py-2 text-xs text-gray-300">
+            Посмотреть понарошку
+          </Link>
           <Link href="/admin/broadcast" className="rounded-lg border border-dark-600 px-3 py-2 text-xs text-gray-300">
             Разослать с кнопкой «Пройти опрос»
           </Link>

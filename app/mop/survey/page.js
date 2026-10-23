@@ -18,7 +18,7 @@ function Notice({ icon = "lock", title, text }) {
   );
 }
 
-export default async function SurveyPage() {
+export default async function SurveyPage({ searchParams }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -31,20 +31,32 @@ export default async function SurveyPage() {
     .eq("id", user.id)
     .single();
 
-  // Админ и гость могут пройти опрос «понарошку»: посмотреть, как он выглядит.
-  const preview = me?.role === "admin" || Boolean(me?.is_guest);
+  const isAdmin = me?.role === "admin";
+  const open = (await getSurveyConfig(admin)).open;
+  // Гость смотрит опрос понарошку. Админ отвечает по-настоящему, даже пока
+  // опрос закрыт для команды, а «понарошку» открывает через ?preview=1.
+  const preview = Boolean(me?.is_guest) || (isAdmin && searchParams?.preview === "1");
 
   let body;
   if (preview) {
     body = <SurveyClient preview />;
   } else if (!chestEligible(me)) {
     body = <Notice title="Опрос для команды" text="Он открывается только сотрудникам." />;
-  } else if (!(await getSurveyConfig(admin)).open) {
+  } else if (!isAdmin && !open) {
     body = <Notice icon="clock" title="Опрос пока закрыт" text="Когда он откроется, бот пришлёт сообщение." />;
   } else if (await hasDone(admin, me.id)) {
     body = <Notice icon="check" title="Ты уже прошёл опрос" text="Спасибо, ответы учтены. Фишки у тебя на балансе." />;
   } else {
-    body = <SurveyClient />;
+    body = (
+      <>
+        {isAdmin && !open && (
+          <p className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3.5 py-2.5 text-xs text-amber-300">
+            Для команды опрос пока закрыт. Ты проходишь его первым: ответы сохранятся и фишки начислятся по-настоящему.
+          </p>
+        )}
+        <SurveyClient />
+      </>
+    );
   }
 
   return (

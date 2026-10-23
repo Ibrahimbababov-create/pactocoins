@@ -27,12 +27,15 @@ export async function submitSurvey(rawAnswers) {
     .single();
   if (!me) return { error: "Не авторизован" };
 
-  // Админ и гость смотрят, как это выглядит: ничего не сохраняем и ничего
-  // не начисляем, чтобы пробы не портили результаты.
-  if (me.role === "admin" || me.is_guest) return { ok: true, preview: true };
+  // Гость смотрит, как это выглядит: ничего не сохраняем и не начисляем.
+  if (me.is_guest) return { ok: true, preview: true };
 
   if (!chestEligible(me)) return { error: "Опрос для сотрудников команды" };
-  if (!(await getSurveyConfig(admin)).open) return { error: "Опрос сейчас закрыт" };
+  // Админ отвечает по-настоящему и пока опрос закрыт для команды: так он
+  // проходит первым, проверяет путь и только потом открывает остальным.
+  if (me.role !== "admin" && !(await getSurveyConfig(admin)).open) {
+    return { error: "Опрос сейчас закрыт" };
+  }
 
   const checked = validateAnswers(rawAnswers);
   if (checked.error) return { error: checked.error };

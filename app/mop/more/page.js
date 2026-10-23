@@ -6,10 +6,8 @@ import LogoutButton from "@/components/LogoutButton";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { WhatsNewButton } from "@/components/WhatsNew";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { chestEligible } from "@/lib/chest";
-import { getSurveyConfig, hasDone } from "@/lib/survey";
-import { SURVEY_REWARD_CHIPS, SURVEY_MINUTES } from "@/lib/surveyQuestions";
-import { chipsNom } from "@/lib/plural";
+import { showSurveyCard } from "@/lib/survey";
+import SurveyPromoCard from "@/components/SurveyPromoCard";
 
 // Длинные подписи — только для этого экрана, короткие живут в lib/roles.js
 const ROLE_LABELS = {
@@ -46,13 +44,7 @@ export default async function MorePage() {
   const role = effectiveRole(watching ? "admin" : profile?.role);
 
   // Опрос команды: карточка наверху, пока он открыт, а человек его не прошёл.
-  let showSurvey = false;
-  if (!watching && chestEligible(profile) && profile?.role !== "admin") {
-    try {
-      const adm = createAdminClient();
-      if ((await getSurveyConfig(adm)).open) showSurvey = !(await hasDone(adm, user.id));
-    } catch {}
-  }
+  const showSurvey = !watching && (await showSurveyCard(createAdminClient(), user.id));
 
   const { data: rop } = profile?.rop_id
     ? await supabase.from("users").select("name").eq("id", profile.rop_id).single()
@@ -138,23 +130,7 @@ export default async function MorePage() {
         <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
       </Link>
 
-      {showSurvey && (
-        <Link
-          href="/mop/survey"
-          className="flex items-center gap-3.5 rounded-2xl border border-acid-400/40 bg-gradient-to-br from-acid-400/15 to-dark-800 p-4 active:opacity-80 transition"
-        >
-          <span className="flex items-center justify-center w-12 h-12 shrink-0 rounded-xl bg-acid-400 text-black">
-            <Icon name="sparkle" className="w-6 h-6" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-bold">Опрос команды</span>
-            <span className="block text-sm text-gray-400">
-              {SURVEY_MINUTES} минуты, +{SURVEY_REWARD_CHIPS} {chipsNom(SURVEY_REWARD_CHIPS)} за ответы
-            </span>
-          </span>
-          <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
-        </Link>
-      )}
+      {showSurvey && <SurveyPromoCard />}
 
       {groups.map((group, gi) => (
         <div key={gi} className="space-y-1">
