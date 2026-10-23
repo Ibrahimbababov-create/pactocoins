@@ -164,6 +164,7 @@ export default function BroadcastClient({ employees = [] }) {
           <option value="shop">Открыть магазин</option>
           <option value="rating">Открыть рейтинг</option>
           <option value="games">Открыть игры</option>
+          <option value="survey">Пройти опрос</option>
           <option value="app">Открыть PactoCoins</option>
         </select>
       </label>

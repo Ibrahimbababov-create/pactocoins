@@ -40,6 +40,7 @@ const BROADCAST_BUTTONS = {
   shop: { label: "Открыть магазин", path: "/mop/shop" },
   rating: { label: "Открыть рейтинг", path: "/mop/rating" },
   games: { label: "Открыть игры", path: "/mop/games" },
+  survey: { label: "Пройти опрос", path: "/mop/survey" },
   app: { label: "Открыть PactoCoins", path: "" },
 };
 

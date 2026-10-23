@@ -9,6 +9,7 @@ import Icon from "@/components/Icon";
 
 const ITEMS = [
   { href: "/admin/attendance", label: "Приход вовремя", icon: "clock" },
+  { href: "/admin/survey", label: "Опрос команды", icon: "chart" },
   { href: "/admin/wheel", label: "Колесо фортуны", icon: "wheel" },
   { href: "/admin/tournaments", label: "Турниры", icon: "trophy" },
   { href: "/admin/broadcast", label: "Рассылка", icon: "megaphone" },
