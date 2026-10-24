@@ -5,6 +5,10 @@ import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { sendTelegramDocument } from "@/lib/telegramBot";
 import { cleanupOldWelcomes } from "@/lib/groupWelcome";
+import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
+import { syncBotCommands } from "@/lib/botCommands";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { sweepTournaments } from "@/lib/tournament";
 import {
   isMondayInAlmaty,
   isFirstOfMonthInAlmaty,
@@ -42,6 +46,21 @@ export async function GET(request) {
     console.error("[cron] welcome cleanup failed:", err);
   }
 
+  // Меню команд бота держим в актуальном виде (lib/botCommands.js).
+  try {
+    summary.botCommands = (await syncBotCommands())?.ok ?? false;
+  } catch (err) {
+    console.error("[cron] bot commands sync failed:", err);
+  }
+
+  // Турниры: «моя победа» без ответа соперника в срок засчитывается сама.
+  // Обычно это происходит при открытии турнира; крон — страховка.
+  try {
+    summary.tournaments = await sweepTournaments(createAdminClient(), { limit: 100 });
+  } catch (err) {
+    console.error("[cron] tournaments sweep failed:", err);
+  }
+
   try {
     await resetGuestAccount();
     summary.guestReset = true;
@@ -77,6 +96,15 @@ export async function GET(request) {
       summary.weeklyReportSent = true;
     } catch (err) {
       console.error("[cron] weekly report failed:", err);
+    }
+  }
+
+  // Итоги недели лично каждому, у кого были оплаты (без звука — 00:05).
+  if (isMondayInAlmaty()) {
+    try {
+      summary.weeklyRatingSummaries = await sendWeeklyRatingSummary(createAdminClient());
+    } catch (err) {
+      console.error("[cron] weekly rating summary failed:", err);
     }
   }
 

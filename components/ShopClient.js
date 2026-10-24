@@ -117,7 +117,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
           onClick={() => setOpen(true)}
           className="mt-3 w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs border border-acid-400 bg-acid-400/15 text-acid-400 font-bold"
         >
-          <span className="truncate">{variant?.label}</span>
+          <span className="min-w-0 text-left leading-tight">{variant?.label}</span>
           <span className="flex items-center gap-1 shrink-0">
             <span className="tabular-nums font-display">{fmtCoins(variant?.price_coins)}</span>
             <Icon name="chevronDown" className="w-3.5 h-3.5" />
@@ -148,7 +148,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
                   : "border-dark-600 text-gray-400 hover:border-dark-500"
               }`}
             >
-              <span className="flex items-center gap-1.5 truncate">
+              <span className="flex items-center gap-1.5 min-w-0">
                 <span
                   className={`w-3.5 h-3.5 rounded-full border shrink-0 flex items-center justify-center ${
                     active ? "border-acid-400 bg-acid-400" : "border-dark-500"
@@ -156,7 +156,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
                 >
                   {active && <Icon name="check" className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
                 </span>
-                <span className="truncate">{v.label}</span>
+                <span className="min-w-0 text-left leading-tight">{v.label}</span>
               </span>
               <span className="shrink-0 tabular-nums font-display font-medium">{fmtCoins(v.price_coins)}</span>
             </button>
@@ -218,8 +218,8 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
   );
 }
 
-function SuggestForm({ onDone }) {
-  const [open, setOpen] = useState(false);
+function SuggestForm({ onDone, initiallyOpen = false }) {
+  const [open, setOpen] = useState(initiallyOpen);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
@@ -361,13 +361,16 @@ export default function ShopClient({ grouped, balance }) {
   // Из «Ещё» человек приходит сюда ради формы «Предложить награду», а она
   // в самом низу. Якорь в ссылке не работает: список товаров дорисовывается
   // уже после загрузки и утягивает страницу обратно наверх.
+  // Плавная прокрутка через весь каталог (16 000 px) шла ~2 секунды с
+  // пустыми кадрами — прыгаем сразу, и форма уже раскрыта.
+  const fromSuggestLink = searchParams.get("suggest") === "1";
   useEffect(() => {
-    if (searchParams.get("suggest") !== "1") return;
+    if (!fromSuggestLink) return;
     const t = setTimeout(() => {
-      suggestRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      suggestRef.current?.scrollIntoView({ behavior: "auto", block: "center" });
     }, 350);
     return () => clearTimeout(t);
-  }, [searchParams]);
+  }, [fromSuggestLink]);
 
   // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер
   const filteredGrouped = useMemo(() => {
@@ -833,6 +836,7 @@ export default function ShopClient({ grouped, balance }) {
 
       <div id="suggest" ref={suggestRef} className="scroll-mt-16">
         <SuggestForm
+          initiallyOpen={fromSuggestLink}
           onDone={() => {
             setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
             setTimeout(() => setMessage(null), 3000);

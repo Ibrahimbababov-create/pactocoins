@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import RevenueRequestsClient from "@/components/RevenueRequestsClient";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { forecastRevenueCoins } from "@/lib/revenueForecast";
 
 const HISTORY_PAGE = 20;
 
@@ -28,11 +30,18 @@ export default async function RevenueRequestsPage() {
         .neq("status", "pending"),
     ]);
 
+  // Для очереди — сколько реально начислится по шкале месяца.
+  const forecast = await forecastRevenueCoins(createAdminClient(), pending);
+  const pendingWithForecast = (pending ?? []).map((r) => ({
+    ...r,
+    forecast_coins: forecast[r.id] ?? null,
+  }));
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-display font-bold">Заявки на выручку</h1>
       <RevenueRequestsClient
-        requests={[...(pending ?? []), ...(history ?? [])]}
+        requests={[...pendingWithForecast, ...(history ?? [])]}
         historyTotal={historyCount ?? 0}
         historyPageSize={HISTORY_PAGE}
       />

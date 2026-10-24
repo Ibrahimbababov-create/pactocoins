@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useTransition, useState } from "react";
 import CancelWithReason from "@/components/CancelWithReason";
 import { loadRequestHistory } from "@/app/admin/historyActions";
@@ -15,10 +17,10 @@ import {
   manualAdjustBalanceBulkExempt,
   approveBonusRequestExempt,
 } from "@/app/admin/ratingExemptActions";
-import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import { BONUS_CATEGORIES, bonusRewardText } from "@/lib/bonusCategories";
 import EmployeePicker from "@/components/EmployeePicker";
 import TopBonus from "@/components/TopBonus";
-import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
+import { WEEKLY_TOP } from "@/lib/topBonusConfig";
 
 const statusLabels = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -30,7 +32,6 @@ export default function BonusRequestsClient({
   requests,
   employees,
   weekVariants = [],
-  monthVariants = [],
   historyTotal = 0,
   historyPageSize = 20,
 }) {
@@ -45,7 +46,9 @@ export default function BonusRequestsClient({
   const [comments, setComments] = useState({});
 
   // Одному участнику
-  const [singleUserId, setSingleUserId] = useState(employees[0]?.id ?? "");
+  // Никого не выбираем заранее: раньше стоял первый по списку, и коины
+  // уходили ему, если админ забывал выбрать человека.
+  const [singleUserId, setSingleUserId] = useState("");
   const [singleAmount, setSingleAmount] = useState("");
   const [singleReason, setSingleReason] = useState("");
   const [singleExempt, setSingleExempt] = useState(false);
@@ -114,7 +117,7 @@ export default function BonusRequestsClient({
   }
 
   function handleCancelApproved(id, comment) {
-    if (!window.confirm("Отменить одобренную заявку? Coins (или крутка) спишутся обратно.")) return;
+    if (!window.confirm("Отменить одобренную заявку? Коины (или крутка) спишутся обратно.")) return;
 
     startTransition(async () => {
       const res = await cancelApprovedBonusRequest(id, comment);
@@ -170,7 +173,14 @@ export default function BonusRequestsClient({
   function handleSingleSubmit(e) {
     e.preventDefault();
     const amount = Number(singleAmount);
-    if (!singleUserId || !amount) return;
+    if (!singleUserId) {
+      showMessage("Выбери сотрудника", "error");
+      return;
+    }
+    if (!amount) return;
+    const who = employees.find((x) => x.id === singleUserId)?.name ?? "сотруднику";
+    const what = amount > 0 ? `Начислить ${formatCoins(amount)}` : `Списать ${formatCoins(-amount)}`;
+    if (!window.confirm(`${what}: ${who}?`)) return;
 
     startTransition(async () => {
       const res = await manualAdjustBalanceExempt(
@@ -199,6 +209,8 @@ export default function BonusRequestsClient({
     e.preventDefault();
     const amount = Number(bulkAmount);
     if (selectedEmployeeIds.length === 0 || !amount) return;
+    const what = amount > 0 ? `Начислить по ${formatCoins(amount)}` : `Списать по ${formatCoins(-amount)}`;
+    if (!window.confirm(`${what}, людей: ${selectedEmployeeIds.length}?`)) return;
 
     startTransition(async () => {
       const res = await manualAdjustBalanceBulkExempt(
@@ -232,18 +244,12 @@ export default function BonusRequestsClient({
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid gap-4">
         <TopBonus
-          title="🏆 Топ-3 · неделя"
+          title="Топ-3 · неделя"
           variants={weekVariants}
           min={WEEKLY_TOP.min}
           defaults={WEEKLY_TOP.prizes.map(String)}
-        />
-        <TopBonus
-          title="🏆 Топ-3 · месяц"
-          variants={monthVariants}
-          min={MONTHLY_TOP.min}
-          defaults={MONTHLY_TOP.prizes.map(String)}
         />
       </div>
 
@@ -265,7 +271,7 @@ export default function BonusRequestsClient({
             type="number"
             value={singleAmount}
             onChange={(e) => setSingleAmount(e.target.value)}
-            placeholder="Количество coins (можно минус)"
+            placeholder="Количество коинов (можно минус)"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
           />
           <input
@@ -310,7 +316,7 @@ export default function BonusRequestsClient({
             type="number"
             value={bulkAmount}
             onChange={(e) => setBulkAmount(e.target.value)}
-            placeholder="Количество coins (можно минус)"
+            placeholder="Количество коинов (можно минус)"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
           />
           <input
@@ -401,7 +407,7 @@ export default function BonusRequestsClient({
                 <p className="text-sm">
                   {BONUS_CATEGORIES[r.category]?.label ?? r.category} →{" "}
                   <span className="text-acid-400 font-bold">
-                    {r.amount_coins.toLocaleString("ru-RU")} коинов
+                    {bonusRewardText(r)}
                   </span>
                 </p>
                 {r.comment && (
@@ -412,7 +418,7 @@ export default function BonusRequestsClient({
                   onChange={(e) =>
                     setComments((prev) => ({ ...prev, [r.id]: e.target.value }))
                   }
-                  placeholder="💬 Комментарий сотруднику (необязательно)"
+                  placeholder="Комментарий сотруднику (необязательно)"
                   className="mt-2 w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
                 />
               </div>
@@ -456,7 +462,7 @@ export default function BonusRequestsClient({
                   </p>
                   <p className="text-sm text-gray-500">
                     {BONUS_CATEGORIES[r.category]?.label ?? r.category} ·{" "}
-                    {r.amount_coins.toLocaleString("ru-RU")} коинов
+                    {bonusRewardText(r)}
                   </p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full ${meta.color}`}>

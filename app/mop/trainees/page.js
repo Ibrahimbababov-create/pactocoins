@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { effectiveUserId } from "@/lib/viewAs";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
 import TraineeProjectPicker from "@/components/TraineeProjectPicker";
+import TraineeControls from "@/components/TraineeControls";
 
 // Экран наставника: его стажёры и то, на каком они дне.
 export default async function TraineesPage() {
@@ -25,9 +28,10 @@ export default async function TraineesPage() {
       supabase
         .from("users")
         .select(
-          "id, name, created_at, project_id, is_active, projects!users_project_id_fkey(name)"
+          "id, name, role, mentor_id, created_at, project_id, is_active, projects!users_project_id_fkey(name)"
         )
-        .eq("mentor_id", user.id)
+        .or(`role.eq.trainee,mentor_id.eq.${user.id}`)
+        .eq("is_active", true)
         .order("created_at", { ascending: false }),
       supabase
         .from("onboarding_blocks")
@@ -41,7 +45,25 @@ export default async function TraineesPage() {
         .order("name"),
     ]);
 
-  const traineeIds = new Set((trainees ?? []).map((t) => t.id));
+  // Кто ещё учится, а кто уже вышел в менеджеры. Выпустившиеся не должны
+  // висеть в списке стажёров вечно — но и пропадать бесследно тоже.
+  // Экран наставника. Раньше чужие стажёры сюда не попадали в принципе,
+  // теперь попадают — значит нужна явная проверка роли, иначе список
+  // новичков увидит любой, кто наберёт адрес руками.
+  if (me?.role !== "mentor" && me?.role !== "admin") redirect("/mop");
+
+  // Если админ смотрит глазами наставника — показываем его стажёров,
+  // а не пустой список: своих стажёров у админа нет.
+  const mentorId = effectiveUserId(me?.role, user.id);
+
+  const all = trainees ?? [];
+  const learning = all.filter((t) => t.role === "trainee" && t.mentor_id === mentorId);
+  const graduated = all.filter((t) => t.role !== "trainee" && t.mentor_id === mentorId);
+  // Новички, которых ведёт кто-то другой или никто: при регистрации легко
+  // промахнуться, поэтому наставник может забрать такого себе.
+  const others = all.filter((t) => t.role === "trainee" && t.mentor_id !== mentorId);
+
+  const traineeIds = new Set(all.map((t) => t.id));
   const dayOfBlock = Object.fromEntries((blocks ?? []).map((b) => [b.id, b.day]));
 
   const totalByDay = {};
@@ -68,7 +90,7 @@ export default async function TraineesPage() {
         </p>
       </div>
 
-      {(trainees ?? []).length === 0 && (
+      {learning.length === 0 && (
         <EmptyState
           icon="users"
           title="Стажёров пока нет"
@@ -76,7 +98,7 @@ export default async function TraineesPage() {
         />
       )}
 
-      {(trainees ?? []).map((t) => {
+      {learning.map((t) => {
         const done = doneByUser[t.id] ?? {};
         const allDone = days.every((d) => (done[d] ?? 0) >= totalByDay[d]);
 
@@ -127,6 +149,8 @@ export default async function TraineesPage() {
               projects={projects ?? []}
             />
 
+            <TraineeControls traineeId={t.id} mine />
+
             <Link
               href={`/messages/${t.id}`}
               className="flex items-center justify-center gap-2 text-sm text-gray-300 border border-dark-600 rounded-xl py-2.5 active:opacity-60"
@@ -137,6 +161,42 @@ export default async function TraineesPage() {
           </div>
         );
       })}
+
+      {others.length > 0 && (
+        <div className="pt-4 space-y-3">
+          <div>
+            <h2 className="text-lg font-display font-bold">Остальные стажёры</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Их ведёт кто-то другой или пока никто. Можешь забрать себе.
+            </p>
+          </div>
+          {others.map((t) => (
+            <div
+              key={t.id}
+              className="bg-dark-800 border border-dark-700 rounded-2xl p-4 space-y-3"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 shrink-0 rounded-full bg-dark-700 flex items-center justify-center font-display font-bold text-gray-400">
+                  {t.name.trim().charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold truncate">{t.name}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {t.projects?.name ?? "проект не выбран"}
+                  </p>
+                </div>
+              </div>
+              <TraineeControls traineeId={t.id} mine={false} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {graduated.length > 0 && (
+        <p className="text-xs text-gray-600 pt-2">
+          Выпустились и работают: {graduated.map((g) => g.name).join(", ")}
+        </p>
+      )}
     </div>
   );
 }

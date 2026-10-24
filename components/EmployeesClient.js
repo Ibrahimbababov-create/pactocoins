@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import { roleLabel } from "@/lib/roles";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import {
+  grantWheelSpins,
   createMop,
   updateMop,
   manualAdjustBalance,
@@ -41,6 +43,8 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [adjustingId, setAdjustingId] = useState(null);
+  const [adjustSpins, setAdjustSpins] = useState("");
+  const [spinsForId, setSpinsForId] = useState(null);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [message, setMessage] = useState(null);
@@ -99,6 +103,25 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
         showMessage("Обновлено");
         setEditingId(null);
       }
+    });
+  }
+
+  // Крутки живут отдельно от коинов: баланс не трогают, поэтому и
+  // выдаются своей кнопкой, а не через «Начислить».
+  function handleSpins(userId, sign) {
+    const count = Number(adjustSpins) * sign;
+    if (!count) return showMessage("Сколько круток?", "error");
+
+    startTransition(async () => {
+      const res = await grantWheelSpins(userId, count, adjustReason);
+      if (res?.error) return showMessage(res.error, "error");
+      showMessage(
+        sign > 0
+          ? `Крутки выданы, теперь у него ${res.spins}`
+          : `Крутки сняты, осталось ${res.spins}`
+      );
+      setAdjustSpins("");
+      setAdjustReason("");
     });
   }
 
@@ -238,6 +261,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
             <option value="mop">МОП</option>
             <option value="trainee">Стажёр</option>
             <option value="rop">РОП</option>
+            <option value="mentor">Наставник</option>
             <option value="admin">Админ</option>
             <option value="observer">Наблюдатель</option>
           </select>
@@ -401,7 +425,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                   <p className="font-semibold">
                     {u.name}{" "}
                     <span className="text-xs text-gray-500">
-                      ({u.role === "admin" ? "админ" : u.role === "observer" ? "наблюдатель" : u.role === "rop" ? "РОП" : u.role === "trainee" ? "стажёр" : "МОП"})
+                      ({roleLabel(u.role)})
                       {Number(u.coin_rate_multiplier) !== 1 && (
                         <span className="text-acid-400"> · x{u.coin_rate_multiplier}</span>
                       )}
@@ -440,8 +464,9 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                     {u.month_earned.toLocaleString("ru-RU")}
                   </p>
                   {u.goal ? (
-                    <span className="inline-block mt-1.5 text-xs bg-acid-400/10 text-acid-400 px-2 py-0.5 rounded-full">
-                      🎯 {u.goal.rewards?.title ?? "награда"} ·{" "}
+                    <span className="inline-flex items-center gap-1 mt-1.5 text-xs bg-acid-400/10 text-acid-400 px-2 py-0.5 rounded-full">
+                      <Icon name="target" className="w-3 h-3 shrink-0" />
+                      {u.goal.rewards?.title ?? "награда"} ·{" "}
                       {Math.min(
                         100,
                         Math.round((u.balance / u.goal.target_amount) * 100)
@@ -475,13 +500,22 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                   >
                     Баланс
                   </button>
+                  <button
+                    onClick={() =>
+                      setSpinsForId(spinsForId === u.id ? null : u.id)
+                    }
+                    className="text-xs bg-dark-700 rounded-lg px-3 py-1.5"
+                  >
+                    Крутки{(u.wheel_spins ?? 0) > 0 ? ` · ${u.wheel_spins}` : ""}
+                  </button>
                   {u.role === "trainee" && u.is_active && (
                     <button
                       onClick={() => handleGraduate(u.id, u.name)}
                       disabled={isPending}
-                      className="text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
+                      className="flex items-center gap-1 text-xs font-bold bg-acid-400 text-black rounded-lg px-3 py-1.5"
                     >
-                      🎓 Допустить
+                      <Icon name="award" className="w-3.5 h-3.5" />
+                      Допустить
                     </button>
                   )}
                   <button
@@ -521,13 +555,52 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
               </div>
             )}
 
+            {spinsForId === u.id && (
+              <div className="border-t border-dark-600 pt-3 space-y-2">
+                <p className="text-[11px] text-gray-500">
+                  Крутки колеса считаются отдельно от коинов. Сейчас у него:{" "}
+                  <span className="text-gray-300">{u.wheel_spins ?? 0}</span>
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={adjustSpins}
+                    onChange={(e) => setAdjustSpins(e.target.value)}
+                    placeholder="Сколько круток"
+                    className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                  <button
+                    onClick={() => handleSpins(u.id, 1)}
+                    disabled={isPending}
+                    className="bg-acid-400/15 text-acid-400 font-bold rounded-lg px-3 py-2 text-sm"
+                  >
+                    + Выдать
+                  </button>
+                  <button
+                    onClick={() => handleSpins(u.id, -1)}
+                    disabled={isPending}
+                    className="bg-red-500/10 text-red-400 rounded-lg px-3 py-2 text-sm"
+                  >
+                    −
+                  </button>
+                </div>
+                <input
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  placeholder="За что (уйдёт ему в сообщении)"
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+                />
+              </div>
+            )}
+
             {adjustingId === u.id && (
               <div className="border-t border-dark-600 pt-3 space-y-2">
                 <input
                   type="number"
                   value={adjustAmount}
                   onChange={(e) => setAdjustAmount(e.target.value)}
-                  placeholder="Количество coins"
+                  placeholder="Количество коинов"
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 />
                 <input
@@ -552,6 +625,7 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                     − Списать
                   </button>
                 </div>
+
               </div>
             )}
                   </div>

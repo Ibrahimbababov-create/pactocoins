@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// Колесо переехало во вкладку «Игры» (там же будущие мини-игры и сундук дня).
+// Колесо живёт внутри вкладки «Игры»: /mop/games/wheel.
 export default function WheelRedirect() {
-  redirect("/mop/games");
+  redirect("/mop/games/wheel");
 }

@@ -3,11 +3,20 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LogoutButton from "@/components/LogoutButton";
+import { effectiveRole, resolveViewer } from "@/lib/viewAs";
+import { WhatsNewButton } from "@/components/WhatsNew";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { showSurveyCard } from "@/lib/survey";
+import SurveyPromoCard from "@/components/SurveyPromoCard";
 
+// Длинные подписи — только для этого экрана, короткие живут в lib/roles.js
 const ROLE_LABELS = {
   mop: "Менеджер отдела продаж",
   rop: "Руководитель отдела продаж",
+  mentor: "Наставник",
   trainee: "Стажёр",
+  observer: "Наблюдатель",
+  admin: "Админ",
 };
 
 export default async function MorePage() {
@@ -16,11 +25,14 @@ export default async function MorePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // В режиме просмотра показываем карточку того, чьими глазами смотрим.
+  const { viewId, watching } = await resolveViewer(supabase, user.id);
+
   const [{ data: profile }, { count: unreadCount }] = await Promise.all([
     supabase
       .from("users")
-      .select("name, role, rop_id, is_guest")
-      .eq("id", user.id)
+      .select("name, role, rop_id, is_guest, is_active, email")
+      .eq("id", viewId)
       .single(),
     supabase
       .from("messages")
@@ -29,7 +41,10 @@ export default async function MorePage() {
       .is("read_at", null),
   ]);
 
-  const role = profile?.role;
+  const role = effectiveRole(watching ? "admin" : profile?.role);
+
+  // Опрос команды: карточка наверху, пока он открыт, а человек его не прошёл.
+  const showSurvey = !watching && (await showSurveyCard(createAdminClient(), user.id));
 
   const { data: rop } = profile?.rop_id
     ? await supabase.from("users").select("name").eq("id", profile.rop_id).single()
@@ -48,7 +63,13 @@ export default async function MorePage() {
           label: "Предложить награду",
           icon: "sparkle",
         },
-      ],
+        // У РОПа и наставника нет вкладки «Игры» внизу — вход в игры и турниры здесь.
+        (role === "rop" || role === "mentor") && {
+          href: "/mop/games",
+          label: "Игры и турниры",
+          icon: "trophy",
+        },
+      ].filter(Boolean),
     },
     {
       title: "Работа",
@@ -61,12 +82,18 @@ export default async function MorePage() {
         role !== "trainee" && {
           href: "/mop/materials",
           label: "Регламенты и обучение",
-          icon: "sparkle",
+          icon: "book",
         },
-        role === "rop" && {
+        (role === "rop" || role === "mentor") && {
           href: "/mop/onboarding-materials",
           label: "Материалы стажёрам",
           icon: "sparkle",
+        },
+        // РОП сверяет таблицы своей команды с PactoCoins
+        role === "rop" && {
+          href: "/admin/reconcile",
+          label: "Сверка с таблицами",
+          icon: "check",
         },
         {
           href: "/messages",
@@ -108,6 +135,8 @@ export default async function MorePage() {
         <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
       </Link>
 
+      {showSurvey && <SurveyPromoCard />}
+
       {groups.map((group, gi) => (
         <div key={gi} className="space-y-1">
           {group.title && (
@@ -133,6 +162,12 @@ export default async function MorePage() {
           </div>
         </div>
       ))}
+
+      <WhatsNewButton className="w-full flex items-center gap-3 py-3.5 text-left active:opacity-60 transition border-t border-dark-700">
+        <Icon name="sparkle" className="w-5 h-5 shrink-0 text-acid-400" />
+        <span className="flex-1">Что нового в PactoCoins</span>
+        <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
+      </WhatsNewButton>
 
       <AddToHomeScreen />
 

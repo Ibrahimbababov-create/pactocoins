@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useTransition, useState } from "react";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
@@ -87,7 +89,7 @@ export default function PurchaseRequestsClient({ purchases }) {
                     : p.users?.role === "observer"
                     ? " (наблюдатель)"
                     : ""}{" "}
-                  · {p.price_coins.toLocaleString("ru-RU")} коинов
+                  · {formatCoins(p.price_coins)}
                   {p.kzt_amount ? ` · ${p.kzt_amount.toLocaleString("ru-RU")} ₸` : ""}
                 </p>
                 <p className="text-xs text-gray-600">
@@ -103,18 +105,24 @@ export default function PurchaseRequestsClient({ purchases }) {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {currentStatus !== "rejected" && (
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="₸ потрачено в магазине"
-                    defaultValue={p.actual_kzt_amount ?? ""}
-                    onBlur={(e) => {
-                      const raw = e.target.value;
-                      if (String(p.actual_kzt_amount ?? "") === raw) return;
-                      handleSpendSave(p.id, raw);
-                    }}
-                    className="w-36 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs"
-                  />
+                  // Подпись снаружи: подсказка внутри поля пропадала, как
+                  // только там появлялась сумма, и было непонятно, что за число.
+                  <label className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                    Потрачено, ₸
+                    <input
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      placeholder="0"
+                      defaultValue={p.actual_kzt_amount ?? ""}
+                      onBlur={(e) => {
+                        const raw = e.target.value;
+                        if (String(p.actual_kzt_amount ?? "") === raw) return;
+                        handleSpendSave(p.id, raw);
+                      }}
+                      className="w-28 bg-dark-900 border border-dark-600 rounded-lg px-2 py-1.5 text-xs text-white"
+                    />
+                  </label>
                 )}
                 <select
                   value={currentStatus}
@@ -138,8 +146,8 @@ export default function PurchaseRequestsClient({ purchases }) {
                 }
                 placeholder={
                   currentStatus === "pending"
-                    ? "💬 Комментарий сотруднику (необязательно)"
-                    : "💬 Причина отмены, если переключишь на «Отклонено» (необязательно)"
+                    ? "Комментарий сотруднику (необязательно)"
+                    : "Причина отмены, если переключишь на «Отклонено» (необязательно)"
                 }
                 className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
               />

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cancelApprovedRevenue } from "@/lib/cancelRevenue";
 import {
   approveRevenueRequestInternal,
   rejectRevenueRequestInternal,
@@ -22,17 +23,17 @@ import { renderRatingImage } from "@/lib/ratingImage";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
 import { buildEarningsReportPdf } from "@/lib/pdfReport";
 import { lastWeekRangeAlmaty, lastMonthRangeAlmaty } from "@/lib/timezone";
-import {
-  loadTodayData,
-  renderToday,
-  renderTodayTeam,
-} from "@/lib/salesToday";
+import { renderRevenueCommand } from "@/lib/revenueTop";
+import { syncBotCommands } from "@/lib/botCommands";
+import { handleAttendanceVideoNote } from "@/lib/attendance";
 
-// /today читает несколько Google-таблиц — даём запас по времени.
 export const maxDuration = 30;
 
 const RATING_CMDS = new Set(["/rating", "/rating_week", "/rating_month"]);
-const TODAY_CMDS = new Set(["/today", "/todayteam"]);
+// Топы и «сегодня» раньше считались по Google-таблицам (sales-bot). Теперь —
+// PactoCoins, по записанной и подтверждённой выручке, как рейтинг в
+// приложении. Открыты всем в группе.
+const TOP_CMDS = new Set(["/top5", "/topall", "/topteam", "/today", "/todayteam"]);
 const REPORT_CMDS = new Set(["/report", "/report_month"]);
 
 // /all может стоять где угодно в сообщении (обычно в конце анонса).
@@ -159,7 +160,7 @@ async function handleAllCommand(msg) {
   if (byId.size === 0) {
     await sendTelegramMessage(
       msg.chat.id,
-      "Пока некого тегать — ещё никто не засветился в чате.",
+      "Пока некого тегать, ещё никто не засветился в чате.",
       undefined,
       msg.message_thread_id,
       msg.message_id
@@ -319,33 +320,16 @@ async function handleReportCommand(msg, cmd) {
   }
 }
 
-async function handleTodayCommand(msg, cmd) {
-  const admin = createAdminClient();
-  const { data: caller } = await admin
-    .from("users")
-    .select("role")
-    .eq("telegram_id", msg.from?.id)
-    .maybeSingle();
-
-  if (!["admin", "rop"].includes(caller?.role)) {
-    await sendTelegramMessage(
-      msg.chat.id,
-      "Команда для админов и РОПов.",
-      undefined,
-      msg.message_thread_id
-    );
-    return;
-  }
-
+// Топы и «сегодня» открыты всем в группе: соревнование видно каждому.
+async function handleTopCommand(msg, cmd) {
   try {
-    const rows = await loadTodayData();
-    const text = cmd === "/todayteam" ? renderTodayTeam(rows) : renderToday(rows);
+    const text = await renderRevenueCommand(createAdminClient(), cmd);
     await sendTelegramMessage(msg.chat.id, text, undefined, msg.message_thread_id);
   } catch (err) {
-    console.error("[today] failed:", err);
+    console.error("[top] failed:", err);
     await sendTelegramMessage(
       msg.chat.id,
-      "Не получилось собрать оплаты за сегодня.",
+      "Не получилось собрать цифры.",
       undefined,
       msg.message_thread_id
     );
@@ -379,17 +363,260 @@ async function telegramRole(fromId) {
   return data?.role ?? null;
 }
 
+// /отменить в ответ на сообщение о подтверждённой оплате. Ибрагим правит
+// ошибки прямо в группе, не заходя в приложение: ответил на заявку, написал
+// команду — оплата снята, коины списаны, из рейтинга ушла.
+const CANCEL_CMDS = new Set(["/отменить", "/отмена", "/cancel"]);
+
+async function handleCancelCommand(msg) {
+  const chatId = msg.chat?.id;
+  const threadId = msg.is_topic_message ? msg.message_thread_id : undefined;
+  const say = (text) =>
+    sendTelegramMessage(chatId, text, undefined, threadId, msg.message_id);
+
+  if (!(await isTelegramAdmin(msg.from?.id))) {
+    await say("Отменять оплаты может только админ.");
+    return;
+  }
+
+  const repliedId = msg.reply_to_message?.message_id;
+  if (!repliedId) {
+    await say(
+      "Ответь этой командой на сообщение с оплатой, которую нужно отменить."
+    );
+    return;
+  }
+
+  const admin = createAdminClient();
+  const { data: request } = await admin
+    .from("revenue_requests")
+    .select("id, status, amount_kzt, user_id")
+    .eq("admin_chat_id", chatId)
+    .eq("admin_message_id", repliedId)
+    .maybeSingle();
+
+  if (!request) {
+    await say(
+      "Это сообщение не про оплату. Ответь на заявку на выручку, на ту, где были кнопки «Подтвердить» и «Отклонить»."
+    );
+    return;
+  }
+
+  // Комментарий после команды уходит человеку вместе с уведомлением.
+  const comment = String(msg.text || "").trim().split(/\s+/).slice(1).join(" ");
+
+  const res = await cancelApprovedRevenue(admin, request.id, {
+    byUserId: await adminUserId(msg.from?.id),
+    comment,
+  });
+
+  if (res.error) {
+    await say(res.error);
+    return;
+  }
+
+  const { data: person } = await admin
+    .from("users")
+    .select("name")
+    .eq("id", res.request.user_id)
+    .maybeSingle();
+
+  const sum = res.request.amount_kzt.toLocaleString("ru-RU");
+  await say(
+    `❌ Оплата отменена: ${escapeHtml(person?.name ?? "сотрудник")} — ${sum} ₸` +
+      (res.coins ? `, списано ${res.coins} коинов` : "")
+  );
+
+  // Перечёркиваем исходное сообщение, чтобы в группе не осталось
+  // «✅ Подтверждено» рядом с уже отменённой оплатой.
+  await editTelegramMessage(
+    chatId,
+    repliedId,
+    `❌ <b>Оплата отменена</b>\n\n<s>${escapeHtml(
+      person?.name ?? "сотрудник"
+    )} — ${sum} ₸</s>`
+  );
+}
+
+// /потрачено 45000 в ответ на заявку на покупку — записывает, во сколько
+// покупка обошлась на самом деле. Та же сумма, что в админке в поле
+// «Потрачено, ₸»: из неё считается бюджет и стоимость программы.
+const SPEND_CMDS = new Set(["/потрачено", "/сумма", "/spent"]);
+
+// «45 000», «45000», «45к», «45k» — всё это 45000. Пустое значение, 0 или
+// прочерк стирают ранее записанную сумму.
+function parseSpendAmount(raw) {
+  const text = String(raw ?? "").trim().toLowerCase().replace(/\s|_/g, "");
+  if (!text || text === "-" || text === "0") return { value: null };
+
+  const m = text.match(/^(\d+(?:[.,]\d+)?)(к|k|тыс|k₸)?₸?$/);
+  if (!m) return { error: true };
+
+  let value = Number(m[1].replace(",", "."));
+  if (m[2]) value *= 1000;
+  if (!Number.isFinite(value) || value < 0) return { error: true };
+  return { value: Math.round(value) };
+}
+
+async function handleSpendCommand(msg) {
+  const chatId = msg.chat?.id;
+  const threadId = msg.is_topic_message ? msg.message_thread_id : undefined;
+  const say = (text) =>
+    sendTelegramMessage(chatId, text, undefined, threadId, msg.message_id);
+
+  if (!(await isTelegramAdmin(msg.from?.id))) {
+    await say("Записывать потраченное может только админ.");
+    return;
+  }
+
+  const repliedId = msg.reply_to_message?.message_id;
+  if (!repliedId) {
+    await say("Ответь этой командой на заявку на покупку и напиши сумму: /потрачено 45000");
+    return;
+  }
+
+  const arg = String(msg.text || "").trim().split(/\s+/).slice(1).join(" ");
+  if (!arg) {
+    await say(
+      "Напиши сумму после команды: /потрачено 45000 (можно 45к). Стереть записанное: /потрачено -"
+    );
+    return;
+  }
+
+  const parsed = parseSpendAmount(arg);
+  if (parsed.error) {
+    await say("Не понял сумму. Пиши так: /потрачено 45000 (можно 45к).");
+    return;
+  }
+
+  const admin = createAdminClient();
+  const { data: purchase } = await admin
+    .from("purchase_requests")
+    .select("id, status, price_coins, variant_label, user_id, rewards(title)")
+    .eq("admin_chat_id", chatId)
+    .eq("admin_message_id", repliedId)
+    .maybeSingle();
+
+  if (!purchase) {
+    await say("Это сообщение не про покупку. Ответь на заявку на награду.");
+    return;
+  }
+
+  if (purchase.status === "rejected") {
+    await say("Эта покупка отклонена, денег на неё не ушло, записывать нечего.");
+    return;
+  }
+
+  // Как и в админке: записали сумму — покупка считается выполненной.
+  const patch = { actual_kzt_amount: parsed.value };
+  if (parsed.value !== null && parsed.value > 0 && purchase.status === "approved") {
+    patch.status = "done";
+  }
+
+  const { error } = await admin
+    .from("purchase_requests")
+    .update(patch)
+    .eq("id", purchase.id);
+
+  if (error) {
+    await say("Не получилось записать сумму, попробуй ещё раз.");
+    return;
+  }
+
+  const { data: person } = await admin
+    .from("users")
+    .select("name")
+    .eq("id", purchase.user_id)
+    .maybeSingle();
+
+  const title = purchase.rewards?.title ?? "награда";
+  const who = person?.name ?? "сотрудник";
+
+  await say(
+    parsed.value === null
+      ? `Сумма по «${escapeHtml(title)}» (${escapeHtml(who)}) стёрта.`
+      : `💸 Записал: «${escapeHtml(title)}» для ${escapeHtml(who)}, ` +
+          `${parsed.value.toLocaleString("ru-RU")} ₸. Ушло в бюджет` +
+          (patch.status === "done" ? ", покупка выполнена." : ".")
+  );
+}
+
+// После решения по заявке оставляем в сообщении одну кнопку: написать
+// человеку в личку. Иначе после «Подтверждено» нужно идти искать его по
+// списку контактов, а сказать что-то обычно хочется сразу.
+const APPLICANT_TABLES = {
+  approve_rev: "revenue_requests",
+  reject_rev: "revenue_requests",
+  approve_bonus: "bonus_requests",
+  reject_bonus: "bonus_requests",
+  approve_purchase: "purchase_requests",
+  reject_purchase_go: "purchase_requests",
+  approve_join: "join_requests",
+  reject_join: "join_requests",
+};
+
+async function applicantContact(action, requestId) {
+  const table = APPLICANT_TABLES[action];
+  if (!table || !requestId) return null;
+
+  const admin = createAdminClient();
+
+  // Заявка на регистрацию хранит телеграм прямо в себе: аккаунта ещё нет.
+  if (table === "join_requests") {
+    const { data } = await admin
+      .from("join_requests")
+      .select("name, telegram_id, telegram_username")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (!data?.telegram_id) return null;
+    return {
+      name: data.name ?? "сотруднику",
+      url: data.telegram_username
+        ? `https://t.me/${data.telegram_username}`
+        : `tg://user?id=${data.telegram_id}`,
+    };
+  }
+
+  const { data: row } = await admin
+    .from(table)
+    .select("user_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!row?.user_id) return null;
+
+  const { data: person } = await admin
+    .from("users")
+    .select("name, telegram_id")
+    .eq("id", row.user_id)
+    .maybeSingle();
+  if (!person?.telegram_id) return null;
+
+  return {
+    name: person.name ?? "сотруднику",
+    url: `tg://user?id=${person.telegram_id}`,
+  };
+}
+
+// id админа в нашей базе — чтобы в истории было видно, кто отменил.
+async function adminUserId(telegramId) {
+  if (!telegramId) return null;
+  const { data } = await createAdminClient()
+    .from("users")
+    .select("id")
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 async function isTelegramAdmin(fromId) {
   return (await telegramRole(fromId)) === "admin";
 }
 
-// Заявки на регистрацию принимает ещё и наставник — он ведёт новичков
-// с первого дня. Коинов эти кнопки не двигают, только заводят аккаунт.
-const JOIN_ACTIONS = new Set(["approve_join", "reject_join"]);
-async function canPressButton(fromId, action) {
+// Наставник жмёт те же кнопки, что и админ: он ведёт новичков с первого
+// дня и разбирает заявки наравне. Решение Ибрагима, октябрь 2026.
+async function canPressButton(fromId) {
   const role = await telegramRole(fromId);
-  if (role === "admin") return true;
-  return role === "mentor" && JOIN_ACTIONS.has(action);
+  return role === "admin" || role === "mentor";
 }
 
 const REPLY_COMMENT_TABLES = [
@@ -406,34 +633,46 @@ const REPLY_COMMENT_TABLES = [
 async function handleAdminReplyComment(msg) {
   const repliedId = msg?.reply_to_message?.message_id;
   if (!repliedId || !msg.text || !msg.chat?.id) return false;
-  if (!(await isTelegramAdmin(msg.from?.id))) return false;
+  if (!(await canPressButton(msg.from?.id))) return false;
 
   const admin = createAdminClient();
 
+  const reply = (text) =>
+    sendTelegramMessage(
+      msg.chat.id,
+      text,
+      undefined,
+      msg.message_thread_id,
+      msg.message_id
+    );
+
   for (const table of REPLY_COMMENT_TABLES) {
+    // Ищем заявку в любом статусе: если она уже закрыта, об этом нужно
+    // сказать, а не молчать. Молчание выглядит как «ничего не работает».
     const { data: row } = await admin
       .from(table)
-      .select("id")
+      .select("id, status")
       .eq("admin_chat_id", msg.chat.id)
       .eq("admin_message_id", repliedId)
-      .eq("status", "pending")
       .maybeSingle();
 
-    if (row) {
-      await admin
-        .from(table)
-        .update({ admin_reply_comment: msg.text })
-        .eq("id", row.id);
+    if (!row) continue;
 
-      await sendTelegramMessage(
-        msg.chat.id,
-        "💬 Сохранил — добавлю к решению по заявке.",
-        undefined,
-        msg.message_thread_id,
-        msg.message_id
+    if (row.status !== "pending") {
+      await reply(
+        "По этой заявке решение уже принято, комментарий к ней не добавится. " +
+          "Напиши человеку кнопкой «Написать» под сообщением."
       );
       return true;
     }
+
+    await admin
+      .from(table)
+      .update({ admin_reply_comment: msg.text })
+      .eq("id", row.id);
+
+    await reply("💬 Сохранил, добавлю к решению по заявке.");
+    return true;
   }
 
   return false;
@@ -468,12 +707,17 @@ export async function POST(request) {
   // мы задали в setWebhook. Без этой проверки адрес вебхука — просто
   // открытая дверь: кто угодно может прислать поддельное «нажатие кнопки».
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (expectedSecret) {
-    const given = request.headers.get("x-telegram-bot-api-secret-token");
-    if (given !== expectedSecret) {
-      console.warn("[webhook] отклонён запрос с неверным секретом");
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+  // Нет секрета в окружении — значит проверять нечем, и дверь закрыта.
+  // Раньше в этом случае проверка просто пропускалась: стоило переменной
+  // потеряться при переносе, и вебхук молча становился открытым.
+  if (!expectedSecret) {
+    console.error("[webhook] TELEGRAM_WEBHOOK_SECRET не задан — запрос отклонён");
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  const given = request.headers.get("x-telegram-bot-api-secret-token");
+  if (given !== expectedSecret) {
+    console.warn("[webhook] отклонён запрос с неверным секретом");
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const update = await request.json();
@@ -497,6 +741,17 @@ export async function POST(request) {
     }
   }
 
+  // Кружок в теме «Приступил вовремя к работе»: приход засчитывается сам
+  // или уходит админу на решение (lib/attendance.js). Только новые
+  // сообщения: правка старого кружка не должна давать второй приход.
+  if (update.message?.video_note) {
+    try {
+      if (await handleAttendanceVideoNote(update.message)) return NextResponse.json({ ok: true });
+    } catch (err) {
+      console.error("[attendance] failed:", err);
+    }
+  }
+
   if (msg?.text && ALL_RE.test(msg.text)) {
     await handleAllCommand(msg);
     return NextResponse.json({ ok: true });
@@ -517,12 +772,55 @@ export async function POST(request) {
       await handleRatingCommand(msg, cmd);
       return NextResponse.json({ ok: true });
     }
-    if (TODAY_CMDS.has(cmd)) {
-      await handleTodayCommand(msg, cmd);
+    if (TOP_CMDS.has(cmd)) {
+      await handleTopCommand(msg, cmd);
       return NextResponse.json({ ok: true });
     }
     if (REPORT_CMDS.has(cmd)) {
       await handleReportCommand(msg, cmd);
+      return NextResponse.json({ ok: true });
+    }
+    if (CANCEL_CMDS.has(cmd)) {
+      await handleCancelCommand(msg);
+      return NextResponse.json({ ok: true });
+    }
+    if (SPEND_CMDS.has(cmd)) {
+      await handleSpendCommand(msg);
+      return NextResponse.json({ ok: true });
+    }
+    // Админ обновляет меню команд бота сразу, не дожидаясь ночного крона.
+    if (cmd === "/syncmenu") {
+      const { data: caller } = await createAdminClient()
+        .from("users")
+        .select("role")
+        .eq("telegram_id", msg.from?.id)
+        .maybeSingle();
+      if (caller?.role === "admin") {
+        // Набрали в группе — эта группа и получает расширенный список.
+        const res = await syncBotCommands({
+          chatId: msg.chat?.type === "private" ? null : msg.chat?.id,
+        });
+        let text;
+        if (res?.ok) {
+          text = `Меню обновлено: ${res.after.map((c) => "/" + c).join(", ")}`;
+          if (res.group) {
+            text += `\n\nВ этой группе дополнительно: ${res.group
+              .filter((c) => !res.after.includes(c))
+              .map((c) => "/" + c)
+              .join(", ")}`;
+          }
+        } else {
+          text = `Не получилось обновить меню: ${escapeHtml(
+            res?.error || "Telegram не ответил"
+          )}`;
+        }
+        await sendTelegramMessage(
+          msg.chat.id,
+          text,
+          undefined,
+          msg.message_thread_id
+        );
+      }
       return NextResponse.json({ ok: true });
     }
     // Админ проверяет, как выглядит приветствие новичка: бот шлёт его
@@ -582,7 +880,7 @@ export async function POST(request) {
       } else {
         await sendTelegramMessage(
           msg.chat.id,
-          "Открой бота в личке — там слева от поля ввода кнопка «Открыть PactoCoins». Или добавь иконку на телефон: меню → «Вывести иконку на телефон».",
+          "Открой бота в личке, там слева от поля ввода кнопка «Открыть PactoCoins». Или добавь иконку на телефон: меню → «Вывести иконку на телефон».",
           undefined,
           msg.message_thread_id,
           msg.message_id
@@ -609,15 +907,14 @@ export async function POST(request) {
   const chatId = callback.message.chat.id;
   const messageId = callback.message.message_id;
 
-  // Дальше идут кнопки, двигающие коины и аккаунты. Пускаем админов, а на
-  // приём новичков — ещё и наставника.
-  if (!(await canPressButton(callback.from?.id, action))) {
+  // Дальше идут кнопки, двигающие коины и аккаунты: админ и наставник.
+  if (!(await canPressButton(callback.from?.id))) {
     console.warn("[webhook] нет прав на", action, callback.from?.id);
     // Сообщение подсказывает и настоящую причину отказа, и частый случай:
     // человек реально админ, но его Telegram не привязан к аккаунту.
     await answerCallbackQuery(
       callback.id,
-      "Только для админов. Если ты админ — твой Telegram не привязан к аккаунту, скажи Ибрагиму",
+      "Эти кнопки для админов и наставника. Если ты из них, твой Telegram не привязан к аккаунту, скажи Ибрагиму",
       true
     );
     return NextResponse.json({ ok: true });
@@ -692,10 +989,19 @@ export async function POST(request) {
       callback.from.first_name +
       (callback.from.last_name ? ` ${callback.from.last_name}` : "");
 
+    const contact = await applicantContact(action, requestId);
+
     await editTelegramMessage(
       chatId,
       messageId,
-      `${callback.message.text}\n\n<b>${resultLabel}</b> (${actorName})`
+      `${escapeHtml(callback.message.text ?? "")}\n\n<b>${resultLabel}</b> (${escapeHtml(actorName)})`,
+      contact
+        ? {
+            inline_keyboard: [
+              [{ text: `✍️ Написать: ${contact.name}`, url: contact.url }],
+            ],
+          }
+        : undefined
     );
 
     await answerCallbackQuery(callback.id, resultLabel);

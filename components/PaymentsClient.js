@@ -1,10 +1,13 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { findPayments, cancelPayment, adjustPayment } from "@/app/admin/paymentActions";
+import EmployeePicker from "@/components/EmployeePicker";
 
 function money(n) {
   return Number(n ?? 0).toLocaleString("ru-RU");
@@ -59,9 +62,15 @@ export default function PaymentsClient({ employees, initialRows }) {
     startTransition(async () => {
       const res = await adjustPayment(row.id, { amountKzt: amount, earnedAt, reason });
       if (res?.error) return say(res.error, "error");
-      say("Оплата исправлена");
+      say(`Исправлено: ${money(row.amount_kzt)} → ${money(amount)} ₸`);
       setEditingId(null);
-      search();
+
+      // Поиск по сумме сбрасываем: искали «100000», исправили на «10000» —
+      // и строка пропадала с экрана, будто всё сломалось. Остальные фильтры
+      // (человек, даты) оставляем как есть.
+      const next = { ...filters, query: "" };
+      setFilters(next);
+      search(next);
       router.refresh();
     });
   }
@@ -72,18 +81,15 @@ export default function PaymentsClient({ employees, initialRows }) {
         <div className="grid gap-2 sm:grid-cols-4">
           <label className="space-y-1">
             <span className="text-xs text-gray-500">Сотрудник</span>
-            <select
+            {/* Список на 25 имён листать неудобно: тут поиск по имени и
+                команды РОПов, а пустой выбор значит «все». */}
+            <EmployeePicker
+              employees={employees}
               value={filters.userId}
-              onChange={(e) => setFilters((f) => ({ ...f, userId: e.target.value }))}
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="">Все</option>
-              {employees.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setFilters((f) => ({ ...f, userId: id }))}
+              clearLabel="Все сотрудники"
+              onClear={() => setFilters((f) => ({ ...f, userId: "" }))}
+            />
           </label>
 
           <label className="space-y-1">
@@ -164,14 +170,14 @@ export default function PaymentsClient({ employees, initialRows }) {
                 {money(r.amount_kzt)} ₸
                 <span className="text-sm text-gray-500 font-sans">
                   {" "}
-                  · {r.credited_coins ?? r.calculated_coins ?? 0} коинов
+                  · {formatCoins(r.credited_coins ?? r.calculated_coins ?? 0)}
                 </span>
               </p>
               <p className="text-xs text-gray-600">
                 оплата от {formatDateTimeAlmaty(r.earned_at || r.created_at)}
               </p>
               {r.comment && (
-                <p className="text-xs text-gray-500 mt-1">💬 {r.comment}</p>
+                <p className="text-xs text-gray-500 mt-1">{r.comment}</p>
               )}
             </div>
 
@@ -209,7 +215,7 @@ export default function PaymentsClient({ employees, initialRows }) {
                 name="reason"
                 autoFocus
                 defaultValue="Возврат оплаты"
-                placeholder="Причина — уйдёт сотруднику"
+                placeholder="Причина, её увидит сотрудник"
                 className="flex-1 min-w-[200px] bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm"
               />
               <button

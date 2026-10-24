@@ -72,9 +72,22 @@ export async function updatePurchaseActualSpend(purchaseId, amount) {
     return { error: "Некорректная сумма" };
   }
 
+  // Вписали сумму — значит награду реально купили и выдали. Переводим в
+  // «Выполнено» сами, чтобы не делать это вторым действием и не копить
+  // одобренные покупки, которые на деле давно закрыты.
+  const patch = { actual_kzt_amount: value };
+  if (value !== null && value > 0) {
+    const { data: current } = await admin
+      .from("purchase_requests")
+      .select("status")
+      .eq("id", purchaseId)
+      .maybeSingle();
+    if (current?.status === "approved") patch.status = "done";
+  }
+
   const { error } = await admin
     .from("purchase_requests")
-    .update({ actual_kzt_amount: value })
+    .update(patch)
     .eq("id", purchaseId);
 
   if (error) return { error: error.message };

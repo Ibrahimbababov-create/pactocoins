@@ -1,11 +1,14 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import {
   createReward,
   updateReward,
   toggleRewardActive,
 } from "@/app/admin/actions";
+import Icon from "@/components/Icon";
 
 const GLOW_COLORS = [
   { value: "", label: "Без свечения" },
@@ -153,8 +156,8 @@ export default function RewardsAdminClient({ rewards, categories }) {
       )}
 
       <p className="text-xs text-gray-600">
-        Порядок внутри категории: чем меньше число — тем выше. Порядок самих
-        категорий двигается кнопками ▲▼ выше.
+        Порядок внутри категории: чем меньше число, тем выше. Порядок самих
+        категорий меняется в блоке «Категории» перетаскиванием.
       </p>
 
       {!showCreate ? (
@@ -232,7 +235,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
                 name="price_coins"
                 type="number"
                 required
-                placeholder="Цена в coins"
+                placeholder="Цена в коинах"
                 className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
               />
               <div className="space-y-1">
@@ -475,8 +478,8 @@ export default function RewardsAdminClient({ rewards, categories }) {
                   <p className="text-xs text-gray-500">
                     {r.category} ·{" "}
                     {r.is_variable
-                      ? `${r.rate_coins} коинов за каждые ${r.rate_kzt} ₸`
-                      : `${r.price_coins} коинов`}{" "}
+                      ? `${formatCoins(r.rate_coins)} за каждые ${r.rate_kzt} ₸`
+                      : `${formatCoins(r.price_coins)}`}{" "}
                     · порядок {r.sort_order ?? 0}
                     {r.highlight_color &&
                       ` · свечение: ${
@@ -485,8 +488,9 @@ export default function RewardsAdminClient({ rewards, categories }) {
                       }`}
                   </p>
                   {r.sale_price_coins && r.sale_ends_at && (
-                    <p className="text-xs text-red-400 mt-0.5">
-                      🔥 Скидка {r.sale_price_coins} коинов до{" "}
+                    <p className="flex items-center gap-1 text-xs text-red-400 mt-0.5">
+                      <Icon name="fire" className="w-3.5 h-3.5 shrink-0" />
+                      Скидка {formatCoins(r.sale_price_coins)} до{" "}
                       {new Date(r.sale_ends_at).toLocaleString("ru-RU", {
                         timeZone: "Asia/Almaty",
                         day: "2-digit",

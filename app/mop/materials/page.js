@@ -13,12 +13,26 @@ export default async function MaterialsPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("role, rop_id")
+    .select("role, rop_id, project_id")
     .eq("id", user.id)
     .single();
 
-  const ropId = profile?.role === "rop" ? user.id : profile?.rop_id ?? null;
-  const blocks = await getOnboardingLibrary(createAdminClient(), ropId);
+  // Материалы показываем по проекту: у менеджера и стажёра один и тот же
+  // набор, если они в одном направлении. У админа проекта нет — чтобы он
+  // видел не пустой экран, берём первый проект.
+  let projectId = profile?.project_id ?? null;
+  if (!projectId && profile?.role === "admin") {
+    const { data: anyProject } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("is_active", true)
+      .order("name")
+      .limit(1)
+      .maybeSingle();
+    projectId = anyProject?.id ?? null;
+  }
+
+  const blocks = await getOnboardingLibrary(createAdminClient(), projectId);
 
   return (
     <div className="space-y-4">

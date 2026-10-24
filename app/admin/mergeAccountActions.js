@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
+import { addCoins } from "@/lib/addCoins";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -53,12 +54,7 @@ export async function mergeAccounts(oldUserId, newUserId) {
   }
 
   // Переносим баланс на новый аккаунт
-  await admin
-    .from("users")
-    .update({
-      balance: newUser.balance + oldUser.balance,
-    })
-    .eq("id", newUserId);
+  await addCoins(admin, newUserId, oldUser.balance);
 
   // Переносим всю историю и заявки на новый id — total_earned на обоих
   // аккаунтах пересчитывается сам, триггером на transactions, как только
@@ -99,6 +95,23 @@ export async function mergeAccounts(oldUserId, newUserId) {
     .from("anonymous_messages")
     .update({ sender_id: newUserId })
     .eq("sender_id", oldUserId);
+
+  // Турниры: участие и матчи держат ссылку на человека (on delete restrict),
+  // без переноса удаление старого аккаунта бы не прошло.
+  await admin
+    .from("tournament_entries")
+    .update({ user_id: newUserId })
+    .eq("user_id", oldUserId);
+  for (const col of ["player_a", "player_b", "winner_id", "reported_by", "reported_winner", "disputed_by", "decided_by"]) {
+    await admin
+      .from("tournament_matches")
+      .update({ [col]: newUserId })
+      .eq(col, oldUserId);
+  }
+  await admin
+    .from("tournaments")
+    .update({ winner_id: newUserId })
+    .eq("winner_id", oldUserId);
 
   // Удаляем старый аккаунт полностью (auth + public.users каскадом)
   await admin.auth.admin.deleteUser(oldUserId);

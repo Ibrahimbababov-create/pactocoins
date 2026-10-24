@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCoins, spinsNom } from "@/lib/plural";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitBonusRequest } from "@/app/mop/bonus/actions";
@@ -86,17 +88,23 @@ export default function BonusRequestForm({ open, onOpenChange }) {
               onChange={(e) => setCategory(e.target.value)}
               className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white"
             >
-              {Object.entries(BONUS_CATEGORIES).map(([key, m]) => (
+              {Object.entries(BONUS_CATEGORIES).filter(([, m]) => !m.hidden).map(([key, m]) => (
                 <option key={key} value={key}>
                   {m.label}
                   {m.spin
-                    ? " — крутка на колесе"
+                    ? ` — ${m.spins} ${spinsNom(m.spins)} на колесе`
                     : m.amount
-                    ? ` — ${m.amount} коинов`
+                    ? ` — ${formatCoins(m.amount)}`
                     : ""}
                 </option>
               ))}
             </select>
+            {category === "attendance" && (
+              <p className="mt-2 text-xs text-gray-400">
+                Приход теперь засчитывается сам: кинь кружок в тему «Приступил вовремя к работе», и крутка придёт без
+                заявки. Здесь подавай, только если сегодня у тебя другой график, и напиши почему.
+              </p>
+            )}
           </div>
 
           {isVariable && (

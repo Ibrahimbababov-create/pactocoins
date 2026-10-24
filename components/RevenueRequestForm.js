@@ -1,5 +1,8 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+import { tieredRevenueCoins } from "@/lib/coinRate";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
@@ -17,7 +20,7 @@ function paymentDayOptions() {
     }));
 }
 
-export default function RevenueRequestForm({ open, onOpenChange }) {
+export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1, monthKzt = 0 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -31,7 +34,9 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
   const [paymentDay, setPaymentDay] = useState("");
   const [dayOptions, setDayOptions] = useState([]);
 
-  const coins = amount ? Math.floor(Number(amount) / 1000) : 0;
+  // Та же формула, что при одобрении: шкала месяца и личный множитель.
+  // Дата оплаты может быть в прошлом месяце — тогда это лишь прикидка.
+  const coins = amount ? tieredRevenueCoins(Number(amount), multiplier, monthKzt) : 0;
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -112,6 +117,7 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
         </label>
         <input
           type="number"
+          inputMode="numeric"
           required
           min="1"
           value={amount}
@@ -120,8 +126,16 @@ export default function RevenueRequestForm({ open, onOpenChange }) {
           placeholder="560000"
         />
         {amount > 0 && (
-          <p className="text-xs text-acid-400 mt-1">
-            = {coins} коинов (1000 ₸ = 1 коин)
+          // В поле число без пробелов: 5600000 и 560000 легко перепутать.
+          // Показываем ту же сумму с разрядами — лишний ноль сразу виден.
+          <p className="text-xs mt-1">
+            <span className="text-white font-semibold tabular-nums">
+              {Math.round(Number(amount)).toLocaleString("ru-RU")} ₸
+            </span>
+            <span className="text-acid-400">
+              {" "}
+              ≈ {formatCoins(coins)} после одобрения
+            </span>
           </p>
         )}
       </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { openExternal } from "@/lib/openExternal";
+import Icon from "@/components/Icon";
 
 // Просто читалка — без «Я изучил», без гейтинга. Для тех, кто уже
 // закончил стажировку и просто хочет перечитать материал.
@@ -32,7 +33,10 @@ function Reader({ block, onClose }) {
           onClick={onClose}
           className="shrink-0 text-sm font-semibold text-acid-400 px-3 py-1.5 -mr-2 rounded-lg"
         >
-          Закрыть ✕
+          <span className="inline-flex items-center gap-1">
+            Закрыть
+            <Icon name="x" className="w-4 h-4" />
+          </span>
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-5">
@@ -77,8 +81,12 @@ export default function OnboardingLibraryClient({ blocks }) {
               className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-dark-700/60"
             >
               <span className="min-w-0">
-                <span className="text-sm font-semibold">
-                  {isLinks ? "🔗" : "📄"} {b.title}
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Icon
+                    name={isLinks ? "link" : "book"}
+                    className="w-4 h-4 shrink-0"
+                  />
+                  {b.title}
                 </span>
                 {b.subtitle && (
                   <span className="block text-xs text-gray-500 mt-0.5">{b.subtitle}</span>
@@ -96,7 +104,10 @@ export default function OnboardingLibraryClient({ blocks }) {
                     onClick={() => openExternal(l.url)}
                     className="w-full text-left rounded-lg bg-dark-900 border border-dark-600 p-3 hover:border-acid-400/40"
                   >
-                    <p className="text-sm font-semibold">🔗 {l.title} ↗</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold">
+                      <Icon name="link" className="w-4 h-4 shrink-0" />
+                      {l.title} ↗
+                    </p>
                     {l.note && <p className="text-xs text-gray-500 mt-0.5">{l.note}</p>}
                   </button>
                 ))}

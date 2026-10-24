@@ -1,9 +1,12 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useMemo, useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase-browser";
-import { WEEKLY_TOP, MONTHLY_TOP } from "@/lib/topBonusConfig";
+import { WEEKLY_TOP } from "@/lib/topBonusConfig";
+import { almatyDayKey } from "@/lib/timezone";
 
 const PERIODS = [
   { key: "week", label: "Неделя" },
@@ -79,7 +82,10 @@ function formatRange(start, end, mode) {
 export default function RatingClient({ currentUserId, users, initialTotals = {} }) {
   const tab = "overall";
   const [periodMode, setPeriodMode] = useState("week");
-  const [pickedDate, setPickedDate] = useState(() => ymd(new Date()));
+  // «Сегодня» берём по Алматы, а не по часам устройства/сервера: сервер
+  // живёт в UTC, и в понедельник до 5 утра он рисовал прошлую неделю, а
+  // телефон — новую. Разный HTML ломает гидратацию и кнопки.
+  const [pickedDate, setPickedDate] = useState(() => almatyDayKey(new Date()));
   // { [userId]: сумма коинов за период }. Текущая неделя приходит уже
   // посчитанной с сервера — первый экран рисуется сразу, без пустоты.
   const [totals, setTotals] = useState(initialTotals);
@@ -176,25 +182,31 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
   }
 
   function goToday() {
-    setPickedDate(ymd(new Date()));
+    setPickedDate(almatyDayKey(new Date()));
   }
 
   // Выручка в тенге, точной суммой: «2,0 млн» не даёт понять, кто сколько
   // реально занёс, а разница между 2,0 и 2,4 млн — это почти полмиллиона.
   // Разряды делим неразрывным пробелом, чтобы число не переносилось.
   const fmt = (n) => `${(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
+  // Коротко для тесного пьедестала: «490 тыс ₸», «1,2 млн ₸».
+  const shortKzt = (n) => {
+    const v = Math.max(0, Number(n) || 0);
+    if (v >= 1000000)
+      return `${(Math.ceil(v / 100000) / 10).toLocaleString("ru-RU")} млн ₸`;
+    if (v >= 1000) return `${Math.ceil(v / 1000).toLocaleString("ru-RU")} тыс ₸`;
+    return `${v.toLocaleString("ru-RU")} ₸`;
+  };
   const myIndex = ranked.findIndex((u) => u.id === currentUserId);
   const podium = ranked.length >= 3;
   const listStart = podium ? 3 : 0;
 
-  const now = new Date();
-  const atLatest = periodMode === "all" || (range.start <= now && now <= range.end);
-  const prizeCfg =
-    atLatest && periodMode === "week"
-      ? WEEKLY_TOP
-      : atLatest && periodMode === "month"
-      ? MONTHLY_TOP
-      : null;
+  const todayKey = almatyDayKey(new Date());
+  const atLatest =
+    periodMode === "all" ||
+    (ymd(range.start) <= todayKey && todayKey <= ymd(range.end));
+  // Приз за топ — только недельный. За месяц вместо приза шкала коинов.
+  const prizeCfg = atLatest && periodMode === "week" ? WEEKLY_TOP : null;
 
   return (
     <div className="space-y-4 max-w-md mx-auto">
@@ -266,7 +278,7 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                           isMe ? "text-acid-400" : tier.name
                         }`}
                       >
-                        {u.name}
+                        {u.name.trim().split(/\s+/)[0]}
                         {isMe && (
                           <span className="px-1 rounded bg-acid-400 text-black text-[9px] font-black leading-tight">
                             ВЫ
@@ -274,11 +286,18 @@ export default function RatingClient({ currentUserId, users, initialTotals = {} 
                         )}
                       </span>
                       <span className="text-[13px] font-black tabular-nums whitespace-nowrap">{fmt(u.value)}</span>
-                      {prize != null && (
-                        <span className="text-[11px] font-semibold text-gray-400 tabular-nums">
-                          +{Number(prize).toLocaleString("ru-RU")} коинов
-                        </span>
-                      )}
+                      {prize != null &&
+                        (Number(u.value) >= prizeCfg.min ? (
+                          <span className="text-[11px] font-semibold text-acid-400 tabular-nums">
+                            +{formatCoins(Number(prize))}
+                          </span>
+                        ) : (
+                          // Порог не взят — приз не положен. Вместо обещания
+                          // «+2 000 коинов» показываем, сколько не хватает.
+                          <span className="text-[11px] font-semibold text-gray-500 tabular-nums whitespace-nowrap">
+                            до приза {shortKzt(prizeCfg.min - Number(u.value))}
+                          </span>
+                        ))}
                       <div
                         className={`mt-2 w-full rounded-t-xl border bg-gradient-to-b ${tier.bar} ${tier.h} flex items-start justify-center pt-1.5`}
                       >

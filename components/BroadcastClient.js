@@ -5,16 +5,20 @@ import {
   broadcastMessage,
   sendTestBroadcast,
   sendToEmployee,
+  sendToEmployees,
 } from "@/app/admin/broadcastActions";
 import EmployeePicker from "@/components/EmployeePicker";
+import Icon from "@/components/Icon";
 
 export default function BroadcastClient({ employees = [] }) {
   const [isPending, startTransition] = useTransition();
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
+  const [button, setButton] = useState("");
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [pickedIds, setPickedIds] = useState([]);
   const fileInputRef = useRef(null);
 
   function clearFile() {
@@ -25,6 +29,7 @@ export default function BroadcastClient({ employees = [] }) {
   function buildFormData() {
     const formData = new FormData();
     formData.append("text", text);
+    if (button) formData.append("button", button);
     if (file) formData.append("file", file);
     return formData;
   }
@@ -42,6 +47,22 @@ export default function BroadcastClient({ employees = [] }) {
       } else {
         setMessage({ type: "success", text: "Тест отправлен тебе в Telegram" });
       }
+    });
+  }
+
+  // Позвать нескольких поимённо: приглашение на турнир, напоминание
+  // команде. Всем подряд такое слать незачем.
+  function handleSendToPicked() {
+    if (!pickedIds.length || (!text.trim() && !file)) return;
+    if (!window.confirm(`Отправить ${pickedIds.length} сотрудникам?`)) return;
+
+    startTransition(async () => {
+      const formData = buildFormData();
+      pickedIds.forEach((id) => formData.append("userIds", id));
+      const res = await sendToEmployees(formData);
+      if (res?.error) return setResult({ sent: 0, failed: 0, error: res.error });
+      setResult(res);
+      setPickedIds([]);
     });
   }
 
@@ -126,6 +147,28 @@ export default function BroadcastClient({ employees = [] }) {
         className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-acid-400"
       />
 
+      {/* Кнопка под сообщением: человек жмёт и попадает прямо на нужный
+          экран приложения, а не ищет его в меню. */}
+      <label className="block space-y-1">
+        <span className="text-xs text-gray-500">
+          Кнопка под сообщением{" "}
+          <span className="text-gray-600">(к файлу не прикрепляется)</span>
+        </span>
+        <select
+          value={button}
+          onChange={(e) => setButton(e.target.value)}
+          className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
+        >
+          <option value="">Без кнопки</option>
+          <option value="settings">Настройки уведомлений</option>
+          <option value="shop">Открыть магазин</option>
+          <option value="rating">Открыть рейтинг</option>
+          <option value="games">Открыть игры</option>
+          <option value="survey">Пройти опрос</option>
+          <option value="app">Открыть PactoCoins</option>
+        </select>
+      </label>
+
       <div className="space-y-2">
         <input
           ref={fileInputRef}
@@ -135,7 +178,10 @@ export default function BroadcastClient({ employees = [] }) {
         />
         {file && (
           <div className="flex items-center justify-between bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-400">
-            <span>📎 {file.name}</span>
+            <span className="flex items-center gap-1.5">
+              <Icon name="paperclip" className="w-3.5 h-3.5 shrink-0" />
+              {file.name}
+            </span>
             <button type="button" onClick={clearFile} className="text-red-400">
               Убрать
             </button>
@@ -180,6 +226,32 @@ export default function BroadcastClient({ employees = [] }) {
             : selectedUserId
             ? `Отправить: ${employees.find((e) => e.id === selectedUserId)?.name ?? ""}`
             : "Отправить сотруднику"}
+        </button>
+      </div>
+
+      <div className="pt-2 border-t border-dark-600 space-y-2">
+        <p className="text-xs text-gray-500">
+          Или нескольким сразу: отметь галочками, кому нужно.
+        </p>
+        <EmployeePicker
+          employees={employees}
+          multiple
+          values={pickedIds}
+          onToggle={(id) =>
+            setPickedIds((p) =>
+              p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
+            )
+          }
+          placeholder="Найти сотрудников…"
+        />
+        <button
+          onClick={handleSendToPicked}
+          disabled={isPending || !pickedIds.length || (!text.trim() && !file)}
+          className="w-full bg-acid-400 text-black font-bold rounded-lg py-3 text-sm disabled:opacity-50"
+        >
+          {isPending
+            ? "Отправляем..."
+            : `Отправить выбранным (${pickedIds.length})`}
         </button>
       </div>
     </div>

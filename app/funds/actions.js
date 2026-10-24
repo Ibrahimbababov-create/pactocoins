@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { spendCoins } from "@/lib/spendCoins";
+import { addCoins } from "@/lib/addCoins";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -165,7 +166,7 @@ export async function contributeToFund(fundId, amount) {
 
   if (!user) return { error: "Не авторизован" };
 
-  const coins = Number(amount);
+  const coins = Math.floor(Number(amount));
   if (!coins || coins <= 0) return { error: "Укажи сумму больше нуля" };
 
   const admin = createAdminClient();
@@ -182,23 +183,23 @@ export async function contributeToFund(fundId, amount) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("balance")
+    .select("balance, is_guest")
     .eq("id", user.id)
     .single();
 
   if (!profile) return { error: "Профиль не найден" };
 
+  // Гостевые коины ненастоящие и сбрасываются каждую ночь, а взнос в
+  // копилку остался бы навсегда — в общем прогрессе и списке вкладчиков.
+  if (profile.is_guest) {
+    return { error: "В гостевом режиме в копилки не вносят" };
+  }
+
   const spent = await spendCoins(admin, user.id, coins);
   if (!spent.ok) return { error: spent.error };
 
-  await admin.from("transactions").insert({
-    user_id: user.id,
-    type: "spend",
-    amount_coins: -coins,
-    description: `Взнос в копилку: ${fund.title}`,
-    created_by: user.id,
-  });
-
+  // Сначала сам взнос, потом запись в историю: если взнос не запишется,
+  // коины возвращаем, и в истории не остаётся «взноса», которого нет.
   const { error: contribError } = await admin
     .from("fund_contributions")
     .insert({
@@ -207,7 +208,18 @@ export async function contributeToFund(fundId, amount) {
       amount_coins: coins,
     });
 
-  if (contribError) return { error: contribError.message };
+  if (contribError) {
+    await addCoins(admin, user.id, coins);
+    return { error: "Не получилось внести, коины вернули на баланс" };
+  }
+
+  await admin.from("transactions").insert({
+    user_id: user.id,
+    type: "spend",
+    amount_coins: -coins,
+    description: `Взнос в копилку: ${fund.title}`,
+    created_by: user.id,
+  });
 
   revalidatePath("/funds");
   revalidatePath("/mop/funds");
@@ -251,10 +263,7 @@ export async function refundContribution(fundId, userId) {
 
   if (!profile) return { error: "Пользователь не найден" };
 
-  const { error: balanceError } = await admin
-    .from("users")
-    .update({ balance: profile.balance + total })
-    .eq("id", userId);
+  const { error: balanceError } = await addCoins(admin, userId, total);
 
   if (balanceError) return { error: balanceError.message };
 
@@ -272,6 +281,9 @@ export async function refundContribution(fundId, userId) {
     amount_coins: total,
     description: `Возврат взноса в копилку: ${fund?.title ?? ""}`,
     rating_exempt: true,
+    // Возврат своих же коинов — не заработок: не растит «всего заработано»,
+    // уровни и стоимость программы (без этого строка считалась «manual»).
+    source: "refund",
   });
 
   revalidatePath("/funds");

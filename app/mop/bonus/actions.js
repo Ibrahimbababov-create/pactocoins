@@ -1,10 +1,12 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
-import { sendTelegramMessage } from "@/lib/telegramBot";
+import { attendanceToday, sendBonusForReview } from "@/lib/attendance";
 
 const MAX_CUSTOM_AMOUNT = 20000;
 
@@ -17,7 +19,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
   if (!user) return { error: "Не авторизован" };
 
   const meta = BONUS_CATEGORIES[category];
-  if (!meta) return { error: "Неизвестная категория" };
+  if (!meta || meta.hidden) return { error: "Такой бонус сейчас не начисляется" };
 
   let amount = meta.amount;
 
@@ -27,7 +29,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
       return { error: "Укажи количество коинов" };
     }
     if (parsed > MAX_CUSTOM_AMOUNT) {
-      return { error: `Максимум ${MAX_CUSTOM_AMOUNT} коинов за раз` };
+      return { error: `Максимум ${formatCoins(MAX_CUSTOM_AMOUNT)} за раз` };
     }
     amount = Math.floor(parsed);
 
@@ -38,9 +40,26 @@ export async function submitBonusRequest(category, comment, customAmount) {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name")
+    .select("name, is_guest")
     .eq("id", user.id)
     .single();
+
+  if (profile?.is_guest) {
+    return { error: "В гостевом режиме бонусы не запрашиваются" };
+  }
+
+  // Приход — один раз в день. Обычно его засчитывает сам бот по кружку
+  // в теме «Приступил вовремя к работе», заявка отсюда нужна, только если
+  // кружок опоздал, а у человека сегодня другой график.
+  if (category === "attendance") {
+    const today = await attendanceToday(createAdminClient(), user.id);
+    if (today.some((r) => r.status === "approved")) {
+      return { error: "Сегодня приход уже засчитан" };
+    }
+    if (today.length) {
+      return { error: "Приход за сегодня уже ждёт решения" };
+    }
+  }
 
   const { data: inserted, error } = await supabase
     .from("bonus_requests")
@@ -56,53 +75,7 @@ export async function submitBonusRequest(category, comment, customAmount) {
 
   if (error) return { error: "Не удалось отправить заявку" };
 
-  const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
-
-  if (groupChatId) {
-    const text =
-      `🎯 <b>Новая заявка на бонус</b>\n\n` +
-      `От: <b>${profile?.name ?? "МОП"}</b>\n` +
-      `Повод: ${meta.label}\n` +
-      (meta.spin ? `Награда: 🎡 крутка на колесе\n` : `Коинов: ${amount}\n`) +
-      (comment ? `Комментарий: ${comment}\n` : "");
-
-    const threadId = process.env.TELEGRAM_REQUESTS_THREAD_ID
-      ? Number(process.env.TELEGRAM_REQUESTS_THREAD_ID)
-      : undefined;
-
-    const tgResult = await sendTelegramMessage(
-      groupChatId,
-      text,
-      {
-        inline_keyboard: [
-          [
-            {
-              text: "✅ Подтвердить",
-              callback_data: `approve_bonus:${inserted.id}`,
-            },
-            {
-              text: "❌ Отклонить",
-              callback_data: `reject_bonus:${inserted.id}`,
-            },
-          ],
-        ],
-      },
-      threadId
-    );
-
-    // Message id нужен, чтобы потом узнать реплай админа на это
-    // сообщение и подтянуть его текст как комментарий к одобрению.
-    if (tgResult?.result?.message_id) {
-      const admin = createAdminClient();
-      await admin
-        .from("bonus_requests")
-        .update({
-          admin_chat_id: groupChatId,
-          admin_message_id: tgResult.result.message_id,
-        })
-        .eq("id", inserted.id);
-    }
-  }
+  await sendBonusForReview(createAdminClient(), inserted, profile?.name);
 
   revalidatePath("/mop");
   revalidatePath("/admin/bonus-requests");

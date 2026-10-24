@@ -1,5 +1,7 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
@@ -7,6 +9,7 @@ import { getEffectivePrice } from "@/lib/rewardPricing";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { spendCoins } from "@/lib/spendCoins";
+import { addCoins } from "@/lib/addCoins";
 import { escapeHtml } from "@/lib/notifyUser";
 
 async function notifyPurchaseGroup(admin, purchaseId, employeeName, text) {
@@ -19,7 +22,7 @@ async function notifyPurchaseGroup(admin, purchaseId, employeeName, text) {
 
   const tgResult = await sendTelegramMessage(
     groupChatId,
-    `🛍 <b>Новая покупка</b>\n\nОт: <b>${employeeName}</b>\n${text}`,
+    `🛍 <b>Новая покупка</b>\n\nОт: <b>${escapeHtml(employeeName)}</b>\n${text}`,
     {
       inline_keyboard: [
         [
@@ -86,7 +89,11 @@ export async function purchaseReward(rewardId) {
     .select()
     .single();
 
-  if (purchaseError) return { error: "Ошибка создания заявки" };
+  if (purchaseError) {
+    // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
+    await addCoins(admin, user.id, effectivePrice);
+    return { error: "Не получилось оформить покупку, коины вернули на баланс" };
+  }
 
   await admin.from("transactions").insert({
     user_id: user.id,
@@ -110,7 +117,7 @@ export async function purchaseReward(rewardId) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title}\nЦена: ${effectivePrice} коинов`
+    `Награда: ${reward.title}\nЦена: ${formatCoins(effectivePrice)}`
   );
 
   revalidatePath("/mop");
@@ -168,7 +175,11 @@ export async function purchaseRewardVariant(variantId) {
     .select()
     .single();
 
-  if (purchaseError) return { error: "Ошибка создания заявки" };
+  if (purchaseError) {
+    // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
+    await addCoins(admin, user.id, price);
+    return { error: "Не получилось оформить покупку, коины вернули на баланс" };
+  }
 
   await admin.from("transactions").insert({
     user_id: user.id,
@@ -192,7 +203,7 @@ export async function purchaseRewardVariant(variantId) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title} — ${variant.label}\nЦена: ${price} коинов`
+    `Награда: ${reward.title} — ${variant.label}\nЦена: ${formatCoins(price)}`
   );
 
   revalidatePath("/mop");
@@ -212,7 +223,8 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
 
   if (!user) return { error: "Не авторизован" };
 
-  const kzt = Number(kztAmount);
+  // Тенге целые: дробная сумма не влезала в колонку, заявка не создавалась.
+  const kzt = Math.round(Number(kztAmount));
   if (!Number.isFinite(kzt) || kzt <= 0) {
     return { error: "Укажи сумму больше нуля" };
   }
@@ -252,7 +264,11 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     .select()
     .single();
 
-  if (purchaseError) return { error: "Ошибка создания заявки" };
+  if (purchaseError) {
+    // Коины уже списаны: без заявки они бы просто пропали. Возвращаем.
+    await addCoins(admin, user.id, priceCoins);
+    return { error: "Не получилось оформить покупку, коины вернули на баланс" };
+  }
 
   await admin.from("transactions").insert({
     user_id: user.id,
@@ -276,7 +292,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
     admin,
     inserted.id,
     profile?.name ?? "МОП",
-    `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${priceCoins} коинов`
+    `Награда: ${reward.title}\nСумма: ${kzt.toLocaleString("ru-RU")} ₸\nЦена: ${formatCoins(priceCoins)}`
   );
 
   revalidatePath("/mop");
@@ -306,9 +322,14 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name")
+    .select("name, is_guest")
     .eq("id", user.id)
     .single();
+
+  // Предложение уходит в админскую группу — с общего демо-аккаунта нельзя.
+  if (profile?.is_guest) {
+    return { error: "В гостевом режиме предложения не отправляются" };
+  }
 
   const { error } = await supabase.from("reward_suggestions").insert({
     user_id: user.id,
@@ -327,7 +348,7 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
       : undefined;
     await sendTelegramMessage(
       groupChatId,
-      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${price} коинов${
+      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${formatCoins(price)}${
         description ? `\n${escapeHtml(description)}` : ""
       }\n\nПосмотреть: https://pactocoins.vercel.app/admin/reward-suggestions`,
       undefined,

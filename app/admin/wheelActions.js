@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { notifyUser } from "@/lib/notifyUser";
+import { spinsAcc } from "@/lib/plural";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -20,7 +21,7 @@ async function requireAdmin() {
   return user;
 }
 
-const PRIZE_TYPES = ["nothing", "coins", "spins", "custom"];
+const PRIZE_TYPES = ["nothing", "coins", "spins", "custom", "chips"];
 
 export async function saveWheelSegment(input) {
   await requireAdmin();
@@ -49,6 +50,7 @@ export async function saveWheelSegment(input) {
 
   revalidatePath("/admin/wheel");
   revalidatePath("/mop/games");
+  revalidatePath("/mop/games/wheel");
   return { success: true };
 }
 
@@ -59,11 +61,13 @@ export async function deleteWheelSegment(id) {
   if (error) return { error: error.message };
   revalidatePath("/admin/wheel");
   revalidatePath("/mop/games");
+  revalidatePath("/mop/games/wheel");
   return { success: true };
 }
 
 export async function saveWheelConfig({
   spin_price_coins,
+  spin_price_chips,
   buy_enabled,
   is_open,
   opens_at,
@@ -73,7 +77,10 @@ export async function saveWheelConfig({
 
   const patch = {
     spin_price_coins: Math.max(1, Math.round(Number(spin_price_coins) || 150)),
-    buy_enabled: !!buy_enabled,
+    // Покупка круток за коины выключена насовсем, см. app/mop/wheel/actions.js.
+    // Крутки покупают за фишки, цена — spin_price_chips.
+    buy_enabled: false,
+    spin_price_chips: Math.max(1, Math.min(1000, Math.round(Number(spin_price_chips) || 10))),
     is_open: !!is_open,
   };
   // opens_at: строка из <input type="datetime-local"> по Алматы, либо пусто
@@ -90,6 +97,7 @@ export async function saveWheelConfig({
   if (error) return { error: error.message };
   revalidatePath("/admin/wheel");
   revalidatePath("/mop/games");
+  revalidatePath("/mop/games/wheel");
   return { success: true };
 }
 
@@ -110,7 +118,7 @@ async function addSpins(admin, userIds, count) {
       await notifyUser(
         admin,
         r.id,
-        `🎡 Тебе начислили ${n} ${n === 1 ? "крутку" : "крутки"} на колесо фортуны`,
+        `🎡 Тебе начислили ${n} ${spinsAcc(n)} на колесо фортуны`,
         "notify_shop"
       );
     }

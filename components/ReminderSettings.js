@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updateReminderSettings } from "@/app/mop/actions";
+import Icon from "@/components/Icon";
 
 export default function ReminderSettings({ enabled: initialEnabled, time: initialTime }) {
   const [isPending, startTransition] = useTransition();
@@ -39,7 +40,10 @@ export default function ReminderSettings({ enabled: initialEnabled, time: initia
       className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
     >
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">⏰ Напоминания</p>
+        <p className="flex items-center gap-1.5 text-sm text-gray-500">
+          <Icon name="clock" className="w-4 h-4 shrink-0" />
+          Напоминания
+        </p>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"

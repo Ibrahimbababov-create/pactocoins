@@ -1,3 +1,4 @@
+import { formatCoins } from "@/lib/plural";
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import ResetButton from "@/components/ResetButton";
@@ -12,12 +13,19 @@ import {
   recentMonthKeysAlmaty,
 } from "@/lib/timezone";
 import { getEarnedMap } from "@/lib/earnings";
+import ViewAsSwitch from "@/components/ViewAsSwitch";
+import { viewAsRole, viewAsUserId, isViewableRole } from "@/lib/viewAs";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
+import { getProgramCost, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { forecastRevenueCoins } from "@/lib/revenueForecast";
+import MonthProfitInput from "@/components/MonthProfitInput";
 
 const QUEUE_LINKS = [
-  { key: "revenue", label: "Заявки на выручку", href: "/admin/revenue-requests" },
-  { key: "bonus", label: "Заявки на бонусы", href: "/admin/bonus-requests" },
-  { key: "purchases", label: "Заявки на покупки", href: "/admin/purchase-requests" },
+  // Коротко: на телефоне три плитки в ряд, «Заявки на выручку» обрезалось.
+  { key: "revenue", label: "Выручка", href: "/admin/revenue-requests" },
+  { key: "bonus", label: "Бонусы", href: "/admin/bonus-requests" },
+  { key: "purchases", label: "Покупки", href: "/admin/purchase-requests" },
 ];
 
 export default async function AdminOverview({ searchParams }) {
@@ -45,6 +53,7 @@ export default async function AdminOverview({ searchParams }) {
     { data: budgetExpenses },
     { data: funds },
     { data: fundTotalsRows },
+    { data: roleRows },
   ] = await Promise.all([
     supabase
       .from("users")
@@ -70,7 +79,7 @@ export default async function AdminOverview({ searchParams }) {
     // очередь и показать самую старую целиком, без похода на подстраницу.
     supabase
       .from("revenue_requests")
-      .select("id, created_at, amount_kzt, calculated_coins, comment, users!revenue_requests_user_id_fkey(name)")
+      .select("id, user_id, created_at, earned_at, amount_kzt, calculated_coins, comment, users!revenue_requests_user_id_fkey(name)")
       .eq("status", "pending")
       .order("created_at", { ascending: true })
       .limit(1),
@@ -100,7 +109,27 @@ export default async function AdminOverview({ searchParams }) {
       .select("id, title, status")
       .order("created_at", { ascending: false }),
     supabase.rpc("fund_totals"),
+    // Какие роли вообще есть у живых людей — из них собираем кнопки
+    // просмотра. Заведём завтра новую роль — кнопка появится сама.
+    supabase
+      .from("users")
+      .select("id, name, role, rop_id")
+      .eq("is_active", true)
+      .eq("is_guest", false)
+      .not("email", "like", "%.test@pactocoins.local")
+      .order("name"),
   ]);
+
+  const viewRoles = [...new Set((roleRows ?? []).map((r) => r.role))].filter(
+    isViewableRole
+  );
+  // Глазами человека смотрим тех, у кого за спиной своя работа с людьми:
+  // РОПы, наставники, менеджеры. Стажёры и наблюдатели — только ролью.
+  const viewPeople = (roleRows ?? []).filter((r) =>
+    ["rop", "mentor", "mop"].includes(r.role)
+  );
+  const viewingAs = viewAsRole();
+  const viewingUserId = viewAsUserId();
 
   const { data: myProfile } = me
     ? await supabase.from("users").select("theme").eq("id", me.id).single()
@@ -130,10 +159,11 @@ export default async function AdminOverview({ searchParams }) {
     (topups?.reduce((sum, t) => sum + t.amount_kzt, 0) ?? 0) -
     (budgetExpenses?.reduce((sum, e) => sum + e.actual_kzt_amount, 0) ?? 0);
 
-  const earnedMap = await getEarnedMap(supabase, (users ?? []).map((u) => u.id), {
-    start,
-    end,
-  });
+  const [earnedMap, cost, nextForecast] = await Promise.all([
+    getEarnedMap(supabase, (users ?? []).map((u) => u.id), { start, end }),
+    getProgramCost(createAdminClient(), { start, end, monthKey: selectedMonth }),
+    forecastRevenueCoins(createAdminClient(), nextRevenue ?? []),
+  ]);
 
   // Общая очередь: берём самую старую заявку среди трёх типов.
   const candidates = [
@@ -143,7 +173,7 @@ export default async function AdminOverview({ searchParams }) {
       created_at: nextRevenue[0].created_at,
       name: nextRevenue[0].users?.name,
       title: `${nextRevenue[0].amount_kzt.toLocaleString("ru-RU")} ₸`,
-      sub: `→ ${nextRevenue[0].calculated_coins ?? "?"} коинов`,
+      sub: `→ ${formatCoins(nextForecast[nextRevenue[0].id] ?? nextRevenue[0].calculated_coins ?? 0)}`,
       comment: nextRevenue[0].comment,
     },
     nextBonus?.[0] && {
@@ -152,7 +182,7 @@ export default async function AdminOverview({ searchParams }) {
       created_at: nextBonus[0].created_at,
       name: nextBonus[0].users?.name,
       title: BONUS_CATEGORIES[nextBonus[0].category]?.label ?? nextBonus[0].category,
-      sub: nextBonus[0].amount_coins ? `${nextBonus[0].amount_coins} коинов` : null,
+      sub: nextBonus[0].amount_coins ? `${formatCoins(nextBonus[0].amount_coins)}` : null,
       comment: nextBonus[0].comment,
     },
     nextPurchase?.[0] && {
@@ -161,7 +191,7 @@ export default async function AdminOverview({ searchParams }) {
       created_at: nextPurchase[0].created_at,
       name: nextPurchase[0].users?.name,
       title: nextPurchase[0].rewards?.title ?? "награда",
-      sub: `${nextPurchase[0].price_coins.toLocaleString("ru-RU")} коинов${
+      sub: `${formatCoins(nextPurchase[0].price_coins)}${
         nextPurchase[0].variant_label ? ` — ${nextPurchase[0].variant_label}` : ""
       }`,
       comment: nextPurchase[0].comment,
@@ -185,19 +215,16 @@ export default async function AdminOverview({ searchParams }) {
           <p className="text-gray-500 text-sm">Ждёт вас</p>
           <h1 className="text-3xl font-black tabular-nums">{totalPending}</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/mop" className="bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-xs">
-            МОП
-          </Link>
-          <Link href="/mop/team" className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs">
-            РОП
-          </Link>
-          <Link href="/observer" className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs">
-            Наблюдатель
-          </Link>
-          <Link href="/mop?as=trainee" className="bg-dark-700 text-gray-200 font-bold rounded-lg px-3 py-2 text-xs">
-            Стажёр
-          </Link>
+        <div>
+          <p className="text-[11px] text-gray-500 mb-1.5">
+            Посмотреть кабинет глазами
+          </p>
+          <ViewAsSwitch
+            roles={viewRoles}
+            current={viewingAs}
+            people={viewPeople}
+            currentUserId={viewingUserId}
+          />
         </div>
       </div>
 
@@ -239,6 +266,8 @@ export default async function AdminOverview({ searchParams }) {
               вернулись)
             </p>
           </div>
+
+          <ProgramCostCard cost={cost} monthKey={selectedMonth} />
 
           <ThemePicker current={myTheme} />
 
@@ -320,6 +349,76 @@ export default async function AdminOverview({ searchParams }) {
           <ResetButton />
         </div>
       </div>
+    </div>
+  );
+}
+
+// Сколько программа стоит компании за месяц — по выданным коинам. Цвет:
+// в рамках (до 7% прибыли), на грани (7–10%), перебор (больше 10%).
+function ProgramCostCard({ cost, monthKey }) {
+  const pct = cost.share == null ? null : cost.share * 100;
+  const tone =
+    pct == null
+      ? "text-gray-300"
+      : cost.share <= BUDGET_SHARE.ok
+      ? "text-acid-400"
+      : cost.share <= BUDGET_SHARE.max
+      ? "text-amber-400"
+      : "text-red-400";
+  const verdict =
+    pct == null
+      ? "Выручки за месяц пока нет"
+      : cost.share <= BUDGET_SHARE.ok
+      ? "В рамках бюджета"
+      : cost.share <= BUDGET_SHARE.max
+      ? "На верхней границе бюджета"
+      : "Дороже бюджета — пора пересмотреть ставки";
+  const kzt = (n) => `${Math.round(n).toLocaleString("ru-RU")} ₸`;
+
+  return (
+    <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+      <p className="text-xs text-gray-500">Сколько стоит PactoCoins за месяц</p>
+      <div className="mt-1 flex items-baseline gap-3 flex-wrap">
+        <span className={`text-2xl font-bold tabular-nums ${tone}`}>
+          {pct == null ? "—" : `${pct.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%`}
+        </span>
+        <span className="text-sm text-gray-400">прибыли · {kzt(cost.costKzt)}</span>
+      </div>
+      <p className={`text-xs mt-1 ${tone}`}>{verdict}</p>
+
+      <div className="mt-3 space-y-1 text-xs">
+        {cost.breakdown.map((b) => (
+          <div key={b.label} className="flex justify-between gap-3 text-gray-400">
+            <span>{b.label}</span>
+            <span className="tabular-nums">
+              {formatCoins(b.coins)} · {kzt(b.kzt)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {cost.mentorCoins > 0 && (
+        <div className="mt-2 flex justify-between gap-3 text-xs text-gray-600">
+          <span>Наставникам, не в расходах: платится из ЗП стажёров (−1%)</span>
+          <span className="tabular-nums shrink-0">
+            {formatCoins(cost.mentorCoins)} · {kzt(cost.mentorKzt)}
+          </span>
+        </div>
+      )}
+
+      <p className="text-[11px] text-gray-500 mt-3 leading-relaxed">
+        {cost.profitFromTable
+          ? `Прибыль компании ${kzt(cost.profitKzt)} из таблицы: выручка компании минус зарплаты команд, до офиса. Бюджет программы 5–10% от неё.`
+          : `Прибыль компании за месяц ещё не вписана, пока прикидка: ${(NET_MARGIN * 100).toLocaleString("ru-RU")}% от кассы ${kzt(cost.revenueKzt)} = ${kzt(cost.profitKzt)}. Фиксы прикидка не видит, впиши точную из таблицы.`}
+      </p>
+
+      <MonthProfitInput monthKey={monthKey} value={cost.profitFromTable ? cost.profitKzt : null} />
+
+      <p className="text-[11px] text-gray-600 mt-3 leading-relaxed">
+        Считаем по выданным коинам (их всё равно потратят), без возвратов и без админов. 1 коин ≈{" "}
+        {cost.kztPerCoin.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₸ по реальным покупкам за 90 дней. Итог
+        месяца в тенге ставь в таблицу финансов, «Отчисление в ПактоКоинс».
+      </p>
     </div>
   );
 }

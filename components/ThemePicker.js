@@ -7,7 +7,7 @@ import { setMyTheme } from "@/app/admin/themeActions";
 import { haptic } from "@/lib/haptics";
 import Icon from "@/components/Icon";
 
-export default function ThemePicker({ current = "acid" }) {
+export default function ThemePicker({ current = "brass" }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [picked, setPicked] = useState(current);
@@ -81,9 +81,7 @@ export default function ThemePicker({ current = "acid" }) {
         })}
       </div>
 
-      <p className="text-xs text-gray-600 mt-3">
-        Меняется только у тебя. Сотрудникам темы откроем со второго уровня.
-      </p>
+      <p className="text-xs text-gray-600 mt-3">Меняется только у тебя.</p>
 
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
     </div>

@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import BirthdayInput from "@/components/BirthdayInput";
+import Icon from "@/components/Icon";
 
-const API_URL = "https://pactocoins.vercel.app/api/auth/telegram";
-const GUEST_API_URL = "https://pactocoins.vercel.app/api/auth/guest";
+const API_URL = "/api/auth/telegram";
+const GUEST_API_URL = "/api/auth/guest";
 
 // Кнопка «Инструкция» в Telegram открывает приложение со start_param=help
 // (из группы) или с ?next=help (из лички) — сразу ведём на инструкцию.
@@ -27,6 +28,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingTelegram, setCheckingTelegram] = useState(true);
   const [debug, setDebug] = useState("Запуск проверки...");
+  // Нажали «Войти через Telegram» в обычном браузере — входа тут быть не
+  // может, раньше кнопка просто молчала.
+  const [tgHint, setTgHint] = useState(false);
   const cancelledRef = useRef(false);
 
   // Новый пользователь через Telegram, аккаунта ещё нет —
@@ -269,6 +273,7 @@ export default function LoginPage() {
       doTelegramLogin(tg.initData);
     } else {
       setDebug("Telegram WebApp недоступен на этом экране");
+      setTgHint(true);
     }
   }
 
@@ -329,7 +334,9 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-dark-900">
         <div className="w-full max-w-sm text-center">
-          <p className="text-5xl mb-4">🚫</p>
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center text-gray-500">
+            <Icon name="lock" className="w-8 h-8" />
+          </div>
           <h1 className="text-2xl font-bold mb-2">Невозможно войти</h1>
           <p className="text-gray-500 text-sm">
             Вас уволили из системы. Если это ошибка — обратитесь
@@ -352,7 +359,9 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-dark-900">
         <div className="w-full max-w-sm text-center">
-          <p className="text-5xl mb-4">⏳</p>
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-acid-400/15 border border-acid-400/40 flex items-center justify-center text-acid-400">
+            <Icon name="clock" className="w-8 h-8" />
+          </div>
           <h1 className="text-2xl font-bold mb-2">Заявка отправлена</h1>
           <p className="text-gray-500 text-sm">
             Админ уже получил уведомление и скоро подтвердит регистрацию.
@@ -373,7 +382,7 @@ export default function LoginPage() {
             </h1>
             <p className="text-gray-500 mt-2 text-sm">
               Привет! Это внутренняя система коинов отдела продаж — за
-              выручку и достижения начисляются coins, которые можно
+              выручку и достижения начисляются коины, которые можно
               обменять на реальные штуки в магазине.
             </p>
           </div>
@@ -391,7 +400,10 @@ export default function LoginPage() {
                 disabled={onboardingLoading}
                 className="bg-dark-800 border border-dark-600 rounded-2xl p-4 text-left disabled:opacity-50"
               >
-                <p className="font-bold">👀 Попробовать</p>
+                <p className="flex items-center gap-1.5 font-bold">
+                  <Icon name="eye" className="w-4 h-4 shrink-0" />
+                  Попробовать
+                </p>
                 <p className="text-xs text-gray-500 mt-1">
                   Демо-доступ, чтобы посмотреть как всё устроено
                 </p>
@@ -401,7 +413,10 @@ export default function LoginPage() {
                 disabled={onboardingLoading}
                 className="bg-acid-400 text-black rounded-2xl p-4 text-left disabled:opacity-50"
               >
-                <p className="font-bold">✅ Зарегистрироваться</p>
+                <p className="flex items-center gap-1.5 font-bold">
+                  <Icon name="check" className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+                  Зарегистрироваться
+                </p>
                 <p className="text-xs mt-1 opacity-70">
                   Заявка админу, обычно быстро
                 </p>
@@ -502,6 +517,14 @@ export default function LoginPage() {
           Войти через Telegram
         </button>
 
+        {tgHint && (
+          <p className="-mt-2 mb-4 text-xs text-gray-400 text-center">
+            Вход через Telegram работает, когда PactoCoins открыт из бота
+            в самом Telegram. Здесь можно войти по почте или посмотреть
+            как гость.
+          </p>
+        )}
+
         <form
           onSubmit={handleLogin}
           className="bg-dark-800 border border-dark-600 rounded-2xl p-6 space-y-4"
@@ -542,6 +565,19 @@ export default function LoginPage() {
             {loading ? "Входим..." : "Войти"}
           </button>
         </form>
+
+        <button
+          type="button"
+          onClick={handleGuestLogin}
+          disabled={onboardingLoading}
+          className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg border border-dark-600 py-3 text-sm text-gray-300 active:scale-[0.98] transition disabled:opacity-50"
+        >
+          <Icon name="eye" className="w-4 h-4" />
+          {onboardingLoading ? "Входим..." : "Попробовать как гость"}
+        </button>
+        {onboardingError && (
+          <p className="mt-2 text-red-400 text-xs text-center">{onboardingError}</p>
+        )}
       </div>
     </div>
   );

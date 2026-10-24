@@ -1,18 +1,24 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useTransition, useState, useRef } from "react";
 import { addBudgetTopup, deleteBudgetTopup } from "@/app/admin/budgetActions";
+import { almatyDayKey } from "@/lib/timezone";
 
 function formatKzt(n) {
   return `${n.toLocaleString("ru-RU")} ₸`;
 }
 
 function formatDate(dateStr) {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("ru-RU");
+  const [y, m, d] = String(dateStr).slice(0, 10).split("-");
+  return `${d}.${m}.${y}`;
 }
 
+// Сегодня по Алматы, а не по часам сервера (UTC) — иначе с полуночи до
+// 5 утра по умолчанию подставлялось вчерашнее число.
 function todayLocal() {
-  return new Date().toLocaleDateString("en-CA");
+  return almatyDayKey(new Date());
 }
 
 export default function BudgetClient({ topups, expenses }) {
@@ -69,7 +75,8 @@ export default function BudgetClient({ topups, expenses }) {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      {/* На телефоне — столбиком: суммы вида «256 512 ₸» не влезали в треть экрана. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-dark-800 border border-dark-600 rounded-xl p-4">
           <p className="text-xs text-gray-500">Выдано бюджета</p>
           <p className="text-lg font-bold">{formatKzt(totalTopups)}</p>
@@ -91,7 +98,7 @@ export default function BudgetClient({ topups, expenses }) {
       </div>
 
       <p className="text-xs text-gray-500">
-        Списано coins по этим покупкам: {totalCoinsSpent.toLocaleString("ru-RU")} —
+        Списано коинов по этим покупкам: {totalCoinsSpent.toLocaleString("ru-RU")} —
         для сверки с реальными тратами.
       </p>
 
@@ -177,7 +184,7 @@ export default function BudgetClient({ topups, expenses }) {
               <div>
                 <p className="font-semibold">{e.rewards?.title}</p>
                 <p className="text-sm text-gray-500">
-                  {e.users?.name} · {e.price_coins.toLocaleString("ru-RU")} коинов
+                  {e.users?.name} · {formatCoins(e.price_coins)}
                 </p>
               </div>
               <p className="font-bold">{formatKzt(e.actual_kzt_amount)}</p>

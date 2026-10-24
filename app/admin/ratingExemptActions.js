@@ -1,11 +1,16 @@
 "use server";
 
+import { formatCoins, spinsNom } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { sendTelegramMessage } from "@/lib/telegramBot";
+import { addCoins } from "@/lib/addCoins";
+import { addSpins } from "@/lib/addSpins";
+import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -52,12 +57,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
       .single();
     if (!profile) continue;
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + amt,
-      })
-      .eq("id", userId);
+    await addCoins(admin, userId, amt);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -72,7 +72,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
     await notifyUser(
       admin,
       userId,
-      `🏆 ${reason || `Бонус за топ ${periodPhrase}`} — +${amt} коинов`,
+      `🏆 ${reason || `Бонус за топ ${periodPhrase}`} — +${formatCoins(amt)}`,
       "notify_requests"
     );
 
@@ -91,7 +91,7 @@ export async function awardTop3Bonus(items, reason, periodPhrase = "за пер�
       ? Number(process.env.TELEGRAM_ANNOUNCE_THREAD_ID)
       : undefined;
     const lines = awarded
-      .map((a) => `${a.medal} <b>${a.name}</b> — +${a.amt} коинов`)
+      .map((a) => `${a.medal} <b>${escapeHtml(a.name)}</b> — +${formatCoins(a.amt)}`)
       .join("\n");
     try {
       await sendTelegramMessage(
@@ -128,10 +128,7 @@ export async function manualAdjustBalanceExempt(
   const newBalance = profile.balance + amount;
   if (newBalance < 0) return { error: "Баланс не может уйти в минус" };
 
-  const { error: updateError } = await admin
-    .from("users")
-    .update({ balance: newBalance })
-    .eq("id", userId);
+  const { error: updateError } = await addCoins(admin, userId, amount);
 
   if (updateError) return { error: updateError.message };
 
@@ -176,7 +173,7 @@ export async function manualAdjustBalanceBulkExempt(
     const newBalance = profile.balance + amount;
     if (newBalance < 0) continue;
 
-    await admin.from("users").update({ balance: newBalance }).eq("id", userId);
+    await addCoins(admin, userId, amount);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -214,9 +211,27 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
     return { error: "Заявка уже обработана" };
   }
 
-  // «Приход вовремя» — награда не coins, а крутка на колесе фортуны.
-  const spinOnly = request.category === "attendance";
+  // Часть бонусов («Приход вовремя», «На линии») награждается не коинами,
+  // а крутками на колесе фортуны (lib/bonusCategories.js).
+  const spinsAward = bonusSpins(request);
+  const spinOnly = spinsAward > 0;
   const coins = spinOnly ? 0 : request.amount_coins;
+
+  // Сначала «захватываем» заявку: статус меняется, только если она ещё
+  // pending. Двойной тап или два админа одновременно — второй получит
+  // «уже обработана», а не второе начисление.
+  const { data: claimed } = await admin
+    .from("bonus_requests")
+    .update({
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+      credited_coins: coins,
+    })
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
 
   if (!spinOnly) {
     const { data: profile } = await admin
@@ -225,30 +240,22 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       .eq("id", request.user_id)
       .single();
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + coins,
-      })
-      .eq("id", request.user_id);
+    const { error: creditError } = await addCoins(admin, request.user_id, coins);
+    if (creditError) {
+      await admin
+        .from("bonus_requests")
+        .update({ status: "pending", reviewed_at: null, credited_coins: null })
+        .eq("id", requestId);
+      return { error: "Не удалось начислить коины, попробуй ещё раз" };
+    }
   }
-
-  await admin
-    .from("bonus_requests")
-    .update({
-      status: "approved",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin_user.id,
-      credited_coins: coins,
-    })
-    .eq("id", requestId);
 
   if (!spinOnly) {
     await admin.from("transactions").insert({
       user_id: request.user_id,
       type: "earn",
       amount_coins: coins,
-      description: `Бонус: ${request.category}`,
+      description: `Бонус: ${bonusLabel(request.category)}`,
       created_by: admin_user.id,
       // Бонусы в рейтинг не идут никогда — ни поштучно, ни пачкой.
       rating_exempt: true,
@@ -256,7 +263,7 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${coins} коинов`;
+    const bonusText = `✅ Бонус «${bonusLabel(request.category)}» одобрен: +${formatCoins(coins)}`;
     await notifyUser(
       admin,
       request.user_id,
@@ -265,18 +272,10 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
     );
   }
 
-  // За приход вовремя — крутка на колесе фортуны (1 за заявку).
+  // Крутки на колесе фортуны вместо коинов.
   if (spinOnly) {
-    const { data: w } = await admin
-      .from("users")
-      .select("wheel_spins")
-      .eq("id", request.user_id)
-      .single();
-    await admin
-      .from("users")
-      .update({ wheel_spins: (w?.wheel_spins ?? 0) + 1 })
-      .eq("id", request.user_id);
-    const spinText = "🎡 +1 крутка на колесе фортуны за приход вовремя!";
+    await addSpins(admin, request.user_id, spinsAward);
+    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!`;
     await notifyUser(
       admin,
       request.user_id,

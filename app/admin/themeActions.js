@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { isTheme } from "@/lib/themes";
 
 // Тема — личная настройка: меняет её человек себе, а не всей компании.
-// Пока переключатель стоит только в админке; позже он же появится у
-// сотрудников, когда темы начнут открываться за уровни.
+// RLS на users разрешает update только админу, поэтому пишем через
+// security-definer функцию set_my_theme (см. supabase/schema.sql) —
+// она меняет только свою тему и только у вызывающего, ничего больше.
 export async function setMyTheme(theme) {
   if (!isTheme(theme)) return { error: "Неизвестная тема" };
 
@@ -17,10 +18,7 @@ export async function setMyTheme(theme) {
 
   if (!user) return { error: "Не авторизован" };
 
-  const { error } = await supabase
-    .from("users")
-    .update({ theme })
-    .eq("id", user.id);
+  const { error } = await supabase.rpc("set_my_theme", { p_theme: theme });
 
   if (error) return { error: error.message };
 

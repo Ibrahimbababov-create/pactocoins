@@ -9,6 +9,7 @@ import {
 } from "@/app/mop/actions";
 import { uploadOnboardingFile } from "@/lib/uploadOnboardingFile";
 import { ONBOARDING_DAYS, BLOCK_KIND } from "@/lib/onboardingDays";
+import Icon from "@/components/Icon";
 
 // Явный ref.click() вместо <label>-обёртки — в вебвью Телеги label иногда
 // не открывает пикер с первого тапа, прямой click() надёжнее.
@@ -24,7 +25,14 @@ function FileUploadButton({ uploading, onPick }) {
           uploading ? "bg-dark-700 text-gray-500" : "bg-dark-700 text-gray-200"
         }`}
       >
-        {uploading ? "Загрузка…" : "📎 Загрузить файл"}
+        {uploading ? (
+          "Загрузка…"
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="paperclip" className="w-4 h-4" />
+            Загрузить файл
+          </span>
+        )}
       </button>
       <input
         ref={inputRef}
@@ -41,7 +49,7 @@ function FileUploadButton({ uploading, onPick }) {
   );
 }
 
-function ArticleForm({ block }) {
+function ArticleForm({ block, projectId }) {
   const [pending, start] = useTransition();
   const hasOwn = !!block.rop;
   const cur = block.rop ?? {};
@@ -53,7 +61,7 @@ function ArticleForm({ block }) {
   function save() {
     setMsg(null);
     start(async () => {
-      const res = await setMyOnboardingBlock(block.id, {
+      const res = await setMyOnboardingBlock(block.id, projectId, {
         source,
         telegraph_url: tg,
         body_md: md,
@@ -109,7 +117,7 @@ function ArticleForm({ block }) {
         </button>
         {hasOwn && (
           <button
-            onClick={() => start(() => resetMyOnboardingBlock(block.id))}
+            onClick={() => start(() => resetMyOnboardingBlock(block.id, projectId))}
             disabled={pending}
             className="bg-dark-700 text-gray-400 rounded-lg px-3 py-2 text-sm"
           >
@@ -128,7 +136,7 @@ function ArticleForm({ block }) {
   );
 }
 
-function LinksForm({ block }) {
+function LinksForm({ block, projectId }) {
   const [pending, start] = useTransition();
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
@@ -139,7 +147,7 @@ function LinksForm({ block }) {
   function add() {
     setMsg(null);
     start(async () => {
-      const res = await addMyOnboardingLink(block.id, { title, url, note });
+      const res = await addMyOnboardingLink(block.id, projectId, { title, url, note });
       if (res?.error) setMsg(res.error);
       else {
         setTitle("");
@@ -158,7 +166,7 @@ function LinksForm({ block }) {
       setUploading(false);
       return;
     }
-    const res = await addMyOnboardingLink(block.id, {
+    const res = await addMyOnboardingLink(block.id, projectId, {
       title: up.name,
       url: up.url,
       note: "",
@@ -174,8 +182,9 @@ function LinksForm({ block }) {
           key={l.id}
           className="flex items-center justify-between gap-2 bg-dark-700 rounded-lg px-3 py-2"
         >
-          <span className="text-xs truncate">
-            🔗 {l.title}
+          <span className="flex items-center gap-1 text-xs truncate">
+            <Icon name="link" className="w-3.5 h-3.5 shrink-0" />
+            {l.title}
             {l.note ? ` · ${l.note}` : ""}
           </span>
           <button
@@ -223,7 +232,7 @@ function LinksForm({ block }) {
   );
 }
 
-export default function OnboardingRopEditor({ blocks }) {
+export default function OnboardingRopEditor({ blocks, projectId }) {
   const [open, setOpen] = useState(null);
   const filled = blocks.filter((b) =>
     b.kind === "links" ? b.links.length > 0 : !!b.rop
@@ -253,8 +262,23 @@ export default function OnboardingRopEditor({ blocks }) {
                     className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
                   >
                     <span className="min-w-0">
-                      <span className="text-sm font-semibold">
-                        {ok ? "✅" : "⬜"} {BLOCK_KIND[b.kind]?.icon} {b.title}
+                      <span className="flex items-center gap-1.5 text-sm font-semibold">
+                        {ok ? (
+                          <Icon
+                            name="check"
+                            className="w-4 h-4 shrink-0 text-acid-400"
+                            strokeWidth={2.5}
+                          />
+                        ) : (
+                          <span className="w-3 h-3 shrink-0 rounded-sm border border-dark-600" />
+                        )}
+                        {BLOCK_KIND[b.kind]?.icon && (
+                          <Icon
+                            name={BLOCK_KIND[b.kind].icon}
+                            className="w-4 h-4 shrink-0"
+                          />
+                        )}
+                        {b.title}
                       </span>
                       {b.subtitle && (
                         <span className="block text-xs text-gray-500">{b.subtitle}</span>
@@ -267,9 +291,9 @@ export default function OnboardingRopEditor({ blocks }) {
                   {open === b.id && (
                     <div className="px-4 pb-4">
                       {b.kind === "article" ? (
-                        <ArticleForm block={b} />
+                        <ArticleForm block={b} projectId={projectId} />
                       ) : (
-                        <LinksForm block={b} />
+                        <LinksForm block={b} projectId={projectId} />
                       )}
                     </div>
                   )}

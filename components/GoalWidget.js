@@ -1,9 +1,12 @@
 "use client";
 
+import { formatCoins } from "@/lib/plural";
+
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import AnimatedNumber from "@/components/AnimatedNumber";
 import Icon from "@/components/Icon";
+import { revenueForCoins as tieredKztForCoins } from "@/lib/coinRate";
 
 const SIZE = 96;
 const STROKE = 8;
@@ -16,7 +19,17 @@ function computeStats(goal, balance) {
   return { remaining, pct, achieved: balance >= goal.target_amount };
 }
 
-export default function GoalWidget({ goal, balance }) {
+// Сколько выручки нужно на столько коинов — по прогрессивной шкале с
+// учётом уже сделанной за месяц выручки и личного множителя.
+function revenueForCoins(coins, rate, monthKzt) {
+  const kzt = tieredKztForCoins(coins, rate, monthKzt);
+  if (kzt >= 1000000) {
+    return `${(Math.ceil(kzt / 100000) / 10).toLocaleString("ru-RU")} млн ₸`;
+  }
+  return `${Math.ceil(kzt / 1000).toLocaleString("ru-RU")} тыс ₸`;
+}
+
+export default function GoalWidget({ goal, balance, coinRate = 1, monthKzt = 0, suggestion = null }) {
   const [animatedPct, setAnimatedPct] = useState(0);
 
   const stats = useMemo(
@@ -29,6 +42,34 @@ export default function GoalWidget({ goal, balance }) {
     const t = setTimeout(() => setAnimatedPct(stats.pct), 80);
     return () => clearTimeout(t);
   }, [stats?.pct]);
+
+  if (!goal && suggestion) {
+    const need = suggestion.price_coins - balance;
+    return (
+      <Link
+        href="/mop/shop"
+        className="bg-dark-800 border border-dark-700 rounded-2xl p-4 flex items-center gap-4"
+      >
+        {suggestion.image_url ? (
+          <img
+            src={suggestion.image_url}
+            alt=""
+            className="w-14 h-14 rounded-xl object-cover shrink-0"
+          />
+        ) : (
+          <Icon name="bag" className="w-10 h-10 text-gray-500 shrink-0" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-gray-500">Ближайшая награда</p>
+          <p className="font-semibold truncate">{suggestion.title}</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            ещё {formatCoins(need)} ≈ {revenueForCoins(need, coinRate, monthKzt)} продаж
+          </p>
+        </div>
+        <Icon name="chevronRight" className="w-5 h-5 text-gray-600 shrink-0" />
+      </Link>
+    );
+  }
 
   if (!goal) {
     // Пустой экран — приглашение к действию, а не инструкция из трёх шагов:
@@ -105,7 +146,7 @@ export default function GoalWidget({ goal, balance }) {
             </span>
             <span className="text-gray-500">
               {" "}
-              / {goal.target_amount.toLocaleString("ru-RU")} коинов
+              / {formatCoins(goal.target_amount)}
             </span>
           </p>
         </div>
@@ -123,7 +164,7 @@ export default function GoalWidget({ goal, balance }) {
         <p className="text-xs text-gray-500">
           {achieved
             ? "Можно выбрать новую цель"
-            : `Осталось: ${remaining.toLocaleString("ru-RU")} коинов`}
+            : `Осталось ${formatCoins(remaining)} ≈ ${revenueForCoins(remaining, coinRate, monthKzt)} продаж`}
         </p>
         <Link
           href="/mop/shop"

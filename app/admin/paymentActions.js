@@ -1,10 +1,15 @@
 "use server";
 
+import { formatCoins } from "@/lib/plural";
+
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
-import { calculateRevenueCoins } from "@/lib/coinRate";
+import { tieredRevenueCoins } from "@/lib/coinRate";
+import { monthRevenueBefore } from "@/lib/revenueMonth";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
+import { revokeMentorBonus, recalcMentorBonus } from "@/lib/mentorBonus";
+import { addCoins } from "@/lib/addCoins";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -74,16 +79,16 @@ export async function cancelPayment(requestId, reason) {
   // У старых заявок credited_coins не заполнялся — берём расчётное.
   const coins = request.credited_coins ?? request.calculated_coins ?? 0;
 
+  // Процент наставника живёт на этой же оплате — снимаем вместе с ней.
+  await revokeMentorBonus(admin, requestId);
+
   const { data: profile } = await admin
     .from("users")
     .select("balance")
     .eq("id", request.user_id)
     .single();
 
-  await admin
-    .from("users")
-    .update({ balance: (profile?.balance ?? 0) - coins })
-    .eq("id", request.user_id);
+  await addCoins(admin, request.user_id, -coins);
 
   await admin
     .from("revenue_requests")
@@ -107,7 +112,7 @@ export async function cancelPayment(requestId, reason) {
   }
 
   let text = `⚠️ Оплата ${money(request.amount_kzt)} ₸ отменена${
-    coins ? ` — ${coins} коинов списаны обратно` : ""
+    coins ? ` — ${formatCoins(coins)} списаны обратно` : ""
   }`;
   if (reason?.trim()) text += `\n\n💬 ${escapeHtml(reason.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");
@@ -143,7 +148,14 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
     .eq("id", request.user_id)
     .single();
 
-  const newCoins = calculateRevenueCoins(newAmount, profile?.coin_rate_multiplier);
+  // Новая дата может перенести оплату в другой месяц — шкалу считаем по ней.
+  let newEarnedAt = request.earned_at ?? request.created_at;
+  if (earnedAt) {
+    const parsed = new Date(`${earnedAt}T12:00:00+05:00`);
+    if (!isNaN(parsed)) newEarnedAt = parsed.toISOString();
+  }
+  const monthBefore = await monthRevenueBefore(admin, request.user_id, newEarnedAt, requestId);
+  const newCoins = tieredRevenueCoins(newAmount, profile?.coin_rate_multiplier, monthBefore);
   const oldCoins = request.credited_coins ?? request.calculated_coins ?? 0;
   const diff = newCoins - oldCoins;
 
@@ -169,11 +181,28 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
 
   await admin.from("revenue_requests").update(patch).eq("id", requestId);
 
+  // Сумма изменилась — процент наставника пересчитываем от новой.
+  await recalcMentorBonus(admin, { ...request, ...patch, status: "approved" });
+
   if (diff !== 0) {
-    await admin
-      .from("users")
-      .update({ balance: (profile?.balance ?? 0) + diff })
-      .eq("id", request.user_id);
+    await addCoins(admin, request.user_id, diff);
+
+    // «Всего заработано» поднимается триггером на каждом начислении, но на
+    // списании не опускается. Уменьшили оплату — уменьшаем и её, иначе в
+    // профиле навсегда останутся коины за сумму, которой не было.
+    if (diff < 0) {
+      const { data: earned } = await admin
+        .from("users")
+        .select("total_earned")
+        .eq("id", request.user_id)
+        .single();
+      if (earned) {
+        await admin
+          .from("users")
+          .update({ total_earned: Math.max(0, (earned.total_earned ?? 0) + diff) })
+          .eq("id", request.user_id);
+      }
+    }
 
     await admin.from("transactions").insert({
       user_id: request.user_id,
@@ -188,7 +217,7 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
 
   let text = `✏️ Оплата ${money(request.amount_kzt)} ₸ исправлена на ${money(newAmount)} ₸`;
   if (diff !== 0) {
-    text += diff > 0 ? ` — начислили ещё ${diff} коинов` : ` — списали ${-diff} коинов`;
+    text += diff > 0 ? ` — начислили ещё ${formatCoins(diff)}` : ` — списали ${formatCoins(-diff)}`;
   }
   if (reason?.trim()) text += `\n\n💬 ${escapeHtml(reason.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");

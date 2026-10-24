@@ -7,7 +7,7 @@ export default async function PaymentsPage() {
   const [{ data: employees }, { data: rows }] = await Promise.all([
     supabase
       .from("users")
-      .select("id, name")
+      .select("id, name, role, rop_id")
       .in("role", ["mop", "rop", "trainee"])
       .eq("is_guest", false)
       .not("email", "like", "%.test@pactocoins.local")

@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase-server";
 import HistoryClient from "@/components/HistoryClient";
 
+// Всю историю за всё время в HTML не тащим: у активного менеджера это
+// сотни строк и сотни килобайт в Mini App.
+const HISTORY_LIMIT = 300;
+
 export default async function HistoryPage() {
   const supabase = createClient();
   const {
@@ -18,12 +22,14 @@ export default async function HistoryPage() {
       .from("transactions")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(HISTORY_LIMIT),
     supabase
       .from("purchase_requests")
       .select("*, rewards(title, category)")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(HISTORY_LIMIT),
     supabase
       .from("revenue_requests")
       .select("*", { count: "exact", head: true })
@@ -51,6 +57,11 @@ export default async function HistoryPage() {
         transactions={transactions ?? []}
         purchases={purchases ?? []}
         pendingCount={pendingCount}
+        truncated={
+          (transactions?.length ?? 0) >= HISTORY_LIMIT ||
+          (purchases?.length ?? 0) >= HISTORY_LIMIT
+        }
+        limit={HISTORY_LIMIT}
       />
     </div>
   );

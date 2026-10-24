@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase-admin";
 import OnboardingAdminEditor from "@/components/OnboardingAdminEditor";
 
@@ -62,6 +63,17 @@ export default async function AdminOnboardingPage() {
           проект РОП добавляет сам на своей странице «Материалы стажёрам».
         </p>
       </div>
+      <Link
+        href="/mop/onboarding-materials"
+        className="block rounded-2xl border border-dark-600 bg-dark-800 p-4 hover:border-dark-500 transition"
+      >
+        <p className="font-semibold">Материалы по проектам →</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Вебинары, КП, скрипты и записи звонков конкретного направления. Их
+          видят все, кто закреплён за проектом: и стажёры, и менеджеры.
+        </p>
+      </Link>
+
       <OnboardingAdminEditor blocks={enriched} />
     </div>
   );

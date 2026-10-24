@@ -1,16 +1,26 @@
 "use server";
 
+import { formatCoins, spinsAcc, spinsNom } from "@/lib/plural";
+import { cancelApprovedRevenue } from "@/lib/cancelRevenue";
+import { decisionContact } from "@/lib/adminContact";
+
 import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { almatyDatetimeToUtcIso, almatyDayKey } from "@/lib/timezone";
-import { calculateRevenueCoins } from "@/lib/coinRate";
+import { tieredRevenueCoins, tierForMonth, REVENUE_TIERS } from "@/lib/coinRate";
+import { monthRevenueBefore } from "@/lib/revenueMonth";
+import { creditMentorBonus, revokeMentorBonus } from "@/lib/mentorBonus";
+import { notifyRatingShift } from "@/lib/ratingNotify";
 import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
 import { maybeGraduateTrainee } from "@/lib/onboarding";
 import { fetchTelegraphContent } from "@/lib/telegraph";
+import { addCoins } from "@/lib/addCoins";
+import { addSpins } from "@/lib/addSpins";
+import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -164,10 +174,7 @@ export async function manualAdjustBalance(userId, amount, description) {
   const newBalance = profile.balance + amount;
   if (newBalance < 0) return { error: "Баланс не может уйти в минус" };
 
-  const { error: updateError } = await admin
-    .from("users")
-    .update({ balance: newBalance })
-    .eq("id", userId);
+  const { error: updateError } = await addCoins(admin, userId, amount);
 
   if (updateError) return { error: updateError.message };
 
@@ -185,6 +192,43 @@ export async function manualAdjustBalance(userId, amount, description) {
   revalidatePath("/admin/employees");
   revalidatePath("/admin");
   return { success: true };
+}
+
+// Выдать (или забрать) крутки колеса руками. Крутка — не коины: баланс
+// она не трогает, поэтому и считается отдельно. Человеку приходит
+// сообщение, иначе крутки появляются молча и о них не узнают.
+export async function grantWheelSpins(userId, count, reason) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const delta = Math.trunc(Number(count) || 0);
+  if (!delta) return { error: "Сколько круток?" };
+  if (Math.abs(delta) > 50) return { error: "Не больше 50 за раз" };
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("name, wheel_spins")
+    .eq("id", userId)
+    .single();
+  if (!profile) return { error: "Сотрудник не найден" };
+
+  const next = Math.max(0, (profile.wheel_spins ?? 0) + delta);
+  const { error } = await admin
+    .from("users")
+    .update({ wheel_spins: next })
+    .eq("id", userId);
+  if (error) return { error: error.message };
+
+  if (delta > 0) {
+    let text = `🎡 Тебе начислили ${delta} ${spinsAcc(delta)} на колесе фортуны. Крути в разделе «Игры».`;
+    if (reason?.trim()) text += `\n\n💬 ${escapeHtml(reason.trim())}`;
+    await notifyUser(admin, userId, text, "notify_requests");
+  }
+
+  revalidatePath("/admin/employees");
+  revalidatePath("/mop/games");
+  revalidatePath("/mop/games/wheel");
+  return { success: true, spins: next };
 }
 
 // ---------- Заявки на выручку ----------
@@ -209,23 +253,6 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     .eq("id", request.user_id)
     .single();
 
-  // Пересчитываем на моменте одобрения (не берём calculated_coins
-  // как есть) — так множитель тимлида всегда актуальный, даже если
-  // его поменяли уже после того, как заявка была подана.
-  const coins = calculateRevenueCoins(
-    request.amount_kzt,
-    profile.coin_rate_multiplier
-  );
-
-  const { error: updateUserError } = await admin
-    .from("users")
-    .update({
-      balance: profile.balance + coins,
-    })
-    .eq("id", request.user_id);
-
-  if (updateUserError) return { error: updateUserError.message };
-
   // Дата оплаты. Админ может поставить свою — деньги пришли в субботу,
   // а подтверждают их в понедельник. Рейтинг считается по заявкам, а не
   // по транзакциям, поэтому дату пишем в саму заявку (earned_at): раньше
@@ -236,7 +263,16 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     if (!isNaN(parsed)) earnedAtIso = parsed.toISOString();
   }
 
-  await admin
+  // Пересчитываем на моменте одобрения (не берём calculated_coins
+  // как есть) — так множитель тимлида всегда актуальный, а ставка по
+  // шкале учитывает выручку месяца (lib/coinRate.js).
+  const monthBefore = await monthRevenueBefore(admin, request.user_id, earnedAtIso, requestId);
+  const coins = tieredRevenueCoins(request.amount_kzt, profile.coin_rate_multiplier, monthBefore);
+
+  // Сначала «захватываем» заявку: статус меняется, только если она ещё
+  // pending. Двойной тап или два админа одновременно — второй получит
+  // «уже обработана», а не второе начисление.
+  const { data: claimed } = await admin
     .from("revenue_requests")
     .update({
       status: "approved",
@@ -245,7 +281,20 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
       credited_coins: coins,
       earned_at: earnedAtIso,
     })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
+
+  const { error: updateUserError } = await addCoins(admin, request.user_id, coins);
+
+  if (updateUserError) {
+    await admin
+      .from("revenue_requests")
+      .update({ status: "pending", reviewed_at: null, reviewed_by: null, credited_coins: null })
+      .eq("id", requestId);
+    return { error: updateUserError.message };
+  }
 
   const transactionPayload = {
     user_id: request.user_id,
@@ -266,15 +315,31 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
 
   await admin.from("transactions").insert(transactionPayload);
 
+  // Процент наставнику — после того, как заявка уже помечена одобренной:
+  // иначе первая оплата подопечного сама себя не увидит.
+  await creditMentorBonus(admin, { ...request, status: "approved", earned_at: earnedAtIso });
+
   await checkAndApplyLevelUp(request.user_id, admin);
 
-  const revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${coins} коинов`;
+  let revenueText = `✅ Выручка ${request.amount_kzt.toLocaleString("ru-RU")} ₸ подтверждена — +${formatCoins(coins)}`;
+  // Сработала повышенная ставка шкалы — пусть человек это увидит.
+  const monthNow = monthBefore + request.amount_kzt;
+  if (monthNow > REVENUE_TIERS[1].from) {
+    const { rate } = tierForMonth(monthNow);
+    revenueText += `\n🔥 За месяц уже ${monthNow.toLocaleString("ru-RU")} ₸ — ставка ${rate} коина за 1000 ₸`;
+  }
   await notifyUser(
     admin,
     request.user_id,
     comment?.trim() ? `${revenueText}\n\n💬 ${escapeHtml(comment.trim())}` : revenueText,
     "notify_requests"
   );
+
+  await notifyRatingShift(admin, {
+    userId: request.user_id,
+    amountKzt: request.amount_kzt,
+    earnedAtIso,
+  });
 
   await maybeGraduateTrainee(admin, request.user_id);
 
@@ -291,11 +356,11 @@ export async function rejectRevenueRequest(requestId, comment) {
 
   const { data: request } = await admin
     .from("revenue_requests")
-    .select("user_id")
+    .select("user_id, amount_kzt")
     .eq("id", requestId)
     .single();
 
-  const { error } = await admin
+  const { data: claimed, error } = await admin
     .from("revenue_requests")
     .update({
       status: "rejected",
@@ -303,12 +368,16 @@ export async function rejectRevenueRequest(requestId, comment) {
       reviewed_by: admin_user.id,
     })
     .eq("id", requestId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: error.message };
+  // Уже обработана (второй клик или кнопкой в Telegram) — человеку второе
+  // «отклонена» не шлём.
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
 
   if (request?.user_id) {
-    const rejectText = "❌ Заявка на выручку отклонена";
+    const rejectText = `❌ Заявка на выручку ${Number(request.amount_kzt).toLocaleString("ru-RU")} ₸ отклонена`;
     await notifyUser(
       admin,
       request.user_id,
@@ -328,57 +397,11 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
-  const { data: request } = await admin
-    .from("revenue_requests")
-    .select("*")
-    .eq("id", requestId)
-    .single();
-
-  if (!request || request.status !== "approved") {
-    return { error: "Заявка не в статусе «одобрено»" };
-  }
-
-  const coins = request.credited_coins ?? 0;
-
-  const { data: profile } = await admin
-    .from("users")
-    .select("balance")
-    .eq("id", request.user_id)
-    .single();
-
-  await admin
-    .from("users")
-    .update({
-      balance: profile.balance - coins,
-    })
-    .eq("id", request.user_id);
-
-  await admin
-    .from("revenue_requests")
-    .update({
-      status: "rejected",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin_user.id,
-    })
-    .eq("id", requestId);
-
-  if (coins) {
-    await admin.from("transactions").insert({
-      user_id: request.user_id,
-      type: "manual_subtract",
-      amount_coins: -coins,
-      description: `Отменено (одобрено по ошибке): выручка ${request.amount_kzt.toLocaleString(
-        "ru-RU"
-      )} ₸`,
-      created_by: admin_user.id,
-    });
-  }
-
-  let text = `⚠️ Заявка на выручку ${request.amount_kzt.toLocaleString(
-    "ru-RU"
-  )} ₸ отменена (одобрена по ошибке)${coins ? ` — ${coins} коинов списаны обратно` : ""}`;
-  if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
-  await notifyUser(admin, request.user_id, text, "notify_requests");
+  const res = await cancelApprovedRevenue(admin, requestId, {
+    byUserId: admin_user.id,
+    comment,
+  });
+  if (res.error) return { error: res.error };
 
   revalidatePath("/admin/revenue-requests");
   revalidatePath("/admin");
@@ -401,28 +424,6 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
 
   if (!purchase) return { error: "Заявка не найдена" };
 
-  // Если отклоняем (и раньше не было отклонено) — возвращаем коины
-  if (newStatus === "rejected" && purchase.status !== "rejected") {
-    const { data: profile } = await admin
-      .from("users")
-      .select("balance")
-      .eq("id", purchase.user_id)
-      .single();
-
-    await admin
-      .from("users")
-      .update({ balance: profile.balance + purchase.price_coins })
-      .eq("id", purchase.user_id);
-
-    await admin.from("transactions").insert({
-      user_id: purchase.user_id,
-      type: "manual_add",
-      amount_coins: purchase.price_coins,
-      description: "Возврат за отклонённую покупку",
-      rating_exempt: true,
-    });
-  }
-
   const update = { status: newStatus, updated_at: new Date().toISOString() };
   // Отклонённая покупка не состоялась — реальных денег на неё не ушло.
   if (newStatus === "rejected") update.actual_kzt_amount = null;
@@ -432,12 +433,37 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
     update.reviewed_at = new Date().toISOString();
   }
 
-  const { error } = await admin
+  // Меняем статус, только если его никто не успел поменять до нас (кнопкой
+  // в Telegram или второй вкладкой). Иначе двойное «Отклонить» вернуло бы
+  // коины дважды.
+  const { data: changed, error } = await admin
     .from("purchase_requests")
     .update(update)
-    .eq("id", purchaseId);
+    .eq("id", purchaseId)
+    .eq("status", purchase.status)
+    .select("id");
 
   if (error) return { error: error.message };
+  if (!changed?.length) return { error: "Заявку уже кто-то обработал, обнови страницу" };
+
+  // Если отклоняем (и раньше не было отклонено) — возвращаем коины
+  if (newStatus === "rejected" && purchase.status !== "rejected") {
+    const { data: profile } = await admin
+      .from("users")
+      .select("balance")
+      .eq("id", purchase.user_id)
+      .single();
+
+    await addCoins(admin, purchase.user_id, purchase.price_coins);
+
+    await admin.from("transactions").insert({
+      user_id: purchase.user_id,
+      type: "manual_add",
+      amount_coins: purchase.price_coins,
+      description: "Возврат за отклонённую покупку",
+      rating_exempt: true,
+    });
+  }
 
   // Уведомляем сотрудника об одобрении/отказе покупки — так же, как по
   // выручке и бонусам. Только при реальном переходе, чтобы не слать повторно.
@@ -451,17 +477,19 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
       .eq("id", purchase.reward_id)
       .single();
     const title = reward?.title ?? "награда";
-    const priceStr = purchase.price_coins?.toLocaleString("ru-RU") ?? "";
-
     let text =
       newStatus === "approved"
         ? `✅ Покупка «${title}» одобрена`
         : `❌ Покупка «${title}» отклонена${
-            priceStr ? ` — ${priceStr} коинов вернулись на баланс` : ""
+            purchase.price_coins
+              ? ` — ${formatCoins(purchase.price_coins)} вернулись на баланс`
+              : ""
           }`;
     if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
 
-    await notifyUser(admin, purchase.user_id, text, "notify_requests");
+    await notifyUser(admin, purchase.user_id, text, "notify_requests", {
+      markup: await decisionContact(admin),
+    });
   }
 
   revalidatePath("/admin/purchase-requests");
@@ -631,9 +659,27 @@ export async function approveBonusRequest(requestId, comment) {
     return { error: "Заявка уже обработана" };
   }
 
-  // «Приход вовремя» — награда не coins, а крутка на колесе фортуны.
-  const spinOnly = request.category === "attendance";
+  // Часть бонусов («Приход вовремя», «На линии») награждается не коинами,
+  // а крутками на колесе фортуны (lib/bonusCategories.js).
+  const spinsAward = bonusSpins(request);
+  const spinOnly = spinsAward > 0;
   const coins = spinOnly ? 0 : request.amount_coins;
+
+  // Сначала «захватываем» заявку: статус меняется, только если она ещё
+  // pending. Двойной тап или два админа одновременно — второй получит
+  // «уже обработана», а не второе начисление.
+  const { data: claimed } = await admin
+    .from("bonus_requests")
+    .update({
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+      credited_coins: coins,
+    })
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
 
   if (!spinOnly) {
     const { data: profile } = await admin
@@ -642,30 +688,22 @@ export async function approveBonusRequest(requestId, comment) {
       .eq("id", request.user_id)
       .single();
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + coins,
-      })
-      .eq("id", request.user_id);
+    const { error: creditError } = await addCoins(admin, request.user_id, coins);
+    if (creditError) {
+      await admin
+        .from("bonus_requests")
+        .update({ status: "pending", reviewed_at: null, credited_coins: null })
+        .eq("id", requestId);
+      return { error: "Не удалось начислить коины, попробуй ещё раз" };
+    }
   }
-
-  await admin
-    .from("bonus_requests")
-    .update({
-      status: "approved",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin_user.id,
-      credited_coins: coins,
-    })
-    .eq("id", requestId);
 
   if (!spinOnly) {
     await admin.from("transactions").insert({
       user_id: request.user_id,
       type: "earn",
       amount_coins: coins,
-      description: `Бонус: ${request.category}`,
+      description: `Бонус: ${bonusLabel(request.category)}`,
       // Бонусы в рейтинг не идут: рейтинг — это выручка.
       rating_exempt: true,
       created_by: admin_user.id,
@@ -673,7 +711,7 @@ export async function approveBonusRequest(requestId, comment) {
 
     await checkAndApplyLevelUp(request.user_id, admin);
 
-    const bonusText = `✅ Заявка на бонус одобрена — +${coins} коинов`;
+    const bonusText = `✅ Бонус «${bonusLabel(request.category)}» одобрен: +${formatCoins(coins)}`;
     await notifyUser(
       admin,
       request.user_id,
@@ -682,18 +720,10 @@ export async function approveBonusRequest(requestId, comment) {
     );
   }
 
-  // За приход вовремя — крутка на колесе фортуны (1 за заявку).
+  // Крутки на колесе фортуны вместо коинов.
   if (spinOnly) {
-    const { data: w } = await admin
-      .from("users")
-      .select("wheel_spins")
-      .eq("id", request.user_id)
-      .single();
-    await admin
-      .from("users")
-      .update({ wheel_spins: (w?.wheel_spins ?? 0) + 1 })
-      .eq("id", request.user_id);
-    const spinText = "🎡 +1 крутка на колесе фортуны за приход вовремя!";
+    await addSpins(admin, request.user_id, spinsAward);
+    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!`;
     await notifyUser(
       admin,
       request.user_id,
@@ -713,11 +743,11 @@ export async function rejectBonusRequest(requestId, comment) {
 
   const { data: request } = await admin
     .from("bonus_requests")
-    .select("user_id")
+    .select("user_id, category")
     .eq("id", requestId)
     .single();
 
-  const { error } = await admin
+  const { data: claimed, error } = await admin
     .from("bonus_requests")
     .update({
       status: "rejected",
@@ -725,12 +755,14 @@ export async function rejectBonusRequest(requestId, comment) {
       reviewed_by: admin_user.id,
     })
     .eq("id", requestId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: error.message };
+  if (!claimed?.length) return { error: "Заявка уже обработана" };
 
   if (request?.user_id) {
-    const rejectText = "❌ Заявка на бонус отклонена";
+    const rejectText = `❌ Заявка на бонус «${bonusLabel(request.category)}» отклонена`;
     await notifyUser(
       admin,
       request.user_id,
@@ -743,8 +775,8 @@ export async function rejectBonusRequest(requestId, comment) {
   return { success: true };
 }
 
-// Одобрили по ошибке — откатываем coins (или крутку колеса за «приход
-// вовремя») и переводим заявку в «отклонено».
+// Одобрили по ошибке — откатываем coins (или крутки колеса) и переводим
+// заявку в «отклонено».
 export async function cancelApprovedBonusRequest(requestId, comment) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
@@ -759,19 +791,26 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
     return { error: "Заявка не в статусе «одобрено»" };
   }
 
-  const spinOnly = request.category === "attendance";
+  const spinsAward = bonusSpins(request);
+  const spinOnly = spinsAward > 0;
   const coins = request.credited_coins ?? 0;
 
+  // Сначала статус (только если ещё «одобрено»), потом списание — иначе
+  // двойной клик списал бы дважды.
+  const { data: claimed } = await admin
+    .from("bonus_requests")
+    .update({
+      status: "rejected",
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin_user.id,
+    })
+    .eq("id", requestId)
+    .eq("status", "approved")
+    .select("id");
+  if (!claimed?.length) return { error: "Заявка уже отменена" };
+
   if (spinOnly) {
-    const { data: w } = await admin
-      .from("users")
-      .select("wheel_spins")
-      .eq("id", request.user_id)
-      .single();
-    await admin
-      .from("users")
-      .update({ wheel_spins: Math.max(0, (w?.wheel_spins ?? 0) - 1) })
-      .eq("id", request.user_id);
+    await addSpins(admin, request.user_id, -spinsAward);
   } else if (coins) {
     const { data: profile } = await admin
       .from("users")
@@ -779,12 +818,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
       .eq("id", request.user_id)
       .single();
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance - coins,
-      })
-      .eq("id", request.user_id);
+    await addCoins(admin, request.user_id, -coins);
 
     await admin.from("transactions").insert({
       user_id: request.user_id,
@@ -795,19 +829,10 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
     });
   }
 
-  await admin
-    .from("bonus_requests")
-    .update({
-      status: "rejected",
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin_user.id,
-    })
-    .eq("id", requestId);
-
   let text = spinOnly
-    ? "⚠️ Заявка на бонус отменена (одобрена по ошибке) — крутка на колесе списана обратно"
+    ? `⚠️ Заявка на бонус отменена (одобрена по ошибке): ${spinsAward} ${spinsNom(spinsAward)} на колесе списали обратно`
     : `⚠️ Заявка на бонус отменена (одобрена по ошибке)${
-        coins ? ` — ${coins} коинов списаны обратно` : ""
+        coins ? ` — ${formatCoins(coins)} списаны обратно` : ""
       }`;
   if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");
@@ -868,12 +893,7 @@ export async function awardTopPerformers(period) {
       .eq("id", userId)
       .single();
 
-    await admin
-      .from("users")
-      .update({
-        balance: profile.balance + prize,
-      })
-      .eq("id", userId);
+    await addCoins(admin, userId, prize);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -910,7 +930,7 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
     const newBalance = profile.balance + amount;
     if (newBalance < 0) continue;
 
-    await admin.from("users").update({ balance: newBalance }).eq("id", userId);
+    await addCoins(admin, userId, amount);
 
     await admin.from("transactions").insert({
       user_id: userId,
@@ -1056,7 +1076,7 @@ export async function deleteEmployee(userId) {
     .single();
   if (!target) return { error: "Сотрудник не найден" };
   if (target.role === "admin") {
-    return { error: "Админа удалять нельзя — сначала смени роль" };
+    return { error: "Админа удалять нельзя, сначала смени роль" };
   }
 
   // Обнуляем ссылки, которые не удаляются каскадом (кто одобрял/создавал).

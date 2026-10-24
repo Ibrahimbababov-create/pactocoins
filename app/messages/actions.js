@@ -13,6 +13,14 @@ export async function sendMessage(recipientId, content) {
   if (!content || !content.trim()) return { error: "Пустое сообщение" };
   if (!recipientId) return { error: "Не выбран получатель" };
 
+  // Гость — общий демо-аккаунт, через него кто угодно писал бы команде.
+  const { data: me } = await supabase
+    .from("users")
+    .select("is_guest")
+    .eq("id", user.id)
+    .single();
+  if (me?.is_guest) return { error: "В гостевом режиме сообщения не отправляются" };
+
   const { error } = await supabase.from("messages").insert({
     sender_id: user.id,
     recipient_id: recipientId,
