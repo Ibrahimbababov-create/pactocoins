@@ -455,6 +455,15 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                     </p>
                   )}
                   <p className="text-xs text-gray-500">{u.email}</p>
+                  {!u.is_active && (
+                    <p className="text-xs text-gray-500 mt-1 tabular-nums">
+                      Принёс выручки за всё время:{" "}
+                      <span className="text-acid-400">
+                        {u.fired_revenue.toLocaleString("ru-RU")} ₸
+                      </span>{" "}
+                      · баланс коинов обнулён при увольнении
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 mt-1 tabular-nums">
                     Баланс:{" "}
                     <span className="text-acid-400">
