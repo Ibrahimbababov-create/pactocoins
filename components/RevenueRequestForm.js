@@ -6,8 +6,7 @@ import { tieredRevenueCoins } from "@/lib/coinRate";
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { submitRevenueRequest, getClientHints } from "@/app/mop/revenue/actions";
-import { clientKey } from "@/lib/revenueKinds";
+import { submitRevenueRequest } from "@/app/mop/revenue/actions";
 import { haptic } from "@/lib/haptics";
 import { recentDaysAlmaty, PAYMENT_DATE_MAX_DAYS_BACK } from "@/lib/timezone";
 
@@ -39,19 +38,11 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
   const [productKind, setProductKind] = useState("");
   const [payKind, setPayKind] = useState("");
   const [isFinalPart, setIsFinalPart] = useState(false);
-  const [hints, setHints] = useState({ open: [], names: [] });
 
-  // Список дат и подсказки по клиентам готовим при открытии формы.
+  // Список дат готовим при открытии формы.
   useEffect(() => {
     if (!open) return;
     setDayOptions(paymentDayOptions());
-    let alive = true;
-    getClientHints()
-      .then((h) => alive && setHints(h))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
   }, [open]);
 
   // Пока форма открыта, страница под ней не прокручивается.
@@ -63,13 +54,6 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
       document.body.style.overflow = prev;
     };
   }, [open]);
-
-  // Незакрытые клиенты, подходящие под введённое: пустое поле показывает всех,
-  // иначе только те, чьё имя начинается с введённого. Тёзок не склеиваем.
-  const typed = clientKey(clientName);
-  const suggestions = hints.open
-    .filter((h) => !typed || clientKey(h.name).startsWith(typed))
-    .slice(0, 6);
 
   // Та же формула, что при одобрении: шкала месяца и личный множитель.
   // Дата оплаты может быть в прошлом месяце — тогда это лишь прикидка.
@@ -183,39 +167,20 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
           type="text"
           required
           maxLength={80}
-          list="revenue-client-names"
+          name="client-fio-no-memory"
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="words"
+          spellCheck={false}
+          enterKeyHint="next"
           value={clientName}
           onChange={(e) => setClientName(e.target.value)}
           className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
           placeholder="Фамилия Имя"
         />
-        <datalist id="revenue-client-names">
-          {hints.names.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
         <p className="text-xs text-gray-500 mt-1">
           Достаточно имени, фамилия желательна. Без телефонов.
         </p>
-        {suggestions.length > 0 && (
-          <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-gray-500">Клиенты, у которых оплата не закрыта:</p>
-            {suggestions.map((h, i) => (
-              <button
-                key={`${h.name}-${h.date}-${i}`}
-                type="button"
-                onClick={() => {
-                  haptic.light();
-                  setClientName(h.name);
-                }}
-                className="w-full text-left rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-gray-200 active:scale-[0.99]"
-              >
-                {h.name}, {h.amount.toLocaleString("ru-RU")} ₸, {h.dateLabel}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div>
