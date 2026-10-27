@@ -24,7 +24,7 @@ async function requireAdmin() {
   return user;
 }
 
-export async function approveRewardSuggestion(suggestionId, comment) {
+export async function approveRewardSuggestion(suggestionId, comment, category) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
@@ -38,11 +38,21 @@ export async function approveRewardSuggestion(suggestionId, comment) {
     return { error: "Заявка уже обработана" };
   }
 
+  // Категория: ту, что выбрал админ в карточке (по умолчанию выбор сотрудника).
+  const chosen = (category || suggestion.category || "").trim();
+  if (!chosen) return { error: "Выбери категорию" };
+  const { data: cat } = await admin
+    .from("reward_categories")
+    .select("name")
+    .eq("name", chosen)
+    .maybeSingle();
+  if (!cat) return { error: "Такой категории нет, выбери из списка" };
+
   const { data: reward, error: rewardError } = await admin
     .from("rewards")
     .insert({
       title: suggestion.title,
-      category: "Предложено сотрудниками",
+      category: cat.name,
       price_coins: suggestion.price_coins,
       is_variable: false,
       description: suggestion.description,

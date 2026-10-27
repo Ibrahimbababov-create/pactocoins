@@ -62,6 +62,7 @@ export default async function ShopPage() {
 
       <ShopClient
         grouped={grouped}
+        categoryNames={(categories ?? []).map((c) => c.name)}
         balance={profile?.balance ?? 0}
         favoriteIds={favoriteIds}
         isGuest={!!profile?.is_guest}

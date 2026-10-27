@@ -306,7 +306,7 @@ export async function purchaseVariableReward(rewardId, kztAmount) {
 
 // ---------- Свои предложения в магазин ----------
 
-export async function submitRewardSuggestion(title, priceCoins, description, imageUrl) {
+export async function submitRewardSuggestion(title, priceCoins, description, imageUrl, category) {
   const supabase = createClient();
   const {
     data: { user },
@@ -320,6 +320,15 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
   const price = Math.floor(Number(priceCoins));
   if (!price || price <= 0) return { error: "Укажи цену в коинах" };
 
+  const cleanCategory = (category || "").trim();
+  if (!cleanCategory) return { error: "Выбери категорию" };
+  const { data: cat } = await supabase
+    .from("reward_categories")
+    .select("name")
+    .eq("name", cleanCategory)
+    .maybeSingle();
+  if (!cat) return { error: "Такой категории нет, выбери из списка" };
+
   const { data: profile } = await supabase
     .from("users")
     .select("name, is_guest")
@@ -331,13 +340,21 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
     return { error: "В гостевом режиме предложения не отправляются" };
   }
 
-  const { error } = await supabase.from("reward_suggestions").insert({
+  const row = {
     user_id: user.id,
     title: cleanTitle,
     price_coins: price,
     description: (description || "").trim() || null,
     image_url: imageUrl || null,
-  });
+  };
+  let { error } = await supabase
+    .from("reward_suggestions")
+    .insert({ ...row, category: cleanCategory });
+  // Колонки category в базе может ещё не быть (миграция не применена):
+  // тогда отправляем без неё, категорию выберет админ при одобрении.
+  if (error && /category/i.test(error.message || "")) {
+    ({ error } = await supabase.from("reward_suggestions").insert(row));
+  }
 
   if (error) return { error: "Не удалось отправить предложение" };
 
@@ -348,7 +365,7 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
       : undefined;
     await sendTelegramMessage(
       groupChatId,
-      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\n«${escapeHtml(cleanTitle)}» — ${formatCoins(price)}${
+      `💡 <b>Предложение в магазин</b>\n\nОт: <b>${escapeHtml(profile?.name ?? "МОП")}</b>\nКатегория: ${escapeHtml(cleanCategory)}\n«${escapeHtml(cleanTitle)}» — ${formatCoins(price)}${
         description ? `\n${escapeHtml(description)}` : ""
       }\n\nПосмотреть: https://pactocoins.vercel.app/admin/reward-suggestions`,
       undefined,
