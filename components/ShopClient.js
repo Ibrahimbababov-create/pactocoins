@@ -289,13 +289,15 @@ function SuggestForm({ onDone, categories = [], initiallyOpen = false }) {
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-dark-600 py-3 text-sm text-gray-400 active:scale-[0.99] transition"
-      >
-        <Icon name="sparkle" className="w-4 h-4" />
-        Предложить свою награду
-      </button>
+      <div className="flex justify-end">
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 rounded-full border border-dark-600 px-3 py-1 text-xs text-gray-400 active:scale-95 transition"
+        >
+          <Icon name="plus" className="w-3.5 h-3.5" />
+          Предложить награду
+        </button>
+      </div>
     );
   }
 
@@ -988,6 +990,19 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
         </section>
       )}
 
+      <div id="suggest" ref={suggestRef} className="scroll-mt-16">
+        <SuggestForm
+          categories={(categoryNames ?? Object.keys(grouped ?? {})).filter(
+            (c) => c !== "Предложено сотрудниками"
+          )}
+          initiallyOpen={fromSuggestLink}
+          onDone={() => {
+            setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
+            setTimeout(() => setMessage(null), 3000);
+          }}
+        />
+      </div>
+
       {sections.map(([category, items]) => (
         <section key={category} className="space-y-3">
           {showCategoryHeadings && (
@@ -1001,19 +1016,6 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
           </div>
         </section>
       ))}
-
-      <div id="suggest" ref={suggestRef} className="scroll-mt-16">
-        <SuggestForm
-          categories={(categoryNames ?? Object.keys(grouped ?? {})).filter(
-            (c) => c !== "Предложено сотрудниками"
-          )}
-          initiallyOpen={fromSuggestLink}
-          onDone={() => {
-            setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
-            setTimeout(() => setMessage(null), 3000);
-          }}
-        />
-      </div>
     </div>
   );
 }
