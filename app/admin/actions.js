@@ -534,9 +534,16 @@ function extraCategoriesPatch(formData) {
   return { extra_categories: extras };
 }
 
+const DESCRIPTION_MAX = 60;
+const DESCRIPTION_TOO_LONG = `Описание длиннее ${DESCRIPTION_MAX} знаков: сократи до одной короткой строки`;
+
 export async function createReward(formData) {
   await requireAdmin();
   const admin = createAdminClient();
+
+  if (String(formData.get("description") ?? "").trim().length > DESCRIPTION_MAX) {
+    return { error: DESCRIPTION_TOO_LONG };
+  }
 
   const isVariable = formData.get("is_variable") === "on";
   const rateCoins = Number(formData.get("rate_coins"));
@@ -680,9 +687,19 @@ export async function updateReward(rewardId, formData) {
 
   const { data: prevReward } = await admin
     .from("rewards")
-    .select("sale_ends_at")
+    .select("sale_ends_at, description")
     .eq("id", rewardId)
     .single();
+
+  // Старые длинные описания не трогаем: ругаемся, только если текст
+  // изменили и он стал длиннее лимита.
+  const newDescription = String(formData.get("description") ?? "");
+  if (
+    newDescription.trim().length > DESCRIPTION_MAX &&
+    newDescription !== (prevReward?.description ?? "")
+  ) {
+    return { error: DESCRIPTION_TOO_LONG };
+  }
 
   const { url: imageUrl, error: photoError } = await uploadPhoto(
     admin,
