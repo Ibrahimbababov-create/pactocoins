@@ -9,6 +9,7 @@ import { pickSegmentIndex, prizeText, isWheelOpen } from "@/lib/wheel";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { recordTeamEvent } from "@/lib/teamEvents";
 import { addCoins } from "@/lib/addCoins";
+import { spendCoins } from "@/lib/spendCoins";
 import { addSpins } from "@/lib/addSpins";
 import { addChips } from "@/lib/addChips";
 import { sendTelegramMessage } from "@/lib/telegramBot";
@@ -83,6 +84,8 @@ export async function spinWheel() {
   let balance = profile?.balance ?? 0;
   let spins = profile?.wheel_spins ?? 0;
   let chips = profile?.chips ?? 0;
+  // Сколько коинов реально изменилось (у минуса может быть меньше номинала).
+  let appliedAmount = seg.prize_amount;
 
   if (seg.prize_type === "coins" && seg.prize_amount > 0) {
     const credited = await addCoins(admin, user.id, seg.prize_amount);
@@ -90,10 +93,41 @@ export async function spinWheel() {
     await admin.from("transactions").insert({
       user_id: user.id,
       type: "manual_add",
+      source: "wheel",
       amount_coins: seg.prize_amount,
       description: `🎡 Колесо фортуны: +${formatCoins(seg.prize_amount)}`,
       rating_exempt: true,
     });
+  } else if (seg.prize_type === "coins" && seg.prize_amount < 0) {
+    // Минус: теряешь не больше, чем есть на балансе (в минус уйти нельзя).
+    // Списание атомарное (spend_coins): если баланс успел измениться,
+    // перечитываем его и пробуем ещё раз.
+    let lost = 0;
+    let have = balance;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const want = Math.min(-seg.prize_amount, have);
+      if (want <= 0) break;
+      const spent = await spendCoins(admin, user.id, want);
+      if (spent.ok) {
+        lost = want;
+        balance = spent.balance;
+        break;
+      }
+      const { data: fresh } = await admin.from("users").select("balance").eq("id", user.id).single();
+      have = fresh?.balance ?? 0;
+      balance = have;
+    }
+    appliedAmount = lost > 0 ? -lost : 0;
+    if (lost > 0) {
+      await admin.from("transactions").insert({
+        user_id: user.id,
+        type: "manual_add",
+        source: "wheel",
+        amount_coins: -lost,
+        description: `🎡 Колесо фортуны: -${formatCoins(lost)}`,
+        rating_exempt: true,
+      });
+    }
   } else if (seg.prize_type === "spins" && seg.prize_amount > 0) {
     const added = await addSpins(admin, user.id, seg.prize_amount);
     spins = added.spins ?? spins + seg.prize_amount;
@@ -127,7 +161,7 @@ export async function spinWheel() {
     segment_id: seg.id,
     segment_label: seg.label,
     prize_type: seg.prize_type,
-    prize_amount: seg.prize_amount,
+    prize_amount: appliedAmount,
     cost_coins: 0,
   });
 
@@ -162,8 +196,10 @@ export async function spinWheel() {
     index: idx,
     label: seg.label,
     prizeType: seg.prize_type,
-    prizeAmount: seg.prize_amount,
-    resultText: prizeText(seg.prize_type, seg.prize_amount),
+    prizeAmount: appliedAmount,
+    // Номинал минуса: если на балансе меньше, теряешь меньше номинала.
+    nominalAmount: seg.prize_amount,
+    resultText: prizeText(seg.prize_type, appliedAmount),
     balance,
     spins,
     chips,

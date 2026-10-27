@@ -36,7 +36,11 @@ export async function saveWheelSegment(input) {
     prize_type: PRIZE_TYPES.includes(input.prize_type)
       ? input.prize_type
       : "nothing",
-    prize_amount: Math.max(0, Math.round(Number(input.prize_amount) || 0)),
+    // Минус бывает только у коинов (сектор «потеряешь коины»).
+    prize_amount:
+      input.prize_type === "coins"
+        ? Math.max(-1000, Math.round(Number(input.prize_amount) || 0))
+        : Math.max(0, Math.round(Number(input.prize_amount) || 0)),
     color: (input.color || "").toString().trim() || null,
     sort_order: Math.round(Number(input.sort_order) || 0),
     is_active: input.is_active !== false,
