@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import EmployeePicker from "@/components/EmployeePicker";
 import {
   sendReconcileReminders,
@@ -10,6 +11,7 @@ import {
   linkSheetName,
   sendExtraNotice,
   setReconcileSkip,
+  refreshSheets,
 } from "@/app/admin/reconcileActions";
 
 const kzt = (n) => `${Math.round(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
@@ -326,6 +328,30 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
   const [reminded, setReminded] = useState(() => new Set());
   const [msg, setMsg] = useState(null);
   const failed = new Set(data.failedSheets ?? []);
+  const router = useRouter();
+
+  // Длинный список по людям свёрнут, пока сам не откроешь. Выбор помним.
+  const [listOpen, setListOpen] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("reconcile_list_open") === "1") setListOpen(true);
+    } catch {}
+  }, []);
+  function toggleList() {
+    const next = !listOpen;
+    setListOpen(next);
+    try {
+      localStorage.setItem("reconcile_list_open", next ? "1" : "0");
+    } catch {}
+  }
+
+  function refresh() {
+    setMsg(null);
+    start(async () => {
+      await refreshSheets();
+      router.refresh();
+    });
+  }
 
   // «В PactoCoins больше» — отдельное письмо, спокойное: человек должен
   // проверить, а не оправдываться.
@@ -395,91 +421,7 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
     });
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
-        <button
-          type="button"
-          onClick={() => setEditorOpen((v) => !v)}
-          className="w-full flex items-center justify-between gap-3 text-left"
-          aria-expanded={editorOpen}
-        >
-          <span className="font-semibold">Таблицы за {data.monthLabel}</span>
-          <span className="text-xs text-gray-500">{editorOpen ? "Свернуть" : "Изменить"}</span>
-        </button>
-        {editorOpen && (
-          <>
-            <p className="text-xs text-gray-500">
-              Каждый месяц новая таблица. Вставь ссылку, нажми «Найти листы», выбери лист и
-              буквы колонок, потом «Проверить» и «Сохранить». Таблица должна быть открыта:
-              «Все, у кого есть ссылка», читатель.
-            </p>
-            {projects.length === 0 && (
-              <p className="text-sm text-gray-500">
-                {isAdmin ? "Активных проектов нет." : "За тобой не закреплён ни один проект."}
-              </p>
-            )}
-            {projects.map((p) => (
-              <SheetEditor
-                key={p.id}
-                project={p}
-                month={month}
-                source={sourceByProject[p.id]}
-                failedReason={data.failedReasons?.[p.id]}
-              />
-            ))}
-          </>
-        )}
-      </div>
-
-      {!data.ok && data.liveCount > 0 && (
-        <p className="text-sm text-amber-400">
-          Таблицы не открылись. Проверь ссылку и доступ «по ссылке» выше.
-        </p>
-      )}
-
-      {data.rows.length > 0 && (
-        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">{data.monthLabel}</p>
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-            <p>
-              В таблицах: <b className="tabular-nums">{kzt(data.totals.sheet)}</b>
-            </p>
-            <p>
-              В PactoCoins: <b className="tabular-nums">{kzt(data.totals.app)}</b>
-            </p>
-            <p className={data.totals.missing > 0 ? "text-amber-400" : "text-acid-400"}>
-              Не записано: <b className="tabular-nums">{kzt(data.totals.missing)}</b>
-            </p>
-          </div>
-          {remindable.length > 0 && (
-            <button
-              type="button"
-              onClick={() => remind([])}
-              disabled={pending}
-              className="mt-3 w-full bg-acid-400 text-black font-bold rounded-xl py-2.5 text-sm disabled:opacity-50"
-            >
-              Напомнить всем, у кого разница ({remindable.length})
-            </button>
-          )}
-          {msg?.error && <p className="text-xs text-red-400 mt-2">{msg.error}</p>}
-          {msg?.ok && <p className="text-xs text-acid-400 mt-2">{msg.ok}</p>}
-        </div>
-      )}
-
-      {data.liveCount === 0 ? (
-        <p className="text-sm text-gray-500">
-          Таблица за {data.monthLabel} ещё не указана. Вставь ссылку в блоке выше.
-        </p>
-      ) : (
-        data.ok &&
-        data.rows.length === 0 && (
-          <p className="text-sm text-gray-500">За этот месяц в таблицах нет продаж.</p>
-        )
-      )}
-
-      <div className="space-y-2">
-        {data.rows.map((r) => {
+  const renderRow = (r) => {
           const recorded = r.approved + r.pending;
           const canRemind = r.user?.hasTelegram && r.missing >= 5000;
           // В PactoCoins больше, чем в таблице: тоже повод написать, но
@@ -579,8 +521,125 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
               </div>
             </div>
           );
-        })}
+  };
+
+  const needLink = data.rows.filter((r) => !r.user);
+  const linkedRows = data.rows.filter((r) => r.user);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3">
+        <button
+          type="button"
+          onClick={() => setEditorOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 text-left"
+          aria-expanded={editorOpen}
+        >
+          <span className="font-semibold">Таблицы за {data.monthLabel}</span>
+          <span className="text-xs text-gray-500">{editorOpen ? "Свернуть" : "Изменить"}</span>
+        </button>
+        {editorOpen && (
+          <>
+            <p className="text-xs text-gray-500">
+              Каждый месяц новая таблица. Вставь ссылку, нажми «Найти листы», выбери лист и
+              буквы колонок, потом «Проверить» и «Сохранить». Таблица должна быть открыта:
+              «Все, у кого есть ссылка», читатель.
+            </p>
+            {projects.length === 0 && (
+              <p className="text-sm text-gray-500">
+                {isAdmin ? "Активных проектов нет." : "За тобой не закреплён ни один проект."}
+              </p>
+            )}
+            {projects.map((p) => (
+              <SheetEditor
+                key={p.id}
+                project={p}
+                month={month}
+                source={sourceByProject[p.id]}
+                failedReason={data.failedReasons?.[p.id]}
+              />
+            ))}
+          </>
+        )}
       </div>
+
+      {!data.ok && data.liveCount > 0 && (
+        <p className="text-sm text-amber-400">
+          Таблицы не открылись. Проверь ссылку и доступ «по ссылке» выше.
+        </p>
+      )}
+
+      {data.rows.length > 0 && (
+        <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+          <p className="text-xs text-gray-500">{data.monthLabel}</p>
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+            <p>
+              В таблицах: <b className="tabular-nums">{kzt(data.totals.sheet)}</b>
+            </p>
+            <p>
+              В PactoCoins: <b className="tabular-nums">{kzt(data.totals.app)}</b>
+            </p>
+            <p className={data.totals.missing > 0 ? "text-amber-400" : "text-acid-400"}>
+              Не записано: <b className="tabular-nums">{kzt(data.totals.missing)}</b>
+            </p>
+          </div>
+          {remindable.length > 0 && (
+            <button
+              type="button"
+              onClick={() => remind([])}
+              disabled={pending}
+              className="mt-3 w-full bg-acid-400 text-black font-bold rounded-xl py-2.5 text-sm disabled:opacity-50"
+            >
+              Напомнить всем, у кого разница ({remindable.length})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={pending}
+            className="mt-2 text-xs text-gray-500 underline underline-offset-2 disabled:opacity-50"
+          >
+            {pending ? "Обновляю…" : "Обновить таблицы"}
+          </button>
+          {msg?.error && <p className="text-xs text-red-400 mt-2">{msg.error}</p>}
+          {msg?.ok && <p className="text-xs text-acid-400 mt-2">{msg.ok}</p>}
+        </div>
+      )}
+
+      {data.liveCount === 0 ? (
+        <p className="text-sm text-gray-500">
+          Таблица за {data.monthLabel} ещё не указана. Вставь ссылку в блоке выше.
+        </p>
+      ) : (
+        data.ok &&
+        data.rows.length === 0 && (
+          <p className="text-sm text-gray-500">За этот месяц в таблицах нет продаж.</p>
+        )
+      )}
+
+      {needLink.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-amber-400">Нужно привязать: {needLink.length}</p>
+          {needLink.map(renderRow)}
+        </div>
+      )}
+
+      {linkedRows.length > 0 && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={toggleList}
+            aria-expanded={listOpen}
+            className="w-full flex items-center justify-between gap-3 bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-left"
+          >
+            <span className="font-semibold text-sm">
+              {listOpen ? "Скрыть список по людям" : `Показать по людям (${linkedRows.length})`}
+            </span>
+            <span className="text-xs text-gray-500">{listOpen ? "Скрыть" : "Показать"}</span>
+          </button>
+          {listOpen && linkedRows.map(renderRow)}
+        </div>
+      )}
 
       {(data.excluded ?? []).length > 0 && (
         <p className="text-xs text-gray-600">
