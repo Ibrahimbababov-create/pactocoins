@@ -30,6 +30,16 @@ import { getPendingChest, chestEligible } from "@/lib/chest";
 import { showSurveyCard } from "@/lib/survey";
 import SurveyPromoCard from "@/components/SurveyPromoCard";
 
+// «По дороге» — только вещи и впечатления. Привилегии, подписки, особые
+// призы и «+1% бонусом» не показываем: на экране они выглядят странно.
+const SERVICE_CATEGORIES = ["привилегии", "секретные и особые призы", "подписки и сервисы"];
+const SERVICE_TITLE = /бонус|фиксирован|посадить|на продажи|%/i;
+function isRealThing(r) {
+  if (r.is_variable) return false;
+  if (SERVICE_CATEGORIES.includes(String(r.category ?? "").trim().toLowerCase())) return false;
+  return !SERVICE_TITLE.test(r.title ?? "");
+}
+
 export default async function MopDashboard() {
   const supabase = createClient();
   const {
@@ -108,7 +118,7 @@ export default async function MopDashboard() {
     getMyWeekPlace(supabase, viewId),
     supabase
       .from("rewards")
-      .select("id, title, price_coins, image_url")
+      .select("id, title, price_coins, image_url, category, is_variable")
       .eq("is_active", true)
       .order("price_coins", { ascending: true }),
     getMyMonthTier(supabase, viewId),
@@ -177,13 +187,16 @@ export default async function MopDashboard() {
   // Без цели подсказываем ближайшую награду, на которую ещё не хватает:
   // «Донер — ещё 300 коинов» понятнее, чем пустое «на что копишь?».
   const nextReward =
-    (shopPrices ?? []).find((r) => r.price_coins > (profile?.balance ?? 0)) ?? null;
+    (shopPrices ?? []).find((r) => r.price_coins > (profile?.balance ?? 0) && isRealThing(r)) ?? null;
 
   // «По дороге»: ближайшая награда дороже текущего баланса, но дешевле цели.
   const goalTarget = fetchedGoal?.target_amount ?? Infinity;
   const waypoint =
     (shopPrices ?? []).find(
-      (r) => r.price_coins > (profile?.balance ?? 0) && r.price_coins < goalTarget
+      (r) =>
+        r.price_coins > (profile?.balance ?? 0) &&
+        r.price_coins < goalTarget &&
+        isRealThing(r)
     ) ?? null;
 
   let currentGoal = fetchedGoal;
