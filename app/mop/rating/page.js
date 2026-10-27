@@ -36,6 +36,9 @@ export default async function RatingPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-display font-bold">Рейтинг</h1>
       {showHall && <RatingHallTabs active="rating" />}
+      <p className="text-xs text-gray-500">
+        Итоги недели подводим в понедельник в 10:00: оплаты, внесённые и подтверждённые до этого времени, попадают в прошедшую неделю.
+      </p>
       <RatingClient
         currentUserId={currentUserId}
         users={users}

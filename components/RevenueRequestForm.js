@@ -194,7 +194,10 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
       className="bg-dark-800 border border-dark-600 rounded-t-2xl p-5 space-y-4 w-full max-w-lg max-h-[92vh] overflow-y-auto pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
     >
       <div className="flex items-center justify-between">
-        <p className="font-semibold">Новая заявка</p>
+        <div className="flex items-center gap-1">
+          <p className="font-semibold">Новая заявка</p>
+          {hintBtn("why", "Зачем столько полей?")}
+        </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -203,6 +206,11 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
           Отмена
         </button>
       </div>
+      {hintBox("why", "Зачем столько полей?", [
+        "ФИО клиента и вид оплаты попадают в твои «Мои оплаты»: ты сможешь сверить каждую оплату со своей таблицей и быстро найти нужную.",
+        "Так мы видим, где что не сошлось, и коины с рейтингом считаются честно, без ошибок.",
+        "Ошибся в заявке? После подтверждения исправить можно через «Мои оплаты» → «Предложить исправление»: админ проверяет и применяет, всё остаётся в журнале.",
+      ])}
 
       <div>
         <label className="block text-sm text-gray-400 mb-1">ФИО клиента</label>
@@ -359,6 +367,10 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
       >
         {isPending ? "Отправляем..." : "Отправить на подтверждение"}
       </button>
+
+      <p className="text-xs text-gray-500">
+        Итоги недели подводим в понедельник в 10:00: оплаты, внесённые и подтверждённые до этого времени, попадают в прошедшую неделю.
+      </p>
     </form>
     </div>,
     document.body
