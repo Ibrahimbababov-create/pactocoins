@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { redirect } from "next/navigation";
@@ -6,6 +7,7 @@ import { getReconcile } from "@/lib/reconcile";
 import { currentMonthKeyAlmaty, recentMonthKeysAlmaty } from "@/lib/timezone";
 import { reconcileViewer } from "@/app/admin/reconcileActions";
 import ReconcileClient from "@/components/ReconcileClient";
+import ReconcileSkeleton from "@/components/ReconcileSkeleton";
 
 export default async function ReconcileScreen({ searchParams, basePath, backLink }) {
   const viewer = await reconcileViewer();
@@ -15,19 +17,6 @@ export default async function ReconcileScreen({ searchParams, basePath, backLink
   const monthKey = months.some((m) => m.key === searchParams?.month)
     ? searchParams.month
     : currentMonthKeyAlmaty();
-
-  const admin = createAdminClient();
-  let projectsQuery = admin.from("projects").select("id, name").eq("is_active", true).order("name");
-  if (viewer.projectIds) projectsQuery = projectsQuery.in("id", viewer.projectIds.length ? viewer.projectIds : ["00000000-0000-0000-0000-000000000000"]);
-
-  let data = null;
-  let error = null;
-  const [{ data: projects }] = await Promise.all([
-    projectsQuery,
-    getReconcile(admin, monthKey, { projectIds: viewer.projectIds })
-      .then((d) => (data = d))
-      .catch((err) => (error = String(err?.message || err))),
-  ]);
 
   return (
     <div className="space-y-4">
@@ -65,6 +54,31 @@ export default async function ReconcileScreen({ searchParams, basePath, backLink
         ))}
       </div>
 
+      <Suspense key={monthKey} fallback={<ReconcileSkeleton />}>
+        <ReconcileData monthKey={monthKey} viewer={viewer} />
+      </Suspense>
+    </div>
+  );
+}
+
+// Тяжёлая часть (чтение таблиц и пересчёт) грузится отдельно: заголовок и
+// переключатель месяцев появляются сразу, пока здесь крутится заглушка.
+async function ReconcileData({ monthKey, viewer }) {
+  const admin = createAdminClient();
+  let projectsQuery = admin.from("projects").select("id, name").eq("is_active", true).order("name");
+  if (viewer.projectIds) projectsQuery = projectsQuery.in("id", viewer.projectIds.length ? viewer.projectIds : ["00000000-0000-0000-0000-000000000000"]);
+
+  let data = null;
+  let error = null;
+  const [{ data: projects }] = await Promise.all([
+    projectsQuery,
+    getReconcile(admin, monthKey, { projectIds: viewer.projectIds })
+      .then((d) => (data = d))
+      .catch((err) => (error = String(err?.message || err))),
+  ]);
+
+  return (
+    <>
       {error && <p className="text-sm text-red-400">Не получилось собрать сверку: {error}</p>}
       {data && (
         <ReconcileClient
@@ -74,6 +88,6 @@ export default async function ReconcileScreen({ searchParams, basePath, backLink
           isAdmin={viewer.role === "admin"}
         />
       )}
-    </div>
+    </>
   );
 }

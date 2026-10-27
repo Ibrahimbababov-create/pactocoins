@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import {
@@ -19,7 +19,7 @@ import {
   toggleExcluded,
 } from "@/lib/sheetConfig";
 import { notifyUser } from "@/lib/notifyUser";
-import { listSheetTabs, previewSource } from "@/lib/sheetsRevenue";
+import { listSheetTabs, previewSource, SHEET_CACHE_TAG } from "@/lib/sheetsRevenue";
 import { recentMonthKeysAlmaty } from "@/lib/timezone";
 
 // Кто смотрит сверку. Админ — все проекты (projectIds = null). РОП — только
@@ -44,6 +44,14 @@ export async function reconcileViewer() {
 
   const { data: links } = await admin.from("project_rops").select("project_id").eq("rop_id", user.id);
   return { id: user.id, role: "rop", projectIds: (links ?? []).map((l) => l.project_id) };
+}
+
+// Кнопка «Обновить»: сбросить кэш чтения Google-таблиц.
+export async function refreshSheets() {
+  const viewer = await reconcileViewer();
+  if (!viewer) return { error: "Нет доступа" };
+  revalidateTag(SHEET_CACHE_TAG);
+  return { ok: true };
 }
 
 // Напомнить в личку тем, у кого в таблице больше, чем в PactoCoins.
