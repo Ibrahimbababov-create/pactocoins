@@ -51,6 +51,7 @@ const SUMMARY_TAB = /общ|итог|свод/i;
 // Настройка таблицы проекта за месяц: ссылка → лист → колонки → проверить
 // (сервер показывает, как понял строки) → сохранить.
 function SheetEditor({ project, month, source, failedReason }) {
+  const router = useRouter();
   // Таблица прошлого месяца: колонки берём как были, а ссылку — нет, иначе
   // одним нажатием «Сохранить» старые цифры уедут в новый месяц.
   const stale = source && source.month !== month.key;
@@ -123,6 +124,7 @@ function SheetEditor({ project, month, source, failedReason }) {
     start(async () => {
       const res = await saveProjectSheet(form());
       setMsg(res?.error ? { error: res.error } : { ok: "Сохранено. Сверка пересчитается." });
+      if (!res?.error) router.refresh();
     });
   }
 
@@ -388,6 +390,7 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
         ? await setReconcileSkipSheet(user.projectId, user.sheetName, skip)
         : await setReconcileSkip(user.id, skip);
       if (res?.error) return setMsg({ error: res.error });
+      router.refresh();
       setMsg({
         ok: skip
           ? `${user.name} больше не участвует в сверке`
@@ -405,6 +408,7 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
     setMsg(null);
     start(async () => {
       const res = await linkSheetName(row.projectId, row.sheetName, userId);
+      if (!res?.error) router.refresh();
       setMsg(
         res?.error
           ? { error: res.error }
