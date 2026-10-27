@@ -7,6 +7,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
+import Icon from "@/components/Icon";
 import { haptic } from "@/lib/haptics";
 import { recentDaysAlmaty, PAYMENT_DATE_MAX_DAYS_BACK } from "@/lib/timezone";
 
@@ -38,6 +39,7 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
   const [productKind, setProductKind] = useState("");
   const [payKind, setPayKind] = useState("");
   const [isFinalPart, setIsFinalPart] = useState(false);
+  const [hint, setHint] = useState(null);
 
   // Список дат готовим при открытии формы.
   useEffect(() => {
@@ -134,7 +136,48 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
     submit(false);
   }
 
+  // Подсказки сворачиваются при закрытии и отправке формы
+  useEffect(() => {
+    if (!open || isPending) setHint(null);
+  }, [open, isPending]);
+
   if (!open || typeof document === "undefined") return null;
+
+  const hintBtn = (key, label) => (
+    <button
+      type="button"
+      aria-label={label}
+      aria-expanded={hint === key}
+      onClick={() => setHint(hint === key ? null : key)}
+      className={`-my-2 -mr-1 flex h-8 w-8 items-center justify-center rounded-full transition ${
+        hint === key ? "text-acid-400" : "text-gray-500"
+      }`}
+    >
+      <Icon name="help" className="w-[18px] h-[18px]" />
+    </button>
+  );
+
+  const hintBox = (key, title, items) =>
+    hint === key && (
+      <div className="mt-2 rounded-lg border border-dark-600 bg-dark-700 px-4 py-3 text-sm text-gray-300">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold text-acid-400">{title}</p>
+          <button
+            type="button"
+            aria-label="Закрыть подсказку"
+            onClick={() => setHint(null)}
+            className="-my-2 -mr-2 flex h-8 w-8 shrink-0 items-center justify-center text-gray-500"
+          >
+            <Icon name="x" className="w-4 h-4" />
+          </button>
+        </div>
+        <ul className="mt-1 space-y-1 leading-snug">
+          {items.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      </div>
+    );
 
   const segBtn = (active) =>
     `flex-1 rounded-lg border px-3 py-2.5 text-sm font-semibold transition active:scale-[0.98] ${
@@ -184,7 +227,10 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
       </div>
 
       <div>
-        <label className="block text-sm text-gray-400 mb-1">Продукт</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm text-gray-400">Продукт</label>
+          {hintBtn("product", "Подсказка про продукт")}
+        </div>
         <div className="flex gap-2">
           <button type="button" className={segBtn(productKind === "course")} onClick={() => setProductKind("course")}>
             Курс
@@ -193,15 +239,17 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
             Интенсив / МК
           </button>
         </div>
-        <p className="mt-1.5 text-xs text-gray-500 leading-snug">
-          <span className="text-gray-400">Курс:</span> основной продукт, полный курс обучения.{" "}
-          <span className="text-gray-400">Интенсив / МК:</span> короткий формат, интенсив или мастер-класс
-          (это одно и то же).
-        </p>
+        {hintBox("product", "В какой продукт записать оплату?", [
+          "Курс: основной продукт, большой чек.",
+          "Интенсив / МК: интенсив или мастер-класс, мероприятие с маленьким чеком (это одно и то же).",
+        ])}
       </div>
 
       <div>
-        <label className="block text-sm text-gray-400 mb-1">Оплата</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm text-gray-400">Оплата</label>
+          {hintBtn("pay", "Подсказка про вид оплаты")}
+        </div>
         <div className="flex gap-2">
           <button type="button" className={segBtn(payKind === "full")} onClick={() => setPayKind("full")}>
             Целиком
@@ -210,11 +258,10 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
             Часть
           </button>
         </div>
-        <p className="mt-1.5 text-xs text-gray-500 leading-snug">
-          <span className="text-gray-400">Целиком:</span> клиент оплатил всю сумму одним платежом.{" "}
-          <span className="text-gray-400">Часть:</span> клиент платит по частям (предоплата, транш или
-          доплата), каждый платёж вносится отдельной заявкой, на последнем поставь галочку.
-        </p>
+        {hintBox("pay", "Целиком или частью?", [
+          "Целиком: клиент оплатил всю сумму одним платежом.",
+          "Часть: клиент платит по частям (предоплата, транш, доплата). Каждый платёж вноси отдельной заявкой, а на последнем поставь галочку «Это последняя часть».",
+        ])}
         {payKind === "part" && (
           <label className="flex items-center gap-3 mt-2 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 cursor-pointer">
             <input
