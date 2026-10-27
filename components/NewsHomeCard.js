@@ -21,7 +21,7 @@ export default function NewsHomeCard({ latest, unread }) {
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xs text-gray-500">Новости</span>
+        <span className="block text-xs text-gray-500">Что важно</span>
         <span className="block font-semibold truncate">{latest.title}</span>
         <span className="block text-sm text-gray-400 truncate">{firstLine(latest.body)}</span>
       </span>
