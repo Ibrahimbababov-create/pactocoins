@@ -101,7 +101,75 @@ function toAlmatyDatetimeLocal(isoString) {
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
 }
 
+// Основная категория + дополнительные (мультивыбор чипами). Награда
+// показывается во всех выбранных категориях, в общем списке один раз.
+function CategoryPicker({ categories, initialMain, initialExtras, supported }) {
+  const [main, setMain] = useState(initialMain ?? categories[0]?.name ?? "");
+  const [extras, setExtras] = useState(initialExtras ?? []);
+
+  function toggleExtra(name) {
+    setExtras((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <select
+        name="category"
+        required
+        value={main}
+        onChange={(e) => setMain(e.target.value)}
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white text-sm"
+      >
+        {categories.map((c) => (
+          <option key={c.id} value={c.name}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      {supported && categories.length > 1 && (
+        <div>
+          <input type="hidden" name="extras_supported" value="1" />
+          <p className="text-xs text-gray-500 mb-1.5">
+            Ещё показывать в категориях:
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {categories
+              .filter((c) => c.name !== main)
+              .map((c) => {
+                const on = extras.includes(c.name);
+                return (
+                  <button
+                    type="button"
+                    key={c.id}
+                    onClick={() => toggleExtra(c.name)}
+                    aria-pressed={on}
+                    className={`text-xs rounded-full px-3 py-1 border active:scale-95 transition ${
+                      on
+                        ? "bg-acid-400/15 border-acid-400 text-acid-400 font-semibold"
+                        : "bg-dark-700 border-dark-600 text-gray-400"
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
+          </div>
+          {extras
+            .filter((n) => n !== main)
+            .map((n) => (
+              <input key={n} type="hidden" name="extra_categories" value={n} />
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RewardsAdminClient({ rewards, categories }) {
+  // Колонка extra_categories есть в базе только после миграции
+  const extrasSupported = rewards.some((r) => "extra_categories" in r);
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -188,17 +256,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
             placeholder="Название"
             className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
           />
-          <select
-            name="category"
-            required
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white"
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CategoryPicker categories={categories} supported={extrasSupported} />
           <label className="flex items-center gap-2 text-sm text-gray-400">
             <input
               type="checkbox"
@@ -324,17 +382,12 @@ export default function RewardsAdminClient({ rewards, categories }) {
                   defaultValue={r.title}
                   className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
                 />
-                <select
-                  name="category"
-                  defaultValue={r.category}
-                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <CategoryPicker
+                  categories={categories}
+                  supported={extrasSupported}
+                  initialMain={r.category}
+                  initialExtras={r.extra_categories ?? []}
+                />
                 <label className="flex items-center gap-2 text-xs text-gray-400">
                   <input
                     type="checkbox"
@@ -476,7 +529,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
                     )}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {r.category} ·{" "}
+                    {[r.category, ...(r.extra_categories ?? [])].join(", ")} ·{" "}
                     {r.is_variable
                       ? `${formatCoins(r.rate_coins)} за каждые ${r.rate_kzt} ₸`
                       : `${formatCoins(r.price_coins)}`}{" "}

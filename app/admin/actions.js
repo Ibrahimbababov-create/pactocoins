@@ -500,6 +500,17 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
 
 // ---------- Магазин наград ----------
 
+// Дополнительные категории награды. Поле приходит, только если колонка уже
+// есть в базе (форма показывает чипы по этому признаку), иначе не трогаем.
+function extraCategoriesPatch(formData) {
+  if (!formData.has("extras_supported")) return {};
+  const main = formData.get("category");
+  const extras = [...new Set(formData.getAll("extra_categories"))].filter(
+    (c) => c && c !== main
+  );
+  return { extra_categories: extras };
+}
+
 export async function createReward(formData) {
   await requireAdmin();
   const admin = createAdminClient();
@@ -529,6 +540,7 @@ export async function createReward(formData) {
   const { error } = await admin.from("rewards").insert({
     title: formData.get("title"),
     category: formData.get("category"),
+    ...extraCategoriesPatch(formData),
     price_coins: isVariable ? null : priceCoins,
     is_variable: isVariable,
     rate_coins: isVariable ? rateCoins : null,
@@ -609,6 +621,7 @@ export async function updateReward(rewardId, formData) {
   const update = {
     title: formData.get("title"),
     category: formData.get("category"),
+    ...extraCategoriesPatch(formData),
     price_coins: isVariable ? null : priceCoins,
     is_variable: isVariable,
     rate_coins: isVariable ? rateCoins : null,
