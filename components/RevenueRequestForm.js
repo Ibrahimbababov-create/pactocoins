@@ -228,6 +228,11 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
             Интенсив / МК
           </button>
         </div>
+        <p className="mt-1.5 text-xs text-gray-500 leading-snug">
+          <span className="text-gray-400">Курс:</span> основной продукт, полный курс обучения.{" "}
+          <span className="text-gray-400">Интенсив / МК:</span> короткий формат, интенсив или мастер-класс
+          (это одно и то же).
+        </p>
       </div>
 
       <div>
@@ -240,6 +245,11 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
             Часть
           </button>
         </div>
+        <p className="mt-1.5 text-xs text-gray-500 leading-snug">
+          <span className="text-gray-400">Целиком:</span> клиент оплатил всю сумму одним платежом.{" "}
+          <span className="text-gray-400">Часть:</span> клиент платит по частям (предоплата, транш или
+          доплата), каждый платёж вносится отдельной заявкой, на последнем поставь галочку.
+        </p>
         {payKind === "part" && (
           <label className="flex items-center gap-3 mt-2 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 cursor-pointer">
             <input
