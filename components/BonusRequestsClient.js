@@ -18,6 +18,8 @@ import {
 } from "@/app/admin/ratingExemptActions";
 import { BONUS_CATEGORIES, bonusRewardText } from "@/lib/bonusCategories";
 import EmployeePicker from "@/components/EmployeePicker";
+import NameSearchInput from "@/components/NameSearchInput";
+import { matchesName } from "@/lib/translit";
 import TopBonus from "@/components/TopBonus";
 import { WEEKLY_TOP } from "@/lib/topBonusConfig";
 
@@ -50,17 +52,20 @@ export default function BonusRequestsClient({
   const [bulkReason, setBulkReason] = useState("");
   const [bulkExempt, setBulkExempt] = useState(false);
 
+  const [nameQuery, setNameQuery] = useState("");
+  const nameOk = (r) => !nameQuery.trim() || matchesName(r.users?.name ?? "", nameQuery.trim());
   const pending = requests.filter(
-    (r) => r.status === "pending" && !hiddenIds.has(r.id)
+    (r) => r.status === "pending" && !hiddenIds.has(r.id) && nameOk(r)
   );
-  const processed = [
+  const processedAll = [
     ...requests.filter((r) => r.status !== "pending"),
     ...extraHistory,
   ];
+  const processed = processedAll.filter(nameOk);
 
   async function loadMore() {
     setLoadingMore(true);
-    const res = await loadRequestHistory("bonus", processed.length, historyPageSize);
+    const res = await loadRequestHistory("bonus", processedAll.length, historyPageSize);
     if (res?.rows) setExtraHistory((prev) => [...prev, ...res.rows]);
     setLoadingMore(false);
   }
@@ -278,6 +283,14 @@ export default function BonusRequestsClient({
         </form>
       </div>
 
+      <NameSearchInput
+        value={nameQuery}
+        onChange={(v) => {
+          setNameQuery(v);
+          setSelectedIds([]);
+        }}
+      />
+
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-400">
@@ -414,7 +427,7 @@ export default function BonusRequestsClient({
           );
         })}
 
-        {processed.length < historyTotal && (
+        {processedAll.length < historyTotal && (
           <button
             type="button"
             onClick={loadMore}

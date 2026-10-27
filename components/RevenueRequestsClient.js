@@ -9,6 +9,8 @@ import { loadRequestHistory } from "@/app/admin/historyActions";
 import EmptyState from "@/components/EmptyState";
 import { revenueKindText } from "@/lib/revenueKinds";
 import Icon from "@/components/Icon";
+import NameSearchInput from "@/components/NameSearchInput";
+import { matchesName } from "@/lib/translit";
 import {
   approveRevenueRequest,
   rejectRevenueRequest,
@@ -39,17 +41,20 @@ export default function RevenueRequestsClient({
   const [dateEditingId, setDateEditingId] = useState(null);
   const [comments, setComments] = useState({});
 
+  const [nameQuery, setNameQuery] = useState("");
+  const nameOk = (r) => !nameQuery.trim() || matchesName(r.users?.name ?? "", nameQuery.trim());
   const pending = requests.filter(
-    (r) => r.status === "pending" && !hiddenIds.has(r.id)
+    (r) => r.status === "pending" && !hiddenIds.has(r.id) && nameOk(r)
   );
-  const processed = [
+  const processedAll = [
     ...requests.filter((r) => r.status !== "pending"),
     ...extraHistory,
   ];
+  const processed = processedAll.filter(nameOk);
 
   async function loadMore() {
     setLoadingMore(true);
-    const res = await loadRequestHistory("revenue", processed.length, historyPageSize);
+    const res = await loadRequestHistory("revenue", processedAll.length, historyPageSize);
     if (res?.rows) setExtraHistory((prev) => [...prev, ...res.rows]);
     setLoadingMore(false);
   }
@@ -163,6 +168,14 @@ export default function RevenueRequestsClient({
           {message.text}
         </div>
       )}
+
+      <NameSearchInput
+        value={nameQuery}
+        onChange={(v) => {
+          setNameQuery(v);
+          setSelectedIds([]);
+        }}
+      />
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -334,7 +347,7 @@ export default function RevenueRequestsClient({
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">История</p>
           <p className="text-xs text-gray-600">
-            {processed.length} из {historyTotal}
+            {nameQuery.trim() ? `найдено ${processed.length}, загружено ${processedAll.length} из ${historyTotal}` : `${processed.length} из ${historyTotal}`}
           </p>
         </div>
         {processed.map((r) => {
@@ -382,7 +395,7 @@ export default function RevenueRequestsClient({
           );
         })}
 
-        {processed.length < historyTotal && (
+        {processedAll.length < historyTotal && (
           <button
             type="button"
             onClick={loadMore}

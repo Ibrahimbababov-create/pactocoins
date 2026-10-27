@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { formatDateTimeAlmaty, formatPaymentDay } from "@/lib/timezone";
+import UserFilterPicker from "@/components/UserFilterPicker";
 
 export const dynamic = "force-dynamic";
 
@@ -90,8 +91,8 @@ export default async function AuditPage({ searchParams }) {
 
   const { data: employees } = await admin
     .from("users")
-    .select("id, name")
-    .in("role", ["mop", "rop", "trainee"])
+    .select("id, name, role, rop_id, is_active")
+    .in("role", ["mop", "rop", "trainee", "mentor"])
     .eq("is_guest", false)
     .not("email", "like", "%.test@pactocoins.local")
     .order("name");
@@ -148,18 +149,7 @@ export default async function AuditPage({ searchParams }) {
       {header}
 
       <form method="get" className="flex flex-col sm:flex-row gap-2">
-        <select
-          name="user"
-          defaultValue={userFilter}
-          className="bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-sm min-w-0 sm:w-64"
-        >
-          <option value="">Все сотрудники</option>
-          {(employees ?? []).map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
+        <UserFilterPicker employees={employees ?? []} initial={userFilter} />
         <select
           name="action"
           defaultValue={actionFilter}

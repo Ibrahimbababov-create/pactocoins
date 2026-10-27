@@ -49,7 +49,20 @@ export default async function EmployeesPage() {
   // при увольнении обнуляется, а история оплат остаётся.
   const firedIds = (users ?? []).filter((u) => u.is_active === false).map((u) => u.id);
   const firedRevenue = {};
+  // Баланс на момент увольнения: последняя транзакция «Списание при
+  // увольнении» (отрицательная, по модулю). У давно уволенных её нет.
+  const firedBalance = {};
   if (firedIds.length) {
+    const { data: offTx } = await supabase
+      .from("transactions")
+      .select("user_id, amount_coins, created_at")
+      .eq("description", "Списание при увольнении")
+      .in("user_id", firedIds)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    for (const t of offTx ?? []) {
+      if (firedBalance[t.user_id] === undefined) firedBalance[t.user_id] = Math.abs(Number(t.amount_coins) || 0);
+    }
     const { data: paid } = await supabase
       .from("revenue_requests")
       .select("user_id, amount_kzt")
@@ -64,6 +77,7 @@ export default async function EmployeesPage() {
   const usersWithGoals = (users ?? []).map((u) => ({
     ...u,
     fired_revenue: firedRevenue[u.id] ?? 0,
+    fired_balance: firedBalance[u.id] ?? null,
     month_earned: monthEarnedMap[u.id] ?? 0,
     goal: goalByUser[u.id] ?? null,
     onboarding:

@@ -5,6 +5,8 @@ import { formatCoins } from "@/lib/plural";
 import { useTransition, useState } from "react";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
+import NameSearchInput from "@/components/NameSearchInput";
+import { matchesName } from "@/lib/translit";
 import { updatePurchaseStatus } from "@/app/admin/actions";
 import { updatePurchaseActualSpend } from "@/app/admin/budgetActions";
 
@@ -20,6 +22,10 @@ export default function PurchaseRequestsClient({ purchases }) {
   const [message, setMessage] = useState(null);
   const [localStatuses, setLocalStatuses] = useState({});
   const [comments, setComments] = useState({});
+  const [nameQuery, setNameQuery] = useState("");
+  const shown = nameQuery.trim()
+    ? purchases.filter((p) => matchesName(p.users?.name ?? "", nameQuery.trim()))
+    : purchases;
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -62,11 +68,16 @@ export default function PurchaseRequestsClient({ purchases }) {
         </div>
       )}
 
+      {purchases.length > 0 && <NameSearchInput value={nameQuery} onChange={setNameQuery} />}
+
       {purchases.length === 0 && (
         <EmptyState icon="bag" title="Заявок на покупки нет" />
       )}
+      {purchases.length > 0 && shown.length === 0 && (
+        <EmptyState icon="bag" title="Никого не нашлось" />
+      )}
 
-      {purchases.map((p) => {
+      {shown.map((p) => {
         const currentStatus = localStatuses[p.id] ?? p.status;
         const meta = statuses.find((s) => s.value === currentStatus);
         return (

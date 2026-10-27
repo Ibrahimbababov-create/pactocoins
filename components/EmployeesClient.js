@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { roleLabel } from "@/lib/roles";
 import { matchesName } from "@/lib/translit";
+import { formatCoins } from "@/lib/plural";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import {
@@ -514,6 +515,13 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
                         {u.fired_revenue.toLocaleString("ru-RU")} ₸
                       </span>{" "}
                       · баланс коинов обнулён при увольнении
+                      {u.fired_balance != null && (
+                        <>
+                          <br />
+                          Баланс на момент увольнения:{" "}
+                          <span className="text-acid-400">{formatCoins(u.fired_balance)}</span>
+                        </>
+                      )}
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-1 tabular-nums">

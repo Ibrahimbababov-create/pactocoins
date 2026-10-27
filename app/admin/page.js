@@ -420,7 +420,11 @@ function ProgramCostCard({ cost, monthKey, forecast }) {
           : `Прибыль компании за месяц ещё не вписана, пока прикидка: ${(NET_MARGIN * 100).toLocaleString("ru-RU")}% от кассы ${kzt(cost.revenueKzt)} = ${kzt(cost.profitKzt)}. Фиксы прикидка не видит, впиши точную из таблицы.`}
       </p>
 
-      <MonthProfitInput monthKey={monthKey} value={cost.profitFromTable ? cost.profitKzt : null} />
+      <MonthProfitInput
+        monthKey={monthKey}
+        value={cost.profitFromTable ? cost.profitKzt : null}
+        forecast={cost.forecastProfit}
+      />
 
       <p className="text-[11px] text-gray-600 mt-3 leading-relaxed">
         Считаем по выданным коинам (их всё равно потратят), без возвратов и без админов. 1 коин ≈{" "}
@@ -472,7 +476,9 @@ function ForecastBlock({ forecast, cost, kzt }) {
             <span className="text-xs font-normal text-gray-400">прибыли</span>
           </p>
           <p className="text-[11px] text-gray-500 mt-0.5">
-            Прибыль тоже растёт с выручкой, поэтому процент меняется мало.
+            {f.profitEndManual
+              ? `Считаю от твоей суммы к концу месяца: ${kzt(f.profitEnd)}.`
+              : "Прибыль тоже растёт с выручкой, поэтому процент меняется мало."}
           </p>
         </>
       ) : (
