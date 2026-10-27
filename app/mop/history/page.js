@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import HistoryClient from "@/components/HistoryClient";
+import { resolveViewer } from "@/lib/viewAs";
 
 // Всю историю за всё время в HTML не тащим: у активного менеджера это
 // сотни строк и сотни килобайт в Mini App.
@@ -10,6 +11,8 @@ export default async function HistoryPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // В режиме просмотра админ видит историю того, чьими глазами смотрит.
+  const { viewId } = await resolveViewer(supabase, user.id);
 
   const [
     { data: transactions },
@@ -22,35 +25,35 @@ export default async function HistoryPage() {
     supabase
       .from("transactions")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .order("created_at", { ascending: false })
       .limit(HISTORY_LIMIT),
     supabase
       .from("purchase_requests")
       .select("*, rewards(title, category)")
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .order("created_at", { ascending: false })
       .limit(HISTORY_LIMIT),
     supabase
       .from("revenue_requests")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .eq("status", "pending"),
     supabase
       .from("bonus_requests")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .eq("status", "pending"),
     supabase
       .from("purchase_requests")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .eq("status", "pending"),
     // Оплаты клиентов: ФИО, продукт и вид оплаты для сверки с таблицей зарплат.
     supabase
       .from("revenue_requests")
       .select("id, client_name, product_kind, pay_kind, is_final_part, amount_kzt, status, earned_at, created_at")
-      .eq("user_id", user.id)
+      .eq("user_id", viewId)
       .not("client_name", "is", null)
       .order("created_at", { ascending: false })
       .limit(HISTORY_LIMIT),
