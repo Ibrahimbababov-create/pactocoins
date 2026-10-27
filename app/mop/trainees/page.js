@@ -101,6 +101,13 @@ export default async function TraineesPage() {
       {learning.map((t) => {
         const done = doneByUser[t.id] ?? {};
         const allDone = days.every((d) => (done[d] ?? 0) >= totalByDay[d]);
+        const currentDay = days.find((d) => (done[d] ?? 0) < totalByDay[d]);
+        const anyStarted = days.some((d) => (done[d] ?? 0) > 0);
+        const status = allDone
+          ? "Обучение пройдено"
+          : !anyStarted
+          ? "Ещё не начал(а) обучение"
+          : `Сейчас на дне ${currentDay}: ${done[currentDay] ?? 0} из ${totalByDay[currentDay]}`;
 
         return (
           <div
@@ -115,6 +122,9 @@ export default async function TraineesPage() {
                 <p className="font-semibold truncate">{t.name}</p>
                 <p className="text-xs text-gray-500 truncate">
                   {t.projects?.name ?? "проект не выбран"}
+                </p>
+                <p className={`text-xs truncate ${allDone ? "text-acid-400" : "text-gray-400"}`}>
+                  {status}
                 </p>
               </div>
               {allDone && (
