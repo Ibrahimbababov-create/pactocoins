@@ -11,6 +11,7 @@ import {
   linkSheetName,
   sendExtraNotice,
   setReconcileSkip,
+  setReconcileSkipSheet,
   refreshSheets,
 } from "@/app/admin/reconcileActions";
 
@@ -272,7 +273,7 @@ function SheetEditor({ project, month, source, failedReason }) {
 // Армана — это «Sula ROP», а строка «РОП» у Шолпан — это Сари. Угадать
 // такое нельзя, поэтому даём выбрать человека руками. Выбор запоминается
 // и дальше работает сам.
-function LinkName({ row, people, disabled, onPick }) {
+function LinkName({ row, people, disabled, onPick, onSkip }) {
   // Человека нашли — списка не показываем, иначе под каждой строкой висит
   // выпадашка и экран превращается в кашу. Вместо неё тихая ссылка: она
   // нужна редко, но без неё ошибочное совпадение не исправить.
@@ -305,19 +306,33 @@ function LinkName({ row, people, disabled, onPick }) {
         value={row.user ? row.user.id : ""}
         onChange={(id) => onPick(row, id)}
         placeholder="Начни писать имя…"
-        clearLabel="Никто не выбран, строка не считается"
+        clearLabel="Выбери, кому записать эти оплаты, или нажми «Не сверять»"
         onClear={() => onPick(row, "")}
         describe={(p) =>
           p.projectId === row.projectId ? undefined : "другой проект"
         }
       />
-      <button
-        type="button"
-        onClick={() => setOpen(false)}
-        className="text-[11px] text-gray-500"
-      >
-        свернуть
-      </button>
+      <div className="flex items-center gap-3">
+        {!row.user && (
+          <button
+            type="button"
+            onClick={() => onSkip(row)}
+            disabled={disabled}
+            className="text-xs font-semibold text-gray-300 border border-dark-600 rounded-lg px-3 py-1.5 disabled:opacity-50"
+          >
+            Не сверять
+          </button>
+        )}
+        {row.user && (
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="text-[11px] text-gray-500"
+          >
+            свернуть
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -359,9 +374,9 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
     setMsg(null);
     start(async () => {
       const res = await sendExtraNotice(monthKey, row.user.id);
-      if (res?.error) return setMsg(res.error);
+      if (res?.error) return setMsg({ error: res.error });
       setReminded((prev) => new Set(prev).add(row.user.id));
-      setMsg(`Написал ${res.name ?? "сотруднику"} про разницу`);
+      setMsg({ ok: `Написал ${res.name ?? "сотруднику"} про разницу` });
     });
   }
 
@@ -369,14 +384,21 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
   function skipPerson(user, skip) {
     setMsg(null);
     start(async () => {
-      const res = await setReconcileSkip(user.id, skip);
-      if (res?.error) return setMsg(res.error);
-      setMsg(
-        skip
+      const res = user.sheet
+        ? await setReconcileSkipSheet(user.projectId, user.sheetName, skip)
+        : await setReconcileSkip(user.id, skip);
+      if (res?.error) return setMsg({ error: res.error });
+      setMsg({
+        ok: skip
           ? `${user.name} больше не участвует в сверке`
-          : `${user.name} снова в сверке`
-      );
+          : `${user.name} снова в сверке`,
+      });
     });
+  }
+
+  // Строка из таблицы, которой нет в PactoCoins.
+  function skipSheetRow(row) {
+    skipPerson({ sheet: true, projectId: row.projectId, sheetName: row.sheetName, name: row.sheetName }, true);
   }
 
   function pickPerson(row, userId) {
@@ -385,20 +407,26 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
       const res = await linkSheetName(row.projectId, row.sheetName, userId);
       setMsg(
         res?.error
-          ? res.error
-          : userId
-          ? `Запомнил: «${row.sheetName}» — это выбранный человек`
-          : `Привязка для «${row.sheetName}» снята`
+          ? { error: res.error }
+          : {
+              ok: userId
+                ? `Запомнил: «${row.sheetName}» это выбранный человек`
+                : `Привязка для «${row.sheetName}» снята`,
+            }
       );
     });
   }
   const sourceByProject = Object.fromEntries((data.sources ?? []).map((s) => [s.projectId, s]));
-  const [editorOpen, setEditorOpen] = useState(
-    () =>
-      !data.ok ||
-      failed.size > 0 ||
-      projects.some((p) => sourceByProject[p.id]?.month !== monthKey)
+  // Настройка таблиц нужна раз в месяц: при открытии всегда свёрнута.
+  const [editorOpen, setEditorOpen] = useState(false);
+  const missingProjects = projects.filter((p) => sourceByProject[p.id]?.month !== monthKey);
+  const brokenProjects = projects.filter(
+    (p) => sourceByProject[p.id]?.month === monthKey && data.failedReasons?.[p.id]
   );
+  const editorHints = [
+    ...missingProjects.map((p) => `${p.name}: таблица не указана`),
+    ...brokenProjects.map((p) => `${p.name}: таблица не открылась`),
+  ];
 
   const remindable = data.rows.filter(
     (r) => r.user?.hasTelegram && r.missing >= 5000 && !reminded.has(r.user.id)
@@ -456,6 +484,7 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
                     people={data.people ?? []}
                     disabled={pending}
                     onPick={pickPerson}
+                    onSkip={skipSheetRow}
                   />
                 </div>
                 {r.missing > 0 ? (
@@ -501,7 +530,7 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
                     type="button"
                     onClick={() => askAboutExtra(r)}
                     disabled={pending || reminded.has(r.user.id)}
-                    className="text-xs font-semibold text-amber-400 disabled:text-gray-500"
+                    className="text-xs font-semibold text-gray-300 disabled:text-gray-500"
                   >
                     {reminded.has(r.user.id)
                       ? "Написал"
@@ -535,8 +564,16 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
           className="w-full flex items-center justify-between gap-3 text-left"
           aria-expanded={editorOpen}
         >
-          <span className="font-semibold">Таблицы за {data.monthLabel}</span>
-          <span className="text-xs text-gray-500">{editorOpen ? "Свернуть" : "Изменить"}</span>
+          <span className="min-w-0">
+            <span className="block font-semibold">
+              Настройка таблиц · {data.monthLabel} {editorOpen ? "▴" : "▾"}
+            </span>
+            <span
+              className={`block text-[11px] mt-0.5 ${editorHints.length ? "text-amber-400" : "text-gray-500"}`}
+            >
+              {editorHints.length ? editorHints.join(" · ") : "все таблицы подключены"}
+            </span>
+          </span>
         </button>
         {editorOpen && (
           <>
@@ -572,15 +609,29 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
       {data.rows.length > 0 && (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
           <p className="text-xs text-gray-500">{data.monthLabel}</p>
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-            <p>
-              В таблицах: <b className="tabular-nums">{kzt(data.totals.sheet)}</b>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {[
+              ["В таблицах", kzt(data.totals.sheet)],
+              ["В PactoCoins", kzt(data.totals.app)],
+              ["Разница", kzt(Math.abs(data.totals.sheet - data.totals.app))],
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <p className="text-[11px] text-gray-500">{label}</p>
+                <p className="font-display font-bold text-base sm:text-lg tabular-nums break-words">{value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-dark-600 space-y-2 text-sm">
+            <p className={data.totals.missingCount > 0 ? "text-amber-400" : "text-gray-400"}>
+              Не записано в PactoCoins: <b className="tabular-nums">{kzt(data.totals.missing)}</b>
+              {data.totals.missingCount > 0 && ` (${data.totals.missingCount} чел.)`}
             </p>
-            <p>
-              В PactoCoins: <b className="tabular-nums">{kzt(data.totals.app)}</b>
-            </p>
-            <p className={data.totals.missing > 0 ? "text-amber-400" : "text-acid-400"}>
-              Не записано: <b className="tabular-nums">{kzt(data.totals.missing)}</b>
+            <p className="text-gray-400">
+              В PactoCoins больше, чем в таблице: <b className="tabular-nums">{kzt(data.totals.extra)}</b>
+              {data.totals.extraCount > 0 && ` (${data.totals.extraCount} чел.)`}
+              <span className="block text-[11px] text-gray-500 mt-0.5">
+                Часто это мастер-классы и оплаты, которых нет в таблице.
+              </span>
             </p>
           </div>
           {remindable.length > 0 && (
@@ -590,7 +641,7 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
               disabled={pending}
               className="mt-3 w-full bg-acid-400 text-black font-bold rounded-xl py-2.5 text-sm disabled:opacity-50"
             >
-              Напомнить всем, у кого разница ({remindable.length})
+              Напомнить всем, кто не записал оплаты ({remindable.length})
             </button>
           )}
           <button

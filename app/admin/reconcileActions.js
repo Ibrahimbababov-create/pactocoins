@@ -17,6 +17,7 @@ import {
   upsertSource,
   upsertAlias,
   toggleExcluded,
+  sheetSkipKey,
 } from "@/lib/sheetConfig";
 import { notifyUser } from "@/lib/notifyUser";
 import { listSheetTabs, previewSource, SHEET_CACHE_TAG } from "@/lib/sheetsRevenue";
@@ -169,6 +170,23 @@ export async function setReconcileSkip(userId, skip) {
   return { ok: true };
 }
 
+// Не сверять строку из таблицы, которой нет в PactoCoins (или вернуть).
+export async function setReconcileSkipSheet(projectId, sheetName, skip) {
+  const v = await viewerFor(projectId);
+  if (v.error) return v;
+  if (!sheetName) return { error: "Нет имени из таблицы" };
+
+  const admin = createAdminClient();
+  const { sources, aliases, excluded } = await getSheetSources(admin);
+  const next = toggleExcluded(excluded, sheetSkipKey(projectId, sheetName), skip);
+  const res = await saveSheetSources(admin, sources, aliases, next);
+  if (res?.error) return { error: res.error };
+
+  revalidatePath("/admin/reconcile");
+  revalidatePath("/mop/reconcile");
+  return { ok: true };
+}
+
 // Привязать имя из таблицы к человеку в PactoCoins. Нужно там, где имена
 // не совпадают и совпасть не могут: у Армана продавец записан «Султан РОП»,
 // а в приложении он «Sula ROP»; у Шолпан строка называется просто «РОП».
@@ -181,11 +199,11 @@ export async function linkSheetName(projectId, sheetName, userId) {
   const admin = createAdminClient();
 
   if (userId) {
+    // Уволенных тоже можно выбрать: их оплаты остаются в таблицах.
     const { data: person } = await admin
       .from("users")
       .select("id")
       .eq("id", userId)
-      .eq("is_active", true)
       .maybeSingle();
     if (!person) return { error: "Человек не найден" };
   }
