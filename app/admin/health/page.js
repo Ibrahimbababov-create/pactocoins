@@ -12,6 +12,9 @@ export const dynamic = "force-dynamic";
 // созданных раньше, они пустые не по ошибке, поэтому проверки про ФИО и
 // вид оплаты смотрят только на заявки не старше этой даты.
 const KINDS_SINCE = "2026-10-27T00:00:00+05:00";
+// Все шесть проверок смотрят только на заявки, созданные с этой даты:
+// до неё в форме не было ФИО и вида оплаты, старые данные только шумят.
+// Переключатель 30/60/90 не может сдвинуть окно раньше неё.
 
 const WINDOWS = [30, 60, 90];
 const DAY = 24 * 60 * 60 * 1000;
@@ -64,7 +67,7 @@ export default async function HealthPage({ searchParams }) {
 
   const days = WINDOWS.includes(Number(searchParams?.days)) ? Number(searchParams.days) : 60;
   const now = Date.now();
-  const sinceIso = new Date(now - days * DAY).toISOString();
+  const sinceIso = new Date(Math.max(now - days * DAY, new Date(KINDS_SINCE).getTime())).toISOString();
 
   const admin = createAdminClient();
 
@@ -85,7 +88,7 @@ export default async function HealthPage({ searchParams }) {
       .from("revenue_requests")
       .select(cols)
       .in("status", ["approved", "pending"])
-      .or(`created_at.gte.${sinceIso},earned_at.gte.${sinceIso}`)
+      .gte("created_at", sinceIso)
       .order("created_at", { ascending: false })
       .limit(3000),
     // Части и последние части смотрим без окна: часть могла повиснуть давно.
@@ -94,6 +97,7 @@ export default async function HealthPage({ searchParams }) {
       .select(cols)
       .in("status", ["approved", "pending"])
       .not("pay_kind", "is", null)
+      .gte("created_at", KINDS_SINCE)
       .limit(3000),
   ]);
 
@@ -130,7 +134,7 @@ export default async function HealthPage({ searchParams }) {
 
   // 3. Без ФИО и без вида оплаты (только новые заявки)
   const noInfo = rows.filter(
-    (r) => r.created_at >= KINDS_SINCE && (!r.client_name || !r.pay_kind || !r.product_kind)
+    (r) => (!r.client_name || !r.pay_kind || !r.product_kind)
   );
 
   // 4. Висящие части
@@ -195,9 +199,10 @@ export default async function HealthPage({ searchParams }) {
     },
     {
       key: "small",
-      title: "Мелкие оплаты",
-      hint: "Оплаты на 10 000 ₸ и меньше. Это могут быть предоплаты, а могут быть тестовые. Проверь, что всё настоящее.",
+      title: "Мелкие оплаты до 10 000 ₸",
+      hint: "Оплаты на 10 000 ₸ и меньше. Это могут быть предоплаты, а могут быть тестовые. Проверь, что всё настоящее. Только для информации.",
       alert: false,
+      info: true,
       count: small.length,
       render: () =>
         small.slice(0, LIST_LIMIT).map((r) => (
@@ -215,7 +220,7 @@ export default async function HealthPage({ searchParams }) {
     {
       key: "noinfo",
       title: "Нет ФИО клиента или вида оплаты",
-      hint: "Смотрим только заявки, поданные с 27.10.2026: раньше этих полей в форме не было.",
+      hint: "Смотрим заявки, поданные с 27.10.2026, когда в форме появились эти поля.",
       alert: true,
       count: noInfo.length,
       render: () =>
@@ -301,7 +306,7 @@ export default async function HealthPage({ searchParams }) {
   ];
 
   const attention = blocks.filter((b) => b.alert).reduce((s, b) => s + b.count, 0);
-  const total = blocks.reduce((s, b) => s + b.count, 0);
+  const total = blocks.filter((b) => !b.info).reduce((s, b) => s + b.count, 0);
 
   return (
     <div className="space-y-4">
@@ -310,6 +315,9 @@ export default async function HealthPage({ searchParams }) {
         <p className="text-sm text-gray-500 mt-1">
           Что в оплатах выглядит подозрительно и что стоит проверить. Страница только показывает,
           ничего не меняет.
+        </p>
+        <p className="text-sm text-acid-400 mt-1">
+          Считаем оплаты с 27.10.2026, когда в форме появились ФИО и вид оплаты.
         </p>
       </div>
 
@@ -333,7 +341,7 @@ export default async function HealthPage({ searchParams }) {
         {total === 0 ? (
           <div className="flex items-center gap-2 text-sm">
             <Icon name="check" className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span>Всё чисто. За последние {days} дней ничего подозрительного не нашли.</span>
+            <span>Всё чисто. За выбранный период ничего подозрительного не нашли.</span>
           </div>
         ) : (
           <div className="text-sm text-gray-400">

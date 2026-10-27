@@ -20,6 +20,7 @@ import { getProgramCost, getBudgetForecast, BUDGET_SHARE, NET_MARGIN } from "@/l
 import { createAdminClient } from "@/lib/supabase-admin";
 import { forecastRevenueCoins } from "@/lib/revenueForecast";
 import MonthProfitInput from "@/components/MonthProfitInput";
+import ForecastCollapse from "@/components/ForecastCollapse";
 
 const QUEUE_LINKS = [
   // Коротко: на телефоне три плитки в ряд, «Заявки на выручку» обрезалось.
@@ -433,12 +434,11 @@ function ProgramCostCard({ cost, monthKey, forecast }) {
 // Прогноз расхода к концу месяца: диапазон, цвет по потолку, топ-3 источника.
 function ForecastBlock({ forecast, cost, kzt }) {
   if (!forecast) return null;
-  const box = "mt-4 pt-3 border-t border-dark-600";
   if (forecast.tooEarly) {
     return (
-      <div className={box}>
+      <ForecastCollapse>
         <p className="text-xs text-gray-500">Прогноз на конец месяца появится после третьего дня месяца.</p>
-      </div>
+      </ForecastCollapse>
     );
   }
   const f = forecast;
@@ -460,12 +460,21 @@ function ForecastBlock({ forecast, cost, kzt }) {
   }
   const coinsRange = `${f.low.toLocaleString("ru-RU")} – ${f.high.toLocaleString("ru-RU")}`;
   return (
-    <div className={box}>
+    <ForecastCollapse>
       <p className="text-xs text-gray-500">Прогноз на конец месяца, примерно</p>
       {f.withProfit ? (
-        <p className={`mt-1 text-lg font-bold tabular-nums ${tone}`}>
-          {fmtPct(f.pctLow)} – {fmtPct(f.pctHigh)}% <span className="text-xs font-normal text-gray-400">прибыли</span>
-        </p>
+        <>
+          <p className="mt-1 text-sm text-gray-400 tabular-nums">
+            Сейчас {fmtPct(f.pctNow)}% от прибыли на сегодня
+          </p>
+          <p className={`mt-1 text-lg font-bold tabular-nums ${tone}`}>
+            К концу месяца {fmtPct(f.pctLow)} – {fmtPct(f.pctHigh)}%{" "}
+            <span className="text-xs font-normal text-gray-400">прибыли</span>
+          </p>
+          <p className="text-[11px] text-gray-500 mt-0.5">
+            Прибыль тоже растёт с выручкой, поэтому процент меняется мало.
+          </p>
+        </>
       ) : (
         <p className="mt-1 text-lg font-bold tabular-nums text-gray-200">
           {kzt(f.low * cost.kztPerCoin)} – {kzt(f.high * cost.kztPerCoin)}
@@ -511,6 +520,6 @@ function ForecastBlock({ forecast, cost, kzt }) {
           ))}
         </div>
       )}
-    </div>
+    </ForecastCollapse>
   );
 }
