@@ -16,49 +16,6 @@ import {
   revenueKindText,
 } from "@/lib/revenueKinds";
 
-// Подсказки для формы: прошлые клиенты этого сотрудника. Тёзок не склеиваем:
-// каждая незакрытая «часть» показывается отдельной строкой, выбирает человек.
-export async function getClientHints() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { open: [], names: [] };
-
-  const { data: rows } = await supabase
-    .from("revenue_requests")
-    .select("client_name, amount_kzt, pay_kind, is_final_part, earned_at, created_at, status")
-    .eq("user_id", user.id)
-    .not("client_name", "is", null)
-    .neq("status", "rejected")
-    .order("created_at", { ascending: false })
-    .limit(400);
-
-  const list = rows ?? [];
-  const closed = new Set(list.filter((r) => r.is_final_part).map((r) => clientKey(r.client_name)));
-  const names = [];
-  const seenNames = new Set();
-  const open = [];
-  for (const r of list) {
-    const key = clientKey(r.client_name);
-    if (!seenNames.has(key)) {
-      seenNames.add(key);
-      names.push(r.client_name);
-    }
-    if (r.pay_kind === "part" && !r.is_final_part && !closed.has(key)) {
-      open.push({
-        name: r.client_name,
-        amount: r.amount_kzt,
-        date: r.earned_at || r.created_at,
-      });
-    }
-  }
-  return {
-    names: names.slice(0, 200),
-    open: open.slice(0, 60).map((o) => ({ ...o, dateLabel: formatPaymentDay(o.date).split(",")[0] })),
-  };
-}
-
 export async function submitRevenueRequest(
   rawAmountKzt,
   comment,
