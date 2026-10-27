@@ -10,8 +10,8 @@ import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { PLACE_SPINS } from "@/lib/tournamentRounds";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { haptic } from "@/lib/haptics";
-import Link from "next/link";
 import Icon from "@/components/Icon";
+import BonusRequestForm from "@/components/BonusRequestForm";
 
 // Колесо фортуны. Результат решает сервер (spinWheel), колесо только
 // красиво доезжает до выпавшего сектора: сначала разгоняется, пока ждём
@@ -206,6 +206,7 @@ export default function WheelClient({
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [bonusOpen, setBonusOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const wheelRef = useRef(null);
   const pointerRef = useRef(null);
@@ -528,6 +529,9 @@ export default function WheelClient({
           </div>
         ) : null)}
 
+      {/* Заявка на бонус прямо с колеса: не нужно уходить на главный экран */}
+      <BonusRequestForm open={bonusOpen} onOpenChange={setBonusOpen} />
+
       {/* Крутки за фишки: выиграл фишки, купил крутки, крутишь дальше */}
       {n > 0 && (
         <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 space-y-3">
@@ -622,14 +626,6 @@ export default function WheelClient({
             </div>
           ))}
         </div>
-        <Link
-          href="/mop#bonus"
-          className="flex items-center justify-center gap-2 w-full rounded-2xl border border-acid-400/40 text-acid-400 font-bold py-3 active:scale-[.98] transition"
-        >
-          <Icon name="plus" className="w-4 h-4" />
-          Запросить бонус
-        </Link>
-        <p className="text-xs text-gray-600 px-1">Откроется форма заявки на главном экране.</p>
       </div>
 
       {bigWins.length > 0 && (

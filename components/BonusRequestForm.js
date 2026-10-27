@@ -61,7 +61,7 @@ export default function BonusRequestForm({ open, onOpenChange }) {
           }}
           className="w-full bg-dark-800 border border-dark-600 text-white font-bold rounded-2xl py-4 px-5 active:scale-[0.98] transition"
         >
-          Бонус
+          Запросить бонус
         </button>
       ) : (
         <form
