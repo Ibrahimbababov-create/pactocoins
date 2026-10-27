@@ -74,6 +74,11 @@ export default async function MorePage() {
     {
       title: "Работа",
       items: [
+        role !== "trainee" && !profile?.is_guest && {
+          href: "/mop/sales",
+          label: "Аналитика отдела",
+          icon: "chart",
+        },
         role !== "trainee" && {
           href: "/mop/materials",
           label: "Регламенты и обучение",

@@ -271,6 +271,24 @@ button:not(:disabled):active {
   .ob-pop { animation: none; }
 }
 
+/* Аналитика: анимации как в дашборде arman-analytics — карточки мягко
+   поднимаются, полосы и столбики «вырастают», линия графика «рисуется».
+   Конечное состояние — transform: none, поэтому выдвижные меню внутри
+   не съезжают. Без анимаций для тех, кто их отключил в системе. */
+@keyframes sa-rise { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes sa-grow { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes sa-grow-y { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes sa-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes sa-fade { from { opacity: 0; } to { opacity: 1; } }
+.sa-rise { animation: sa-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sa-grow { transform-origin: left center; animation: sa-grow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sa-grow-y { transform-box: fill-box; transform-origin: bottom; animation: sa-grow-y 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sa-draw { stroke-dasharray: 1; animation: sa-draw 1.3s cubic-bezier(0.3, 0.6, 0.2, 1) both; }
+.sa-fade { animation: sa-fade 1s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .sa-rise, .sa-grow, .sa-grow-y, .sa-draw, .sa-fade { animation: none; }
+}
+
 /* Экран «Наблюдать за игрой» (components/TournamentLive.js) */
 @keyframes live-flash {
   0% { background-color: rgb(var(--c-accent) / 0.45); }
