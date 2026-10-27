@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Шесть разделов вместо десяти вкладок вперемешку. Очереди заявок,
-// люди, магазин и деньги — это по одному разделу с подвкладками внутри
+// Восемь разделов вместо десяти вкладок вперемешку. Очереди заявок,
+// люди, магазин, деньги и контроль — это по одному разделу с подвкладками внутри
 // (AdminSubNav), а не по четыре пункта наверху.
 const SECTIONS = [
   { href: "/admin", label: "Обзор", exact: true },
@@ -16,11 +16,7 @@ const SECTIONS = [
       "/admin/bonus-requests",
       "/admin/purchase-requests",
       "/admin/join-requests",
-      "/admin/payments",
       "/admin/revenue-edits",
-      "/admin/reconcile",
-      "/admin/audit",
-      "/admin/health",
     ],
     badgeKey: "pendingRequests",
   },
@@ -29,11 +25,11 @@ const SECTIONS = [
     label: "Люди",
     owns: [
       "/admin/employees",
-      "/admin/rating",
       "/admin/projects",
       "/admin/merge-accounts",
     ],
   },
+  { href: "/admin/rating", label: "Рейтинг", owns: ["/admin/rating"] },
   {
     href: "/admin/rewards",
     label: "Магазин",
@@ -44,6 +40,16 @@ const SECTIONS = [
     href: "/admin/budget",
     label: "Деньги",
     owns: ["/admin/budget", "/admin/funds"],
+  },
+  {
+    href: "/admin/payments",
+    label: "Контроль",
+    owns: [
+      "/admin/payments",
+      "/admin/audit",
+      "/admin/health",
+      "/admin/reconcile",
+    ],
   },
   { href: "/admin/onboarding", label: "Обучение", owns: ["/admin/onboarding"] },
 ];
