@@ -30,7 +30,7 @@ export default async function AdminSurveyPage() {
           {SURVEY_REWARD_CHIPS} фишек.
         </p>
       </div>
-      <SurveyResultsClient open={config.rawOpen} endsAt={config.endsAt} expired={config.expired} responses={responses} done={done} staff={staff ?? 0} />
+      <SurveyResultsClient enabled={config.enabled} open={config.rawOpen} endsAt={config.endsAt} expired={config.expired} responses={responses} done={done} staff={staff ?? 0} />
     </div>
   );
 }

@@ -21,6 +21,8 @@ import { maybeGraduateTrainee } from "@/lib/onboarding";
 import { fetchTelegraphContent } from "@/lib/telegraph";
 import { addCoins } from "@/lib/addCoins";
 import { addSpins } from "@/lib/addSpins";
+import { revokeAttendanceChest } from "@/lib/attendanceChest";
+import { chipsNom } from "@/lib/plural";
 import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
 
 function parseSale(formData) {
@@ -912,7 +914,14 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
     .select("id");
   if (!claimed?.length) return { error: "Заявка уже отменена" };
 
-  if (spinOnly) {
+  // Приход с сундуком: крутки не было, снимать нечего. Сундук либо убираем
+  // (если не открыт), либо забираем выданные фишки.
+  const chest = await revokeAttendanceChest(admin, request);
+  const chestHandled = chest.kind === "removed" || chest.kind === "refunded";
+
+  if (chestHandled) {
+    // всё сделано в revokeAttendanceChest
+  } else if (spinOnly) {
     await addSpins(admin, request.user_id, -spinsAward);
   } else if (coins) {
     const { data: profile } = await admin
@@ -932,7 +941,11 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
     });
   }
 
-  let text = spinOnly
+  let text = chestHandled
+    ? `⚠️ Приход отменён (засчитан по ошибке)${
+        chest.kind === "refunded" ? `: ${chest.chips} ${chipsNom(chest.chips)} из сундука списали обратно` : ": сундук за него убрали"
+      }`
+    : spinOnly
     ? `⚠️ Заявка на бонус отменена (одобрена по ошибке): ${spinsAward} ${spinsNom(spinsAward)} на колесе списали обратно`
     : `⚠️ Заявка на бонус отменена (одобрена по ошибке)${
         coins ? ` — ${formatCoins(coins)} списаны обратно` : ""
