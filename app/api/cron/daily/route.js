@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { processBirthdaysToday } from "@/lib/birthdayBonus";
 import { resetGuestAccount } from "@/lib/guestAccount";
 import { cleanupOldWelcomes } from "@/lib/groupWelcome";
-import { runHeldReports } from "@/lib/heldReports";
 import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
 import { syncBotCommands } from "@/lib/botCommands";
 import { createAdminClient } from "@/lib/supabase-admin";
@@ -22,8 +21,6 @@ export async function GET(request) {
   const summary = {
     birthdays: [],
     guestReset: false,
-    weeklyReportSent: false,
-    monthlyReportSent: false,
   };
 
   try {
@@ -76,18 +73,6 @@ export async function GET(request) {
     } catch (err) {
       console.error("[cron] weekly rating summary failed:", err);
     }
-  }
-
-  // Недельный (по понедельникам) и месячный (1-го числа) отчёты: уходят,
-  // когда за период нет необработанных заявок на выручку, иначе ждут и
-  // раз в сутки напоминают админу (lib/heldReports.js).
-  try {
-    const r = await runHeldReports({ remind: true });
-    summary.weeklyReportSent = r.weeklyReportSent;
-    summary.monthlyReportSent = r.monthlyReportSent;
-    summary.reportsHeld = r.held;
-  } catch (err) {
-    console.error("[cron] reports failed:", err);
   }
 
   return NextResponse.json({ ok: true, ...summary });
