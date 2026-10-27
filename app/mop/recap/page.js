@@ -31,7 +31,7 @@ function Stat({ label, value, hint }) {
   return (
     <div className="rounded-2xl bg-dark-900/60 border border-dark-700 p-3.5 min-w-0">
       <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 font-display font-bold text-lg truncate">{value}</p>
+      <p className="mt-1 font-display font-bold text-[15px] leading-snug break-words">{value}</p>
       {hint && <p className="mt-0.5 text-xs text-gray-500 truncate">{hint}</p>}
     </div>
   );

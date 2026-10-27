@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import MyPaymentsClient from "@/components/MyPaymentsClient";
 import EmptyState from "@/components/EmptyState";
+import { resolveViewer } from "@/lib/viewAs";
 import {
   currentMonthKeyAlmaty,
   monthRangeAlmaty,
@@ -18,10 +19,13 @@ export default async function MyPaymentsPage({ searchParams }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // В режиме просмотра админ видит оплаты того, чьими глазами смотрит.
+  const { viewId } = await resolveViewer(supabase, user.id);
+
   const { data: profile } = await supabase
     .from("users")
     .select("role, is_guest")
-    .eq("id", user.id)
+    .eq("id", viewId)
     .single();
 
   if (profile?.is_guest || !ALLOWED_ROLES.includes(profile?.role)) {
@@ -54,7 +58,7 @@ export default async function MyPaymentsPage({ searchParams }) {
   const { data: rows } = await supabase
     .from("revenue_requests")
     .select("id, client_name, product_kind, pay_kind, is_final_part, amount_kzt, status, earned_at, created_at")
-    .eq("user_id", user.id)
+    .eq("user_id", viewId)
     .or(
       `and(earned_at.gte.${range.start},earned_at.lt.${range.end}),and(earned_at.is.null,created_at.gte.${range.start},created_at.lt.${range.end})`
     )
@@ -67,7 +71,7 @@ export default async function MyPaymentsPage({ searchParams }) {
   const { data: editRows, error: editsError } = await supabase
     .from("revenue_edit_requests")
     .select("id, request_id, status, proposed, reason, admin_comment, created_at, reviewed_at")
-    .eq("user_id", user.id)
+    .eq("user_id", viewId)
     .order("created_at", { ascending: false })
     .limit(500);
   const editsEnabled = !editsError;
