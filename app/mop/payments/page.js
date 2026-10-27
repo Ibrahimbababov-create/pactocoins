@@ -59,6 +59,7 @@ export default async function MyPaymentsPage({ searchParams }) {
     .from("revenue_requests")
     .select("id, client_name, product_kind, pay_kind, is_final_part, amount_kzt, status, earned_at, created_at")
     .eq("user_id", viewId)
+    .neq("status", "rejected")
     .or(
       `and(earned_at.gte.${range.start},earned_at.lt.${range.end}),and(earned_at.is.null,created_at.gte.${range.start},created_at.lt.${range.end})`
     )
