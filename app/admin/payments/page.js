@@ -49,11 +49,11 @@ export default async function PaymentsPage({ searchParams = {} }) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-display font-bold">Оплаты</h1>
+        <h1 className="text-2xl font-display font-bold">Сверка оплат</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Здесь можно найти конкретную оплату и поправить её: изменить сумму,
-          передвинуть дату или отменить. Коины пересчитываются сами, сотруднику
-          уходит сообщение.
+          Выберите период и людей, сравните суммы с таблицей зарплат. Если оплата
+          записана неверно, её можно изменить или отменить: коины пересчитаются,
+          сотруднику уйдёт сообщение.
         </p>
       </div>
 

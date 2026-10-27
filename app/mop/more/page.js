@@ -104,7 +104,7 @@ export default async function MorePage() {
         },
         // РОП сверяет таблицы своей команды с PactoCoins
         role === "rop" && {
-          href: "/admin/reconcile",
+          href: "/mop/reconcile",
           label: "Сверка с таблицами",
           icon: "check",
         },
