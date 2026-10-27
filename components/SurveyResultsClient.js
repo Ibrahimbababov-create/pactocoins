@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SURVEY_QUESTIONS } from "@/lib/surveyQuestions";
-import { toggleSurvey, setSurveyEndsAt } from "@/app/admin/surveyActions";
+import { toggleSurvey, setSurveyEndsAt, setSurveyEnabled } from "@/app/admin/surveyActions";
 
 const SURVEY_URL = "https://pactocoins.vercel.app/mop/survey";
 const ROLES = SURVEY_QUESTIONS.find((q) => q.id === "role").options;
@@ -82,7 +82,7 @@ function Bar({ label, value, max, total }) {
   );
 }
 
-export default function SurveyResultsClient({ open, endsAt = null, expired = false, responses, done, staff }) {
+export default function SurveyResultsClient({ enabled = false, open, endsAt = null, expired = false, responses, done, staff }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [role, setRole] = useState("");
@@ -113,6 +113,14 @@ export default function SurveyResultsClient({ open, endsAt = null, expired = fal
       router.refresh();
     });
 
+  const enable = () =>
+    start(async () => {
+      setMsg(null);
+      const res = await setSurveyEnabled(true);
+      if (res?.error) setMsg(res.error);
+      router.refresh();
+    });
+
   const saveDay = (value) =>
     start(async () => {
       setMsg(null);
@@ -126,6 +134,24 @@ export default function SurveyResultsClient({ open, endsAt = null, expired = fal
 
   return (
     <div className="space-y-4">
+      {!enabled && (
+        <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold">Опрос закрыт для сотрудников</p>
+            <p className="text-xs text-gray-500">
+              Его нет ни на главной, ни в «Ещё», ответы не принимаются. Результаты ниже остаются.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={enable}
+            className="shrink-0 rounded-lg px-4 py-2 text-sm font-bold bg-acid-400 text-black disabled:opacity-50"
+          >
+            Включить снова
+          </button>
+        </div>
+      )}
       <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
