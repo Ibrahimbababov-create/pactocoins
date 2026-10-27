@@ -906,6 +906,13 @@ export async function POST(request) {
   const data = callback?.data || "";
   const [action, requestId] = data.split(":");
 
+  // Кнопка-статус «✅ Подтверждено в админке» (lib/telegramMessageSync.js):
+  // нажимать её не нужно, просто объясняем.
+  if (callback && action === "handled") {
+    await answerCallbackQuery(callback.id, "Заявка уже обработана");
+    return NextResponse.json({ ok: true });
+  }
+
   const FLOW_ACTIONS = new Set([
     "reject_purchase_go",
     "keep_purchase",
