@@ -7,7 +7,6 @@ const items = [
   { href: "/observer", label: "Обзор" },
   { href: "/observer/rating", label: "Рейтинг" },
   { href: "/observer/sales", label: "Аналитика" },
-  { href: "/observer/sales", label: "Аналитика" },
   { href: "/observer/shop", label: "Магазин" },
   { href: "/observer/activity", label: "Активность" },
 ];

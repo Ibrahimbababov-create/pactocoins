@@ -14,8 +14,12 @@ function useAmo(deptId, period, extra = "") {
     setState({ loading: true });
     fetch(`/api/sales/team?dept=${encodeURIComponent(deptId)}&period=${period}${extra}`)
       .then(async (r) => {
-        const j = await r.json().catch(() => ({}));
+        let j = null;
+        try {
+          j = await r.json();
+        } catch {}
         if (!alive) return;
+        if (!j) return setState({ error: "Загрузка заняла слишком много времени, выбери период покороче" });
         setState(r.ok ? { data: j } : { error: j.error || "amoCRM не ответила" });
       })
       .catch(() => alive && setState({ error: "Нет связи с сервером" }));
@@ -212,7 +216,7 @@ export function TeamScreen({ deptId, monthKey, people }) {
               <Stat label="Заявок обработано за 15 мин" value={T.kpi.react15 != null ? `${T.kpi.react15}%` : "—"} sub={`новых заявок: ${T.kpi.leadsNew}`} />
               <Stat label="Без задач и просрочки" value={T.kpi.mess} />
             </dl>
-            {T.partial && <p className="text-xs text-amber-400 mt-3">Событий очень много — часть могла не попасть в расчёт.</p>}
+            {T.partial && <p className="text-xs text-amber-400 mt-3">Данные могут быть неполными: часть событий не попала в расчёт.</p>}
           </Card>
 
           <Card>
