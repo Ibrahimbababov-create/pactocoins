@@ -63,6 +63,18 @@ export default async function MorePage() {
             label: "Мои оплаты",
             icon: "receipt",
           },
+        role !== "observer" &&
+          !profile?.is_guest && {
+            href: "/mop/recap",
+            label: "Итог месяца",
+            icon: "award",
+          },
+        role !== "observer" &&
+          !profile?.is_guest && {
+            href: "/mop/hall",
+            label: "Зал славы",
+            icon: "trophy",
+          },
         { href: "/mop/funds", label: "Копилки команды", icon: "piggy" },
         {
           href: "/mop/shop?suggest=1",
