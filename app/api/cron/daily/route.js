@@ -2,12 +2,10 @@ import { NextResponse } from "next/server";
 import { processBirthdaysToday } from "@/lib/birthdayBonus";
 import { resetGuestAccount } from "@/lib/guestAccount";
 import { cleanupOldWelcomes } from "@/lib/groupWelcome";
-import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
 import { syncBotCommands } from "@/lib/botCommands";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { sweepTournaments } from "@/lib/tournament";
 import { announceHallRecords } from "@/lib/hallNotify";
-import { isMondayInAlmaty } from "@/lib/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,14 +64,7 @@ export async function GET(request) {
     console.error("[cron] guest reset failed:", err);
   }
 
-  // Итоги недели лично каждому, у кого были оплаты (без звука — 00:05).
-  if (isMondayInAlmaty()) {
-    try {
-      summary.weeklyRatingSummaries = await sendWeeklyRatingSummary(createAdminClient());
-    } catch (err) {
-      console.error("[cron] weekly rating summary failed:", err);
-    }
-  }
+  // Личные итоги недели теперь уходят из cron отчётов в 10:00 (lib/heldReports.js).
 
   return NextResponse.json({ ok: true, ...summary });
 }
