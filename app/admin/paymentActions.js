@@ -35,7 +35,10 @@ function money(n) {
 
 // Поиск оплат: по сотруднику, по периоду, по сумме. Нужен, чтобы
 // находить конкретную оплату и править её, а не листать всю историю.
-export async function findPayments({ userId, from, to, query } = {}) {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Список id сотрудников: только настоящие uuid, без повторов, не больше 100.
+export async function findPayments({ userId, userIds, from, to, query } = {}) {
   await requireAdmin();
   const supabase = createClient();
 
@@ -46,7 +49,11 @@ export async function findPayments({ userId, from, to, query } = {}) {
     .order("earned_at", { ascending: false, nullsFirst: false })
     .limit(2000);
 
-  if (userId) q = q.eq("user_id", userId);
+  const ids = [...new Set([...(Array.isArray(userIds) ? userIds : []), ...(userId ? [userId] : [])]
+    .map((x) => String(x))
+    .filter((x) => UUID_RE.test(x)))].slice(0, 100);
+  if (ids.length === 1) q = q.eq("user_id", ids[0]);
+  else if (ids.length > 1) q = q.in("user_id", ids);
   if (from) q = q.gte("earned_at", new Date(`${from}T00:00:00+05:00`).toISOString());
   if (to) q = q.lte("earned_at", new Date(`${to}T23:59:59+05:00`).toISOString());
 
