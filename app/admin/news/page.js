@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { isMissingNewsTable, NEWS_ROLES } from "@/lib/appNews";
-import { formatDateTimeAlmaty } from "@/lib/timezone";
+import { isMissingNewsTable, isMissingExpiresColumn, isNewsExpired, NEWS_ROLES } from "@/lib/appNews";
+import { formatDateTimeAlmaty, almatyDayKey } from "@/lib/timezone";
 import AdminNewsClient from "@/components/AdminNewsClient";
 
 export const dynamic = "force-dynamic";
@@ -17,18 +17,21 @@ export default async function AdminNewsPage() {
   if (me?.role !== "admin") redirect("/admin");
 
   const admin = createAdminClient();
-  const { data: news, error } = await admin
-    .from("app_news")
-    .select("id, title, body, important, is_published, published_at, created_at")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const load = (cols) =>
+    admin.from("app_news").select(cols).order("created_at", { ascending: false }).limit(100);
+  let { data: news, error } = await load("id, title, body, important, is_published, published_at, created_at, expires_at");
+  // Колонки срока в базе ещё нет: работаем без неё
+  const hasExpires = !isMissingExpiresColumn(error);
+  if (!hasExpires) {
+    ({ data: news, error } = await load("id, title, body, important, is_published, published_at, created_at"));
+  }
 
   const header = (
     <div>
       <h1 className="text-2xl font-display font-bold">Что важно (новости)</h1>
       <p className="text-sm text-gray-400 mt-1">
         Сотрудники видят новости в приложении на главном экране и в разделе «Ещё». Важные
-        показываются плашкой наверху главной, её можно закрыть.
+        показываются плашкой наверху главной, её можно закрыть. После даты «Показывать до» новость уходит с главной в архив.
       </p>
     </div>
   );
@@ -73,12 +76,16 @@ export default async function AdminNewsPage() {
     published: n.is_published,
     when: formatDateTimeAlmaty(n.is_published ? n.published_at : n.created_at),
     reads: readCount[n.id] ?? 0,
+    expires: n.expires_at ? almatyDayKey(n.expires_at) : "",
+    expired: isNewsExpired(n.expires_at),
   }));
+  // Новой новости по умолчанию: показывать неделю
+  const defaultExpires = almatyDayKey(new Date(Date.now() + 7 * 86400000));
 
   return (
     <div className="space-y-4">
       {header}
-      <AdminNewsClient items={items} staffTotal={staffIds.size} />
+      <AdminNewsClient items={items} staffTotal={staffIds.size} defaultExpires={defaultExpires} canExpire={hasExpires} />
     </div>
   );
 }

@@ -32,7 +32,8 @@ export default async function SurveyPage({ searchParams }) {
     .single();
 
   const isAdmin = me?.role === "admin";
-  const open = (await getSurveyConfig(admin)).open;
+  const config = await getSurveyConfig(admin);
+  const open = config.open;
   // Гость смотрит опрос понарошку. Админ отвечает по-настоящему, даже пока
   // опрос закрыт для команды, а «понарошку» открывает через ?preview=1.
   const preview = Boolean(me?.is_guest) || (isAdmin && searchParams?.preview === "1");
@@ -42,6 +43,8 @@ export default async function SurveyPage({ searchParams }) {
     body = <SurveyClient preview />;
   } else if (!chestEligible(me)) {
     body = <Notice title="Опрос для команды" text="Он открывается только сотрудникам." />;
+  } else if (!isAdmin && config.expired) {
+    body = <Notice icon="clock" title="Опрос закончился" text="Приём ответов закрыт, спасибо всем, кто прошёл." />;
   } else if (!isAdmin && !open) {
     body = <Notice icon="clock" title="Опрос пока закрыт" text="Когда он откроется, бот пришлёт сообщение." />;
   } else if (await hasDone(admin, me.id)) {

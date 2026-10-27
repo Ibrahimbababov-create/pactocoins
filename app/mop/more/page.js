@@ -162,7 +162,7 @@ export default async function MorePage() {
         <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />
       </Link>
 
-      {showSurvey && <SurveyPromoCard />}
+      {showSurvey && <SurveyPromoCard endsAt={showSurvey.endsAt} />}
 
       {groups.map((group, gi) => (
         <div key={gi} className="space-y-1">

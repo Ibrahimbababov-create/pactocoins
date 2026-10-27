@@ -173,13 +173,15 @@ export default async function MopDashboard() {
 
   // Новости видят сотрудники; гостю и наблюдателю не показываем.
   const newsRole = watching ? profile?.role : role;
-  const showNews = !profile?.is_guest && NEWS_ROLES.includes(newsRole) && newsAll.length > 0;
-  const newsUnread = newsAll.filter((n) => n.unread).length;
+  // На главной только свежее: новости с вышедшим сроком уходят в архив
+  const newsActive = newsAll.filter((n) => !n.expired);
+  const showNews = !profile?.is_guest && NEWS_ROLES.includes(newsRole) && newsActive.length > 0;
+  const newsUnread = newsActive.filter((n) => n.unread).length;
   // Плашка с важным только самому человеку: админ в режиме
   // просмотра ничего не видит и ничего не отмечает.
   const importantNews =
     showNews && !watching && NEWS_ROLES.includes(profile?.role)
-      ? newsAll
+      ? newsActive
           .filter((n) => n.important && n.unread)
           .reverse()
           .map((n) => ({ id: n.id, title: n.title, body: n.body }))
@@ -302,12 +304,10 @@ export default async function MopDashboard() {
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
       </div>
 
-      {showNews && <NewsHomeCard latest={newsAll[0]} unread={newsUnread} />}
+      {showNews && <NewsHomeCard latest={newsActive[0]} unread={newsUnread} />}
       {importantNews.length > 0 && <ImportantNewsBanner items={importantNews} />}
 
       {chestEligible(profile) && <ChestCard chest={chest} />}
-
-      {surveyForMe && <SurveyPromoCard dismissible />}
 
       {isTrainee && (
         <OnboardingTrainee days={onboardingDays ?? []} ropName={ropName} />
@@ -409,6 +409,8 @@ export default async function MopDashboard() {
         />
       ))}
 
+      {/* Опрос команды: не сверху, а после основных блоков */}
+      {surveyForMe && <SurveyPromoCard dismissible endsAt={surveyForMe.endsAt} />}
 
       {/* Стажёру оплаты, ставка и график заработка пока не нужны: вместо
           россыпи пустых плиток одна тихая закрытая карточка. */}
