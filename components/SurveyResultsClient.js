@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SURVEY_QUESTIONS } from "@/lib/surveyQuestions";
-import { toggleSurvey } from "@/app/admin/surveyActions";
+import { toggleSurvey, setSurveyEndsAt } from "@/app/admin/surveyActions";
 
 const SURVEY_URL = "https://pactocoins.vercel.app/mop/survey";
 const ROLES = SURVEY_QUESTIONS.find((q) => q.id === "role").options;
@@ -82,12 +82,13 @@ function Bar({ label, value, max, total }) {
   );
 }
 
-export default function SurveyResultsClient({ open, responses, done, staff }) {
+export default function SurveyResultsClient({ open, endsAt = null, expired = false, responses, done, staff }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [role, setRole] = useState("");
   const [copied, setCopied] = useState(null);
   const [msg, setMsg] = useState(null);
+  const [day, setDay] = useState(endsAt ?? "");
 
   const rows = useMemo(
     () => (role ? responses.filter((r) => r.answers?.role === role) : responses),
@@ -112,6 +113,15 @@ export default function SurveyResultsClient({ open, responses, done, staff }) {
       router.refresh();
     });
 
+  const saveDay = (value) =>
+    start(async () => {
+      setMsg(null);
+      const res = await setSurveyEndsAt(value);
+      if (res?.error) setMsg(res.error);
+      else setDay(value);
+      router.refresh();
+    });
+
   const nps = useMemo(() => statsFor(SURVEY_QUESTIONS.find((q) => q.type === "nps"), rows), [rows]);
 
   return (
@@ -119,9 +129,15 @@ export default function SurveyResultsClient({ open, responses, done, staff }) {
       <div className="rounded-2xl border border-dark-600 bg-dark-800 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-semibold">{open ? "Опрос открыт" : "Опрос закрыт"}</p>
+            <p className="font-semibold">
+              {expired ? "Опрос закончился" : open ? "Опрос открыт" : "Опрос закрыт"}
+            </p>
             <p className="text-xs text-gray-500">
-              {open ? "Команда видит его на главной и в «Ещё» и может пройти." : "Команда пока не видит его. Ты можешь пройти первым, по-настоящему."}
+              {expired
+                ? "Срок вышел: карточка пропала у команды, ответы не принимаются. Результаты ниже остаются."
+                : open
+                  ? "Команда видит его на главной и в «Ещё» и может пройти."
+                  : "Команда пока не видит его. Ты можешь пройти первым, по-настоящему."}
             </p>
           </div>
           <button
@@ -134,6 +150,42 @@ export default function SurveyResultsClient({ open, responses, done, staff }) {
           >
             {open ? "Закрыть" : "Открыть для команды"}
           </button>
+        </div>
+        <div className="rounded-xl bg-dark-900/50 p-3 space-y-2">
+          <label htmlFor="survey-ends" className="text-sm font-semibold block">
+            Опрос идёт до
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              id="survey-ends"
+              type="date"
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
+              className="rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 text-sm outline-none focus:border-acid-400/60"
+            />
+            <button
+              type="button"
+              disabled={pending || day === (endsAt ?? "")}
+              onClick={() => saveDay(day)}
+              className="rounded-lg bg-acid-400 text-black font-bold px-3 py-2 text-sm disabled:opacity-40"
+            >
+              Сохранить срок
+            </button>
+            {endsAt && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => saveDay("")}
+                className="text-xs text-gray-400 underline underline-offset-2"
+              >
+                Убрать срок
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-500">
+            Последний день включительно, по времени Алматы. После него карточка пропадает, ответы не принимаются. Без
+            даты опрос идёт, пока ты его не закроешь.
+          </p>
         </div>
         {msg && <p className="text-xs text-red-400">{msg}</p>}
         <div className="grid grid-cols-3 gap-2 text-center">

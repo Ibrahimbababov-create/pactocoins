@@ -9,7 +9,7 @@ import { saveNews, setNewsPublished } from "@/app/admin/newsActions";
 const TITLE_MAX = 80;
 const BODY_MAX = 1000;
 
-const EMPTY = { id: null, title: "", body: "", important: false, toGroup: false };
+const emptyForm = (expires) => ({ id: null, title: "", body: "", important: false, toGroup: false, expires });
 
 // Как новость увидит сотрудник
 function Preview({ title, body, important }) {
@@ -32,9 +32,9 @@ function Preview({ title, body, important }) {
   );
 }
 
-export default function AdminNewsClient({ items, staffTotal }) {
+export default function AdminNewsClient({ items, staffTotal, defaultExpires = "", canExpire = true }) {
   const router = useRouter();
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState(() => emptyForm(defaultExpires));
   const [preview, setPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [msg, setMsg] = useState(null); // { kind: "ok" | "err", text }
@@ -46,13 +46,13 @@ export default function AdminNewsClient({ items, staffTotal }) {
   const alreadyLive = Boolean(editingItem?.published);
 
   const reset = () => {
-    setForm(EMPTY);
+    setForm(emptyForm(defaultExpires));
     setPreview(false);
     setConfirming(false);
   };
 
   const edit = (n) => {
-    setForm({ id: n.id, title: n.title, body: n.body, important: n.important, toGroup: false });
+    setForm({ id: n.id, title: n.title, body: n.body, important: n.important, toGroup: false, expires: n.expires });
     setPreview(false);
     setConfirming(false);
     setMsg(null);
@@ -141,6 +141,37 @@ export default function AdminNewsClient({ items, staffTotal }) {
             {form.body.length} / {BODY_MAX}
           </p>
         </div>
+
+        {canExpire && (
+          <div>
+            <label className="text-sm text-gray-400" htmlFor="news-expires">
+              Показывать до
+            </label>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <input
+                id="news-expires"
+                type="date"
+                value={form.expires}
+                onChange={(e) => set({ expires: e.target.value })}
+                className="rounded-xl border border-dark-600 bg-dark-900 px-3 py-2.5 outline-none focus:border-acid-400/60"
+              />
+              {form.expires && (
+                <button
+                  type="button"
+                  onClick={() => set({ expires: "" })}
+                  className="text-sm text-gray-400 underline underline-offset-2"
+                >
+                  Без срока
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {form.expires
+                ? "Включительно, по времени Алматы. Потом новость уйдёт с главной в архив."
+                : "Без срока новость висит на главной, пока её не снимут с публикации."}
+            </p>
+          </div>
+        )}
 
         <label className="flex items-start gap-3 cursor-pointer">
           <input
@@ -241,7 +272,14 @@ export default function AdminNewsClient({ items, staffTotal }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold break-words">{n.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{n.when}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {n.when}
+                  {n.published && n.expires
+                    ? n.expired
+                      ? " · в архиве"
+                      : ` · на главной до ${n.expires.split("-").reverse().slice(0, 2).join(".")}`
+                    : ""}
+                </p>
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span

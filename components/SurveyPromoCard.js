@@ -1,12 +1,14 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import DismissibleCard from "@/components/DismissibleCard";
-import { chipsNom } from "@/lib/plural";
+import { chipsNom, plural } from "@/lib/plural";
+import { surveyDaysLeft } from "@/lib/survey";
 import { SURVEY_ID, SURVEY_REWARD_CHIPS, SURVEY_MINUTES } from "@/lib/surveyQuestions";
 
 // Карточка «Опрос команды» на главной и в «Ещё». На главной её можно
 // закрыть крестиком, в «Ещё» она остаётся.
-export default function SurveyPromoCard({ dismissible = false }) {
+export default function SurveyPromoCard({ dismissible = false, endsAt = null }) {
+  const left = surveyDaysLeft(endsAt);
   const card = (
     <Link
       href="/mop/survey"
@@ -22,6 +24,11 @@ export default function SurveyPromoCard({ dismissible = false }) {
         <span className="block text-sm text-gray-400">
           {SURVEY_MINUTES} минуты, +{SURVEY_REWARD_CHIPS} {chipsNom(SURVEY_REWARD_CHIPS)} за ответы
         </span>
+        {left != null && (
+          <span className="block text-xs text-gray-500 mt-0.5">
+            {left <= 1 ? "Последний день" : `Осталось ${left} ${plural(left, "день", "дня", "дней")}`}
+          </span>
+        )}
       </span>
       {!dismissible && <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-gray-600" />}
     </Link>

@@ -34,7 +34,10 @@ export default async function NewsPage() {
     important: n.important,
     unread: n.unread,
     when: formatDateTimeAlmaty(n.published_at),
+    expired: n.expired,
   }));
+  const fresh = items.filter((n) => !n.expired);
+  const archive = items.filter((n) => n.expired);
 
   return (
     <div className="space-y-5">
@@ -52,7 +55,19 @@ export default async function NewsPage() {
       {items.length === 0 ? (
         <p className="text-sm text-gray-500">Пока ничего нового нет.</p>
       ) : (
-        <NewsList items={items} readOnly={watching} />
+        <>
+          {fresh.length === 0 ? (
+            <p className="text-sm text-gray-500">Сейчас ничего срочного нет. Старое лежит в архиве ниже.</p>
+          ) : (
+            <NewsList items={fresh} readOnly={watching} />
+          )}
+          {archive.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <h2 className="text-sm text-gray-500">Архив</h2>
+              <NewsList items={archive} readOnly={watching} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

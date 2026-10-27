@@ -9,6 +9,8 @@ import {
   NEWS_TITLE_MAX,
   NEWS_BODY_MAX,
   isMissingNewsTable,
+  isMissingExpiresColumn,
+  expiresDayToIso,
 } from "@/lib/appNews";
 
 const NO_TABLE = "Новости ещё не включены: нужно применить supabase/app_news.sql";
@@ -52,7 +54,7 @@ async function sendToGroup(title, body) {
 // Создать или обновить новость. mode: "publish" | "draft".
 // В группу пишем только при публикации новости, которая раньше не была
 // опубликована, и только если стоит галочка.
-export async function saveNews({ id, title, body, important, mode, toGroup }) {
+export async function saveNews({ id, title, body, important, mode, toGroup, expires }) {
   const auth = await requireAdmin();
   if (auth.error) return { error: auth.error };
 
@@ -63,6 +65,7 @@ export async function saveNews({ id, title, body, important, mode, toGroup }) {
   if (!b) return { error: "Напиши текст новости" };
   if (b.length > NEWS_BODY_MAX) return { error: `Текст длиннее ${NEWS_BODY_MAX} знаков` };
 
+  const expiresIso = expiresDayToIso(expires);
   const publish = mode === "publish";
   const admin = createAdminClient();
   let wasPublished = false;
@@ -86,17 +89,21 @@ export async function saveNews({ id, title, body, important, mode, toGroup }) {
     // Сохранение как черновик снимает новость с публикации
     if (!publish) patch.is_published = false;
 
-    const { error } = await admin.from("app_news").update(patch).eq("id", id);
+    let { error } = await admin.from("app_news").update({ ...patch, expires_at: expiresIso }).eq("id", id);
+    // Колонки срока ещё нет: сохраняем остальное, срок пока не действует
+    if (isMissingExpiresColumn(error)) ({ error } = await admin.from("app_news").update(patch).eq("id", id));
     if (error) return { error: isMissingNewsTable(error) ? NO_TABLE : error.message };
   } else {
-    const { error } = await admin.from("app_news").insert({
+    const row = {
       title: t,
       body: b,
       important: Boolean(important),
       is_published: publish,
       published_at: new Date().toISOString(),
       created_by: auth.user.id,
-    });
+    };
+    let { error } = await admin.from("app_news").insert({ ...row, expires_at: expiresIso });
+    if (isMissingExpiresColumn(error)) ({ error } = await admin.from("app_news").insert(row));
     if (error) return { error: isMissingNewsTable(error) ? NO_TABLE : error.message };
   }
 
