@@ -6,6 +6,7 @@ const nextConfig = {
   experimental: {
     outputFileTracingIncludes: {
       "/api/cron/daily": ["./fonts/**"],
+      "/api/reports/held": ["./fonts/**"],
     },
   },
   images: {

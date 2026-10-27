@@ -14,6 +14,7 @@ import { tieredRevenueCoins, tierForMonth, REVENUE_TIERS } from "@/lib/coinRate"
 import { monthRevenueBefore } from "@/lib/revenueMonth";
 import { creditMentorBonus, revokeMentorBonus } from "@/lib/mentorBonus";
 import { notifyRatingShift } from "@/lib/ratingNotify";
+import { maybeSendHeldReports } from "@/lib/heldReports";
 import { uploadPhoto } from "@/lib/uploadPhoto";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { announceFlashSaleIfNew } from "@/lib/flashSaleNotify";
@@ -364,6 +365,10 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
   revalidatePath("/admin");
   revalidatePath("/mop/rating");
   revalidatePath("/mop");
+
+  // Отложенный отчёт мог ждать именно эту заявку: лучшая попытка, не ломает действие.
+  await maybeSendHeldReports();
+
   return { success: true };
 }
 
@@ -417,6 +422,10 @@ export async function rejectRevenueRequest(requestId, comment) {
   await markTelegramRequestHandled(admin, { table: "revenue_requests", id: requestId, status: "rejected", byName: await userNameById(admin, admin_user.id) });
 
   revalidatePath("/admin/revenue-requests");
+
+  // Отложенный отчёт мог ждать именно эту заявку: лучшая попытка, не ломает действие.
+  await maybeSendHeldReports();
+
   return { success: true };
 }
 
