@@ -431,16 +431,21 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
     return () => clearTimeout(t);
   }, [fromSuggestLink]);
 
-  // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер
+  // Фильтрация чисто на клиенте — данные уже все на руках, без похода на сервер.
+  // В поиске плоский список без повторов: награда из нескольких категорий
+  // попадает в результат один раз.
   const filteredGrouped = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return grouped;
 
+    const seen = new Set();
     const result = {};
     Object.entries(grouped).forEach(([category, items]) => {
-      const matched = items.filter((r) =>
-        r.title.toLowerCase().includes(q)
-      );
+      const matched = items.filter((r) => {
+        if (!r.title.toLowerCase().includes(q) || seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
       if (matched.length > 0) result[category] = matched;
     });
     return result;
@@ -469,15 +474,10 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
     if (activeCategory) {
       return [[activeCategory, filteredGrouped[activeCategory] ?? []]];
     }
-    // Награда может лежать в нескольких категориях. В общем списке
-    // показываем её один раз, под основной категорией.
-    return Object.entries(filteredGrouped)
-      .map(([category, items]) => [
-        category,
-        items.filter((r) => !r.category || r.category === category || !grouped[r.category]),
-      ])
-      .filter(([, items]) => items.length > 0);
-  }, [filteredGrouped, activeCategory, grouped, onlyNew, newSet]);
+    // Награда показывается в каждой своей категории (основной и
+    // дополнительных), по одной карточке в секции.
+    return Object.entries(filteredGrouped).filter(([, items]) => items.length > 0);
+  }, [filteredGrouped, activeCategory, onlyNew, newSet]);
 
   // Избранное: каждая награда один раз, даже если лежит в нескольких категориях
   const favoriteRewards = useMemo(() => {
