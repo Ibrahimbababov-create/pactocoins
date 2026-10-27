@@ -43,7 +43,7 @@ export async function findPayments({ userId, from, to, query } = {}) {
     .select("*, users!revenue_requests_user_id_fkey(name)")
     .eq("status", "approved")
     .order("earned_at", { ascending: false, nullsFirst: false })
-    .limit(60);
+    .limit(2000);
 
   if (userId) q = q.eq("user_id", userId);
   if (from) q = q.gte("earned_at", new Date(`${from}T00:00:00+05:00`).toISOString());

@@ -1,9 +1,10 @@
 "use client";
 
-import { revenueKindText } from "@/lib/revenueKinds";
+import { revenueKindText, PRODUCT_LABELS, PAY_LABELS } from "@/lib/revenueKinds";
+import { buildCsv, downloadCsv } from "@/lib/csv";
 import { formatCoins } from "@/lib/plural";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
@@ -22,11 +23,13 @@ function dateInputValue(iso) {
   return almaty.toISOString().slice(0, 10);
 }
 
-export default function PaymentsClient({ employees, initialRows }) {
+const LIST_LIMIT = 60;
+
+export default function PaymentsClient({ employees, initialRows, initialFrom = "", initialTo = "" }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [rows, setRows] = useState(initialRows ?? []);
-  const [filters, setFilters] = useState({ userId: "", from: "", to: "", query: "" });
+  const [filters, setFilters] = useState({ userId: "", from: initialFrom, to: initialTo, query: "" });
   const [editingId, setEditingId] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
   const [message, setMessage] = useState(null);
@@ -42,6 +45,48 @@ export default function PaymentsClient({ employees, initialRows }) {
       if (res?.error) return say(res.error, "error");
       setRows(res.rows ?? []);
     });
+  }
+
+  const totals = useMemo(() => {
+    const byMop = new Map();
+    let sum = 0;
+    for (const r of rows) {
+      const amount = Number(r.amount_kzt ?? 0);
+      sum += amount;
+      const key = r.user_id;
+      const cur = byMop.get(key) ?? { id: key, name: r.users?.name ?? "Без имени", count: 0, sum: 0 };
+      cur.count += 1;
+      cur.sum += amount;
+      byMop.set(key, cur);
+    }
+    return { sum, byMop: [...byMop.values()].sort((a, b) => b.sum - a.sum) };
+  }, [rows]);
+
+  function exportCsv() {
+    const header = [
+      "Дата оплаты (Алматы)",
+      "МОП",
+      "ФИО клиента",
+      "Продукт",
+      "Вид оплаты",
+      "Последняя часть",
+      "Сумма, ₸",
+      "Статус",
+      "Коины",
+    ];
+    const data = rows.map((r) => [
+      formatDateTimeAlmaty(r.earned_at || r.created_at),
+      r.users?.name ?? "",
+      r.client_name ?? "",
+      PRODUCT_LABELS[r.product_kind] ?? "",
+      PAY_LABELS[r.pay_kind] ?? "",
+      r.pay_kind === "part" ? (r.is_final_part ? "да" : "нет") : "",
+      Number(r.amount_kzt ?? 0),
+      "Подтверждена",
+      r.credited_coins ?? r.calculated_coins ?? 0,
+    ]);
+    const stamp = `${filters.from || "начало"}_${filters.to || "сегодня"}`;
+    downloadCsv(`оплаты_${stamp}.csv`, buildCsv(header, data));
   }
 
   function onCancel(row, reason) {
@@ -157,9 +202,45 @@ export default function PaymentsClient({ employees, initialRows }) {
         </p>
       )}
 
-      <p className="text-xs text-gray-600">Найдено: {rows.length}</p>
+      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-4 space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs text-gray-500">Итого по фильтрам</p>
+            <p className="font-display text-xl tabular-nums">{money(totals.sum)} ₸</p>
+            <p className="text-xs text-gray-500">Оплат: {rows.length}</p>
+          </div>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={rows.length === 0}
+            className="border border-dark-600 rounded-lg px-4 py-2 text-sm text-gray-200 disabled:opacity-40"
+          >
+            Скачать таблицей
+          </button>
+        </div>
 
-      {rows.map((r) => (
+        {totals.byMop.length > 0 && (
+          <div className="border-t border-dark-700 pt-3 space-y-1.5">
+            <p className="text-xs text-gray-500">По менеджерам</p>
+            {totals.byMop.map((m) => (
+              <p key={m.id} className="text-sm flex justify-between gap-3">
+                <span className="min-w-0 truncate">
+                  {m.name} <span className="text-gray-600">· {m.count}</span>
+                </span>
+                <span className="tabular-nums shrink-0">{money(m.sum)} ₸</span>
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {rows.length > LIST_LIMIT && (
+        <p className="text-xs text-gray-600">
+          Ниже последние {LIST_LIMIT}. Итоги и таблица считают все {rows.length}.
+        </p>
+      )}
+
+      {rows.slice(0, LIST_LIMIT).map((r) => (
         <div
           key={r.id}
           className="bg-dark-800 border border-dark-700 rounded-2xl p-4 space-y-3"

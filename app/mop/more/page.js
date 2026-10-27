@@ -57,6 +57,12 @@ export default async function MorePage() {
       title: "Мои коины",
       items: [
         { href: "/mop/history", label: "История и покупки", icon: "history" },
+        role !== "observer" &&
+          !profile?.is_guest && {
+            href: "/mop/payments",
+            label: "Мои оплаты",
+            icon: "receipt",
+          },
         { href: "/mop/funds", label: "Копилки команды", icon: "piggy" },
         {
           href: "/mop/shop?suggest=1",
