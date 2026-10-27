@@ -16,7 +16,7 @@ import { getEarnedMap } from "@/lib/earnings";
 import ViewAsSwitch from "@/components/ViewAsSwitch";
 import { viewAsRole, viewAsUserId, isViewableRole } from "@/lib/viewAs";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
-import { getProgramCost, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
+import { getProgramCost, getBudgetForecast, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { forecastRevenueCoins } from "@/lib/revenueForecast";
 import MonthProfitInput from "@/components/MonthProfitInput";
@@ -272,7 +272,7 @@ export default async function AdminOverview({ searchParams }) {
             </p>
           </div>
 
-          <ProgramCostCard cost={cost} monthKey={selectedMonth} />
+          <ProgramCostCard cost={cost} monthKey={selectedMonth} forecast={getBudgetForecast(cost, selectedMonth)} />
 
           <ThemePicker current={myTheme} />
 
@@ -360,7 +360,7 @@ export default async function AdminOverview({ searchParams }) {
 
 // Сколько программа стоит компании за месяц — по выданным коинам. Цвет:
 // в рамках (до 7% прибыли), на грани (7–10%), перебор (больше 10%).
-function ProgramCostCard({ cost, monthKey }) {
+function ProgramCostCard({ cost, monthKey, forecast }) {
   const pct = cost.share == null ? null : cost.share * 100;
   const tone =
     pct == null
@@ -402,6 +402,8 @@ function ProgramCostCard({ cost, monthKey }) {
         ))}
       </div>
 
+      <ForecastBlock forecast={forecast} cost={cost} kzt={kzt} />
+
       {cost.mentorCoins > 0 && (
         <div className="mt-2 flex justify-between gap-3 text-xs text-gray-600">
           <span>Наставникам, не в расходах: платится из ЗП стажёров (−1%)</span>
@@ -424,6 +426,91 @@ function ProgramCostCard({ cost, monthKey }) {
         {cost.kztPerCoin.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₸ по реальным покупкам за 90 дней. Итог
         месяца в тенге ставь в таблицу финансов, «Отчисление в ПактоКоинс».
       </p>
+    </div>
+  );
+}
+
+// Прогноз расхода к концу месяца: диапазон, цвет по потолку, топ-3 источника.
+function ForecastBlock({ forecast, cost, kzt }) {
+  if (!forecast) return null;
+  const box = "mt-4 pt-3 border-t border-dark-600";
+  if (forecast.tooEarly) {
+    return (
+      <div className={box}>
+        <p className="text-xs text-gray-500">Прогноз на конец месяца появится после третьего дня месяца.</p>
+      </div>
+    );
+  }
+  const f = forecast;
+  const fmtPct = (x) => (x * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+  let tone = "text-gray-300";
+  let phrase = null;
+  if (f.withProfit) {
+    const hi = f.pctHigh;
+    if (hi > BUDGET_SHARE.max) {
+      tone = "text-[#C4593B]";
+      phrase = "Выходим за потолок, смотри, что дорожает.";
+    } else if (hi > BUDGET_SHARE.ok) {
+      tone = "text-amber-400";
+      phrase = "Внимание: подходим к верхней границе.";
+    } else {
+      tone = "text-acid-400";
+      phrase = "Спокойно, в рамках бюджета.";
+    }
+  }
+  const coinsRange = `${f.low.toLocaleString("ru-RU")} – ${f.high.toLocaleString("ru-RU")}`;
+  return (
+    <div className={box}>
+      <p className="text-xs text-gray-500">Прогноз на конец месяца, примерно</p>
+      {f.withProfit ? (
+        <p className={`mt-1 text-lg font-bold tabular-nums ${tone}`}>
+          {fmtPct(f.pctLow)} – {fmtPct(f.pctHigh)}% <span className="text-xs font-normal text-gray-400">прибыли</span>
+        </p>
+      ) : (
+        <p className="mt-1 text-lg font-bold tabular-nums text-gray-200">
+          {kzt(f.low * cost.kztPerCoin)} – {kzt(f.high * cost.kztPerCoin)}
+        </p>
+      )}
+      <p className="text-xs text-gray-400 mt-0.5">
+        {coinsRange} коинов (≈ {kzt(f.low * cost.kztPerCoin)} – {kzt(f.high * cost.kztPerCoin)})
+      </p>
+      {phrase && <p className={`text-xs mt-1 ${tone}`}>{phrase}</p>}
+      {!f.withProfit && (
+        <p className="text-[11px] text-gray-500 mt-1">Впиши прибыль месяца ниже, и покажу прогноз в процентах.</p>
+      )}
+
+      <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
+        Темп: в среднем {Math.round(f.avgMonth).toLocaleString("ru-RU")} коинов в день за месяц и{" "}
+        {Math.round(f.avg7).toLocaleString("ru-RU")} за последние 7 дней. К концу месяца платежи копятся, поэтому
+        диапазон: от среднего за месяц до среднего за неделю.
+      </p>
+
+      {f.left != null && (
+        <p className="text-xs text-gray-300 mt-2 leading-relaxed">
+          {f.left > 0 ? (
+            <>
+              До потолка осталось примерно {f.left.toLocaleString("ru-RU")} коинов (≈ {kzt(f.leftKzt)}).
+              {f.ceilingDate && <> При текущем темпе потолок будет достигнут {f.ceilingDate}.</>}
+            </>
+          ) : (
+            <>Потолок уже пройден примерно на {Math.abs(f.left).toLocaleString("ru-RU")} коинов.</>
+          )}
+        </p>
+      )}
+
+      {f.top.length > 0 && (
+        <div className="mt-2 space-y-1 text-xs">
+          <p className="text-gray-500">Что съедает больше всего:</p>
+          {f.top.map((t) => (
+            <div key={t.label} className="flex justify-between gap-3 text-gray-400">
+              <span className="min-w-0">{t.label}</span>
+              <span className="tabular-nums shrink-0">
+                {Math.round(t.share * 100)}% · {t.coins.toLocaleString("ru-RU")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
