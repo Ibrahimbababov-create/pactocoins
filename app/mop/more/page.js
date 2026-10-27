@@ -58,12 +58,14 @@ export default async function MorePage() {
       items: [
         { href: "/mop/history", label: "История и покупки", icon: "history" },
         role !== "observer" &&
+          role !== "trainee" &&
           !profile?.is_guest && {
             href: "/mop/payments",
             label: "Мои оплаты",
             icon: "receipt",
           },
         role !== "observer" &&
+          role !== "trainee" &&
           !profile?.is_guest && {
             href: "/mop/recap",
             label: "Итог месяца",

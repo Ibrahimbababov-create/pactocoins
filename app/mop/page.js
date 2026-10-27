@@ -335,7 +335,7 @@ export default async function MopDashboard() {
         />
       )}
 
-      {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
+      {!profile?.is_guest && ["mop", "rop", "mentor"].includes(role) && (
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/mop/payments"
@@ -384,13 +384,31 @@ export default async function MopDashboard() {
       ))}
 
 
-      <WeekPlaceCard data={weekPlace} />
+      {/* Стажёру оплаты, ставка и график заработка пока не нужны: вместо
+          россыпи пустых плиток одна тихая закрытая карточка. */}
+      {isTrainee ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-dashed border-dark-600 bg-dark-800/60 p-4">
+          <span className="flex items-center justify-center w-10 h-10 shrink-0 rounded-xl bg-dark-700 text-gray-500">
+            <Icon name="lock" className="w-5 h-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-300">Откроется, когда станешь МОПом</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+              Твои оплаты, ставка коинов и график заработка. Всё появится после первой подтверждённой оплаты.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <WeekPlaceCard data={weekPlace} />
 
-      {!profile?.is_guest && role !== "admin" && role !== "observer" && (
-        <MonthTierCard data={monthTier} />
+          {!profile?.is_guest && role !== "admin" && role !== "observer" && (
+            <MonthTierCard data={monthTier} />
+          )}
+
+          <EarningsMiniChart series={chartSeries} />
+        </>
       )}
-
-      <EarningsMiniChart series={chartSeries} />
 
       {profile?.is_guest && (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
