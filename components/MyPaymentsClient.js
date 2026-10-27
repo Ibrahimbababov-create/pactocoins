@@ -3,9 +3,12 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/components/EmptyState";
+import Icon from "@/components/Icon";
+import PaymentEditSheet from "@/components/PaymentEditSheet";
 import { clientKey, revenueKindText } from "@/lib/revenueKinds";
 import { formatPaymentDay } from "@/lib/timezone";
 import { plural } from "@/lib/plural";
+import { EDIT_FIELD_LABELS } from "@/lib/revenueEdits";
 
 const NO_NAME = "без ФИО (до обновления)";
 
@@ -14,6 +17,20 @@ const STATUS = {
   pending: { label: "Ждёт", color: "bg-amber-500/10 text-amber-400" },
   rejected: { label: "Отклонена", color: "bg-red-500/10 text-red-400" },
 };
+
+const EDIT_STATUS = {
+  pending: { label: "Исправление на рассмотрении", color: "text-amber-400" },
+  approved: { label: "Исправление применено", color: "text-acid-400" },
+  rejected: { label: "Исправление не принято", color: "text-red-400" },
+};
+
+function editFieldsText(proposed) {
+  return Object.keys(proposed ?? {})
+    .map((f) => EDIT_FIELD_LABELS[f])
+    .filter(Boolean)
+    .join(", ")
+    .toLowerCase();
+}
 
 function money(n) {
   return Number(n ?? 0).toLocaleString("ru-RU");
@@ -51,9 +68,36 @@ function groupClients(rows) {
   });
 }
 
-export default function MyPaymentsClient({ months, monthKey, monthLabel, rows }) {
+export default function MyPaymentsClient({
+  months,
+  monthKey,
+  monthLabel,
+  rows,
+  edits = [],
+  editsEnabled = false,
+}) {
   const router = useRouter();
   const [mode, setMode] = useState("payments");
+  const [editing, setEditing] = useState(null);
+  const [notice, setNotice] = useState(null);
+
+  // Исправления по каждой оплате, новые сверху.
+  const editsByRequest = useMemo(() => {
+    const map = new Map();
+    for (const e of edits) {
+      if (!map.has(e.request_id)) map.set(e.request_id, []);
+      map.get(e.request_id).push(e);
+    }
+    return map;
+  }, [edits]);
+
+  function closeEditor(sent) {
+    setEditing(null);
+    if (sent === true) {
+      setNotice("Исправление отправлено админу. Оплата поменяется после его решения.");
+      setTimeout(() => setNotice(null), 5000);
+    }
+  }
 
   const summary = useMemo(() => {
     const live = rows.filter((r) => r.status !== "rejected");
@@ -120,6 +164,14 @@ export default function MyPaymentsClient({ months, monthKey, monthLabel, rows })
         ))}
       </div>
 
+      {notice && (
+        <div className="bg-acid-400/10 border border-acid-400/30 text-acid-400 rounded-xl px-4 py-3 text-sm">
+          {notice}
+        </div>
+      )}
+
+      {editing && <PaymentEditSheet row={editing} onClose={closeEditor} />}
+
       {rows.length === 0 && (
         <EmptyState
           icon="receipt"
@@ -133,28 +185,64 @@ export default function MyPaymentsClient({ months, monthKey, monthLabel, rows })
           {rows.map((r) => {
             const meta = STATUS[r.status] ?? STATUS.pending;
             const rejected = r.status === "rejected";
+            const history = editsByRequest.get(r.id) ?? [];
+            const hasPendingEdit = history.some((e) => e.status === "pending");
+            const canEdit = editsEnabled && !rejected && !hasPendingEdit;
             return (
               <div
                 key={r.id}
-                className={`bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-start justify-between gap-3 ${
+                className={`bg-dark-800 border border-dark-600 rounded-xl p-4 space-y-2 ${
                   rejected ? "opacity-50" : ""
                 }`}
               >
-                <div className="min-w-0">
-                  <p className={`font-semibold break-words ${rejected ? "line-through" : ""}`}>
-                    {r.client_name || NO_NAME}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatPaymentDay(paidAt(r))}
-                    {revenueKindText(r) ? ` · ${revenueKindText(r)}` : ""}
-                  </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className={`font-semibold break-words ${rejected ? "line-through" : ""}`}>
+                      {r.client_name || NO_NAME}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatPaymentDay(paidAt(r))}
+                      {revenueKindText(r) ? ` · ${revenueKindText(r)}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-semibold tabular-nums">{money(r.amount_kzt)} ₸</p>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full ${meta.color}`}>
+                      {meta.label}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="font-semibold tabular-nums">{money(r.amount_kzt)} ₸</p>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full ${meta.color}`}>
-                    {meta.label}
-                  </span>
-                </div>
+
+                {history.length > 0 && (
+                  <div className="space-y-1 border-t border-dark-700 pt-2">
+                    {history.slice(0, 3).map((e) => {
+                      const st = EDIT_STATUS[e.status] ?? EDIT_STATUS.pending;
+                      const fields = editFieldsText(e.proposed);
+                      return (
+                        <div key={e.id} className="text-xs">
+                          <p className={st.color}>
+                            {st.label}
+                            {fields ? <span className="text-gray-500">: {fields}</span> : null}
+                          </p>
+                          {e.admin_comment && (
+                            <p className="text-gray-400 break-words">Админ: {e.admin_comment}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(r)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-acid-400 active:opacity-70"
+                  >
+                    <Icon name="pencil" className="w-3.5 h-3.5" />
+                    Предложить исправление
+                  </button>
+                )}
               </div>
             );
           })}

@@ -5,10 +5,9 @@ import { formatCoins } from "@/lib/plural";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
-import { tieredRevenueCoins } from "@/lib/coinRate";
-import { monthRevenueBefore } from "@/lib/revenueMonth";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
-import { revokeMentorBonus, recalcMentorBonus } from "@/lib/mentorBonus";
+import { revokeMentorBonus } from "@/lib/mentorBonus";
+import { applyPaymentAdjustment } from "@/lib/paymentAdjust";
 import { addCoins } from "@/lib/addCoins";
 import { logRevenueChange } from "@/lib/revenueAudit";
 
@@ -143,7 +142,7 @@ export async function cancelPayment(requestId, reason) {
 
 // Частичная правка: сумму уменьшили (сделку поделили с другим МОПом)
 // или дата оплаты оказалась другой. Коины пересчитываются, разница
-// списывается или доначисляется.
+// списывается или доначисляется (lib/paymentAdjust.js).
 export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
@@ -154,103 +153,16 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
     .eq("id", requestId)
     .single();
 
-  if (!request || request.status !== "approved") {
-    return { error: "Оплата не найдена или уже отменена" };
-  }
-
-  const newAmount = Number(amountKzt);
-  if (!newAmount || newAmount <= 0) return { error: "Сумма должна быть больше нуля" };
-
-  const { data: profile } = await admin
-    .from("users")
-    .select("balance, coin_rate_multiplier")
-    .eq("id", request.user_id)
-    .single();
-
-  // Новая дата может перенести оплату в другой месяц — шкалу считаем по ней.
-  let newEarnedAt = request.earned_at ?? request.created_at;
-  if (earnedAt) {
-    const parsed = new Date(`${earnedAt}T12:00:00+05:00`);
-    if (!isNaN(parsed)) newEarnedAt = parsed.toISOString();
-  }
-  const monthBefore = await monthRevenueBefore(admin, request.user_id, newEarnedAt, requestId);
-  const newCoins = tieredRevenueCoins(newAmount, profile?.coin_rate_multiplier, monthBefore);
-  const oldCoins = request.credited_coins ?? request.calculated_coins ?? 0;
-  const diff = newCoins - oldCoins;
-
-  const patch = {
-    amount_kzt: newAmount,
-    calculated_coins: newCoins,
-    credited_coins: newCoins,
-  };
-
-  // Помечаем правку прямо в заявке: через месяц никто не вспомнит,
-  // почему у оплаты «неправильная» сумма. Рейтинг считается по сумме
-  // заявки, так что уменьшили её — ушло и из рейтинга.
-  if (newAmount < request.amount_kzt) {
-    const note = `возврат ${money(request.amount_kzt - newAmount)} ₸ из ${money(
-      request.amount_kzt
-    )} ₸`;
-    patch.comment = [request.comment?.trim(), note].filter(Boolean).join("\n");
-  }
-  if (earnedAt) {
-    const parsed = new Date(`${earnedAt}T12:00:00+05:00`);
-    if (!isNaN(parsed)) patch.earned_at = parsed.toISOString();
-  }
-
-  await admin.from("revenue_requests").update(patch).eq("id", requestId);
-
-  const auditBefore = { amount_kzt: request.amount_kzt, credited_coins: oldCoins };
-  const auditAfter = { amount_kzt: newAmount, credited_coins: newCoins };
-  if (patch.earned_at) {
-    auditBefore.earned_at = request.earned_at;
-    auditAfter.earned_at = patch.earned_at;
-  }
-  await logRevenueChange(admin, {
-    requestId,
-    userId: request.user_id,
+  const res = await applyPaymentAdjustment(admin, {
+    request,
     actorId: admin_user.id,
-    source: "web",
-    action: "edit",
-    before: auditBefore,
-    after: auditAfter,
-    note: reason,
+    amountKzt,
+    earnedAt,
+    reason,
   });
+  if (res.error) return { error: res.error };
 
-  // Сумма изменилась — процент наставника пересчитываем от новой.
-  await recalcMentorBonus(admin, { ...request, ...patch, status: "approved" });
-
-  if (diff !== 0) {
-    await addCoins(admin, request.user_id, diff);
-
-    // «Всего заработано» поднимается триггером на каждом начислении, но на
-    // списании не опускается. Уменьшили оплату — уменьшаем и её, иначе в
-    // профиле навсегда останутся коины за сумму, которой не было.
-    if (diff < 0) {
-      const { data: earned } = await admin
-        .from("users")
-        .select("total_earned")
-        .eq("id", request.user_id)
-        .single();
-      if (earned) {
-        await admin
-          .from("users")
-          .update({ total_earned: Math.max(0, (earned.total_earned ?? 0) + diff) })
-          .eq("id", request.user_id);
-      }
-    }
-
-    await admin.from("transactions").insert({
-      user_id: request.user_id,
-      type: diff > 0 ? "manual_add" : "manual_subtract",
-      amount_coins: diff,
-      description: `Правка оплаты: ${money(request.amount_kzt)} ₸ → ${money(newAmount)} ₸`,
-      created_by: admin_user.id,
-      source: "manual",
-      rating_exempt: true,
-    });
-  }
-
+  const { diff, newAmount } = res;
   let text = `✏️ Оплата ${money(request.amount_kzt)} ₸ исправлена на ${money(newAmount)} ₸`;
   if (diff !== 0) {
     text += diff > 0 ? ` — начислили ещё ${formatCoins(diff)}` : ` — списали ${formatCoins(-diff)}`;

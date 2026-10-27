@@ -17,6 +17,7 @@ const SECTIONS = [
       "/admin/purchase-requests",
       "/admin/join-requests",
       "/admin/payments",
+      "/admin/revenue-edits",
       "/admin/reconcile",
       "/admin/audit",
       "/admin/health",

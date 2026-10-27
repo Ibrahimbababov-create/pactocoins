@@ -61,6 +61,18 @@ export default async function MyPaymentsPage({ searchParams }) {
     .order("earned_at", { ascending: false, nullsFirst: false })
     .limit(500);
 
+  // Исправления, которые человек предлагал к оплатам этого месяца. Нет
+  // таблицы (миграция ещё не применена): кнопку исправления не показываем.
+  const ids = new Set((rows ?? []).map((r) => r.id));
+  const { data: editRows, error: editsError } = await supabase
+    .from("revenue_edit_requests")
+    .select("id, request_id, status, proposed, reason, admin_comment, created_at, reviewed_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  const editsEnabled = !editsError;
+  const edits = (editRows ?? []).filter((e) => ids.has(e.request_id));
+
   return (
     <div className="space-y-4">
       <div>
@@ -78,6 +90,8 @@ export default async function MyPaymentsPage({ searchParams }) {
         monthKey={monthKey}
         monthLabel={range.label}
         rows={rows ?? []}
+        edits={edits}
+        editsEnabled={editsEnabled}
       />
     </div>
   );
