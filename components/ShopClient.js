@@ -8,6 +8,7 @@ import {
   purchaseVariableReward,
   purchaseRewardVariant,
   submitRewardSuggestion,
+  toggleFavoriteReward,
 } from "@/app/mop/shop/actions";
 import { uploadRewardSuggestionPhoto } from "@/lib/uploadRewardSuggestionPhoto";
 import { getEffectivePrice } from "@/lib/rewardPricing";
@@ -63,11 +64,32 @@ function categoryIcon(category) {
   return "bag";
 }
 
+// Сердечко «в избранное»: маленькое, в углу карточки. Активное: акцентная
+// латунь с заливкой. Гостю не показываем (избранное только для своих).
+function FavoriteButton({ active, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-label={active ? "Убрать из избранного" : "В избранное"}
+      aria-pressed={active}
+      className={`absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-dark-900/70 border border-dark-600 active:scale-90 transition ${
+        active ? "text-acid-400 border-acid-400/50" : "text-gray-500"
+      }`}
+    >
+      <Icon name="heart" className={`w-4 h-4 ${active ? "fill-current" : ""}`} />
+    </button>
+  );
+}
+
 // Карточка с вариантами внутри (барбер по бюджету, сертификаты по номиналу
 // и т.п.) — сначала выбираешь вариант строкой (название + своя цена сразу
 // видна), потом обычный «Купить». Есть и «Копить на это» — цель просто
 // запоминает, какой именно вариант выбрали.
-function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPurchased }) {
+function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPurchased, favorite }) {
   const [selected, setSelected] = useState(reward.variants[0]?.id ?? null);
   const [confirming, setConfirming] = useState(false);
 
@@ -83,7 +105,8 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
 
   return (
     <div
-      className={`group bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between transition-colors hover:border-dark-500 ${
+      id={`reward-${reward.id}`}
+      className={`group relative bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between transition-colors hover:border-dark-500 ${
         reward.highlight_color ? GLOW_BORDERS[reward.highlight_color] : "border-dark-600"
       }`}
       style={
@@ -92,6 +115,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
           : undefined
       }
     >
+      {favorite}
       <div>
         {shownImage && (
           <div className="relative w-full h-28 rounded-lg mb-2 overflow-hidden bg-dark-700">
@@ -345,7 +369,7 @@ function SuggestForm({ onDone, initiallyOpen = false }) {
   );
 }
 
-export default function ShopClient({ grouped, balance }) {
+export default function ShopClient({ grouped, balance, favoriteIds = [], isGuest = false }) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null);
   const [message, setMessage] = useState(null);
@@ -355,6 +379,7 @@ export default function ShopClient({ grouped, balance }) {
   const [confirmingVariable, setConfirmingVariable] = useState(null);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState(null); // null = «Все»
+  const [favorites, setFavorites] = useState(() => new Set(favoriteIds));
   const searchParams = useSearchParams();
   const suggestRef = useRef(null);
 
@@ -396,8 +421,69 @@ export default function ShopClient({ grouped, balance }) {
     if (activeCategory) {
       return [[activeCategory, filteredGrouped[activeCategory] ?? []]];
     }
-    return Object.entries(filteredGrouped).filter(([, items]) => items.length > 0);
-  }, [filteredGrouped, activeCategory]);
+    // Награда может лежать в нескольких категориях. В общем списке
+    // показываем её один раз, под основной категорией.
+    return Object.entries(filteredGrouped)
+      .map(([category, items]) => [
+        category,
+        items.filter((r) => !r.category || r.category === category || !grouped[r.category]),
+      ])
+      .filter(([, items]) => items.length > 0);
+  }, [filteredGrouped, activeCategory, grouped]);
+
+  // Избранное: каждая награда один раз, даже если лежит в нескольких категориях
+  const favoriteRewards = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    Object.values(grouped).forEach((items) =>
+      items.forEach((r) => {
+        if (favorites.has(r.id) && !seen.has(r.id)) {
+          seen.add(r.id);
+          list.push(r);
+        }
+      })
+    );
+    return list;
+  }, [grouped, favorites]);
+
+  function toggleFavorite(rewardId) {
+    if (isGuest) return;
+    const next = !favorites.has(rewardId);
+    haptic.light();
+    setFavorites((prev) => {
+      const s = new Set(prev);
+      if (next) s.add(rewardId);
+      else s.delete(rewardId);
+      return s;
+    });
+    toggleFavoriteReward(rewardId, next).then((res) => {
+      if (res?.error) {
+        // откатываем сердечко назад
+        setFavorites((prev) => {
+          const s = new Set(prev);
+          if (next) s.delete(rewardId);
+          else s.add(rewardId);
+          return s;
+        });
+        setMessage({ type: "error", text: res.error });
+        setTimeout(() => setMessage(null), 3000);
+      }
+    });
+  }
+
+  function jumpToReward(rewardId) {
+    document
+      .getElementById(`reward-${rewardId}`)
+      ?.scrollIntoView({ behavior: "auto", block: "center" });
+  }
+
+  const favoriteButtonFor = (reward) =>
+    isGuest ? null : (
+      <FavoriteButton
+        active={favorites.has(reward.id)}
+        onToggle={() => toggleFavorite(reward.id)}
+      />
+    );
 
   const visibleRewards = useMemo(
     () => sections.flatMap(([, items]) => items),
@@ -507,123 +593,7 @@ export default function ShopClient({ grouped, balance }) {
     });
   }
 
-  const categories = Object.keys(grouped);
-  const isSearching = query.trim().length > 0;
-  const showCategoryHeadings = !activeCategory && !isSearching;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-display font-bold">Магазин</h1>
-          <p className="text-xs text-gray-500 mt-1">
-            Меняй коины на то, что реально хочешь
-          </p>
-        </div>
-        <div className="shrink-0 flex items-center gap-2 bg-dark-800 border border-dark-700 rounded-full pl-2.5 pr-4 py-1.5">
-          <Icon name="coin" className="w-5 h-5 text-acid-400" />
-          <span className="font-display font-medium tabular-nums">
-            {fmtCoins(displayBalance)}
-          </span>
-        </div>
-      </div>
-
-      <div className="relative">
-        <Icon
-          name="search"
-          className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Поиск по магазину..."
-          className="w-full bg-dark-800 border border-dark-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-acid-400 transition"
-        />
-      </div>
-
-
-      {visibleRewards.length === 0 && (
-        <EmptyState
-          icon="search"
-          title="Ничего не нашлось"
-          hint={
-            isSearching
-              ? "Попробуй другой запрос или сбрось поиск."
-              : "В этой категории пока нет наград."
-          }
-          action={
-            <button
-              onClick={() => {
-                setQuery("");
-                setActiveCategory(null);
-              }}
-              className="inline-block bg-acid-400 text-black font-bold rounded-xl px-5 py-2.5 text-sm active:scale-95"
-            >
-              Показать всё
-            </button>
-          }
-        />
-      )}
-
-      {message && (
-        <div
-          className={`rounded-xl p-3 text-sm text-center font-medium ${
-            message.type === "error"
-              ? "bg-red-500/10 text-red-400"
-              : "bg-acid-400/10 text-acid-400"
-          }`}
-          style={{ animation: "levelup-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}
-        >
-          {message.text}
-        </div>
-      )}
-
-      {/* Категории — фильтр в одну строку, без раскрывающихся секций и без
-          повторения этого же списка где-то ещё */}
-      {!isSearching && (
-        <div className="-mx-4 px-4">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => setActiveCategory(null)}
-              className={`whitespace-nowrap flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border active:scale-95 transition ${
-                activeCategory === null
-                  ? "bg-acid-400 text-black border-acid-400 font-semibold"
-                  : "bg-dark-800 border-dark-600 text-gray-300"
-              }`}
-            >
-              Все
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() =>
-                  setActiveCategory((c) => (c === category ? null : category))
-                }
-                className={`whitespace-nowrap flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border active:scale-95 transition ${
-                  activeCategory === category
-                    ? "bg-acid-400 text-black border-acid-400 font-semibold"
-                    : "bg-dark-800 border-dark-600 text-gray-300"
-                }`}
-              >
-                <Icon name={categoryIcon(category)} className="w-3.5 h-3.5" />
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {sections.map(([category, items]) => (
-        <section key={category} className="space-y-3">
-          {showCategoryHeadings && (
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-sm font-semibold text-gray-300">{category}</h2>
-              <span className="text-xs text-gray-600 tabular-nums">{items.length}</span>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3 items-stretch">
-            {items.map((reward) => {
+  function renderCard(reward) {
               const isPurchased = purchasedIds.has(reward.id);
               const isConfirming = confirming === reward.id;
 
@@ -649,6 +619,7 @@ export default function ShopClient({ grouped, balance }) {
                     isPurchased={isPurchased}
                     onBuy={handleBuyVariant}
                     onSetGoal={handleSetGoal}
+                    favorite={favoriteButtonFor(reward)}
                   />
                 );
               }
@@ -656,7 +627,8 @@ export default function ShopClient({ grouped, balance }) {
               return (
                 <div
                   key={reward.id}
-                  className={`group bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between transition-colors hover:border-dark-500 ${
+                  id={`reward-${reward.id}`}
+                  className={`group relative bg-dark-800 border rounded-2xl p-4 flex flex-col justify-between transition-colors hover:border-dark-500 ${
                     reward.highlight_color
                       ? GLOW_BORDERS[reward.highlight_color]
                       : "border-dark-600"
@@ -667,6 +639,7 @@ export default function ShopClient({ grouped, balance }) {
                       : undefined
                   }
                 >
+                  {favoriteButtonFor(reward)}
                   <div>
                     {reward.image_url && (
                       <div className="relative w-full h-28 rounded-lg mb-2 overflow-hidden bg-dark-700">
@@ -829,7 +802,188 @@ export default function ShopClient({ grouped, balance }) {
                   </div>
                 </div>
               );
-            })}
+  }
+
+  const categories = Object.keys(grouped);
+  const isSearching = query.trim().length > 0;
+  const showCategoryHeadings = !activeCategory && !isSearching;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-display font-bold">Магазин</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Меняй коины на то, что реально хочешь
+          </p>
+        </div>
+        <div className="shrink-0 flex items-center gap-2 bg-dark-800 border border-dark-700 rounded-full pl-2.5 pr-4 py-1.5">
+          <Icon name="coin" className="w-5 h-5 text-acid-400" />
+          <span className="font-display font-medium tabular-nums">
+            {fmtCoins(displayBalance)}
+          </span>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Icon
+          name="search"
+          className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+        />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск по магазину..."
+          className="w-full bg-dark-800 border border-dark-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-acid-400 transition"
+        />
+      </div>
+
+
+      {visibleRewards.length === 0 && (
+        <EmptyState
+          icon="search"
+          title="Ничего не нашлось"
+          hint={
+            isSearching
+              ? "Попробуй другой запрос или сбрось поиск."
+              : "В этой категории пока нет наград."
+          }
+          action={
+            <button
+              onClick={() => {
+                setQuery("");
+                setActiveCategory(null);
+              }}
+              className="inline-block bg-acid-400 text-black font-bold rounded-xl px-5 py-2.5 text-sm active:scale-95"
+            >
+              Показать всё
+            </button>
+          }
+        />
+      )}
+
+      {message && (
+        <div
+          className={`rounded-xl p-3 text-sm text-center font-medium ${
+            message.type === "error"
+              ? "bg-red-500/10 text-red-400"
+              : "bg-acid-400/10 text-acid-400"
+          }`}
+          style={{ animation: "levelup-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {/* Категории — фильтр в одну строку, без раскрывающихся секций и без
+          повторения этого же списка где-то ещё */}
+      {!isSearching && (
+        <div className="-mx-4 px-4">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className={`whitespace-nowrap flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border active:scale-95 transition ${
+                activeCategory === null
+                  ? "bg-acid-400 text-black border-acid-400 font-semibold"
+                  : "bg-dark-800 border-dark-600 text-gray-300"
+              }`}
+            >
+              Все
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() =>
+                  setActiveCategory((c) => (c === category ? null : category))
+                }
+                className={`whitespace-nowrap flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border active:scale-95 transition ${
+                  activeCategory === category
+                    ? "bg-acid-400 text-black border-acid-400 font-semibold"
+                    : "bg-dark-800 border-dark-600 text-gray-300"
+                }`}
+              >
+                <Icon name={categoryIcon(category)} className="w-3.5 h-3.5" />
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Моё избранное: компактный горизонтальный ряд. Тап по карточке
+          прокручивает к полной карточке ниже, сердечко убирает из избранного. */}
+      {!isSearching && !activeCategory && !isGuest && favoriteRewards.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-sm font-semibold text-gray-300">Моё избранное</h2>
+            <span className="text-xs text-gray-600 tabular-nums">
+              {favoriteRewards.length}
+            </span>
+          </div>
+          <div className="-mx-4 px-4">
+            <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+              {favoriteRewards.map((reward) => {
+                const { effectivePrice } = getEffectivePrice(reward);
+                const firstVariant = reward.variants?.[0];
+                const img = firstVariant?.image_url || reward.image_url;
+                const price = reward.is_variable
+                  ? null
+                  : reward.variants?.length > 0
+                    ? Math.min(...reward.variants.map((v) => v.price_coins))
+                    : effectivePrice;
+                return (
+                  <div
+                    key={reward.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => jumpToReward(reward.id)}
+                    onKeyDown={(e) => e.key === "Enter" && jumpToReward(reward.id)}
+                    className="relative shrink-0 w-32 bg-dark-800 border border-dark-600 rounded-xl p-2.5 active:scale-[0.98] transition cursor-pointer"
+                  >
+                    <FavoriteButton
+                      active
+                      onToggle={() => toggleFavorite(reward.id)}
+                    />
+                    <div className="relative w-full h-16 rounded-lg mb-2 overflow-hidden bg-dark-700">
+                      {img && (
+                        <Image
+                          src={img}
+                          alt=""
+                          fill
+                          unoptimized={isRawImage(img)}
+                          sizes="128px"
+                          className="object-contain"
+                        />
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold leading-tight line-clamp-2 min-h-[2rem]">
+                      {reward.title}
+                    </p>
+                    <p className="mt-1 text-xs font-display tabular-nums text-acid-400 flex items-center gap-1">
+                      <Icon name="coin" className="w-3 h-3" />
+                      {price != null
+                        ? `${reward.variants?.length > 1 ? "от " : ""}${fmtCoins(price)}`
+                        : "по сумме"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {sections.map(([category, items]) => (
+        <section key={category} className="space-y-3">
+          {showCategoryHeadings && (
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-sm font-semibold text-gray-300">{category}</h2>
+              <span className="text-xs text-gray-600 tabular-nums">{items.length}</span>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3 items-stretch">
+            {items.map((reward) => renderCard(reward))}
           </div>
         </section>
       ))}

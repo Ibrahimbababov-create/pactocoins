@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import ShopClient from "@/components/ShopClient";
+import { groupRewards, loadFavoriteIds } from "@/lib/shopGrouping";
 
 export default async function ObserverShop() {
   const supabase = createClient();
@@ -9,7 +10,7 @@ export default async function ObserverShop() {
 
   const [{ data: profile }, { data: categories }, { data: rewards }, { data: variants }] =
     await Promise.all([
-      supabase.from("users").select("balance").eq("id", user.id).single(),
+      supabase.from("users").select("balance, is_guest").eq("id", user.id).single(),
       supabase
         .from("reward_categories")
         .select("*")
@@ -29,24 +30,17 @@ export default async function ObserverShop() {
     (variantsByReward[v.reward_id] ||= []).push(v);
   });
 
-  const grouped = {};
-  categories?.forEach((c) => {
-    grouped[c.name] = [];
-  });
-
-  rewards?.forEach((r) => {
-    if (!grouped[r.category]) grouped[r.category] = [];
-    grouped[r.category].push({ ...r, variants: variantsByReward[r.id] ?? [] });
-  });
-
-  // Убираем пустые категории из отображения
-  Object.keys(grouped).forEach((key) => {
-    if (grouped[key].length === 0) delete grouped[key];
-  });
+  const grouped = groupRewards(categories, rewards, variantsByReward);
+  const favoriteIds = await loadFavoriteIds(supabase, user.id);
 
   return (
     <div className="space-y-6">
-      <ShopClient grouped={grouped} balance={profile?.balance ?? 0} />
+      <ShopClient
+        grouped={grouped}
+        balance={profile?.balance ?? 0}
+        favoriteIds={favoriteIds}
+        isGuest={!!profile?.is_guest}
+      />
     </div>
   );
 }

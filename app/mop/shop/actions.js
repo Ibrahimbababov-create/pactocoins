@@ -360,3 +360,38 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
   revalidatePath("/admin/reward-suggestions");
   return { success: true };
 }
+
+// Сердечко «в избранное». Пишем от имени самого человека (не админским
+// ключом), поэтому защита базы не даст тронуть чужие строки.
+export async function toggleFavoriteReward(rewardId, on) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Не авторизован" };
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("is_guest")
+    .eq("id", user.id)
+    .single();
+  if (profile?.is_guest) {
+    return { error: "Избранное доступно только своим аккаунтам" };
+  }
+
+  const { error } = on
+    ? await supabase
+        .from("reward_favorites")
+        .upsert(
+          { user_id: user.id, reward_id: rewardId },
+          { onConflict: "user_id,reward_id", ignoreDuplicates: true }
+        )
+    : await supabase
+        .from("reward_favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("reward_id", rewardId);
+
+  if (error) return { error: "Не получилось сохранить, попробуй ещё раз" };
+  return { success: true };
+}
