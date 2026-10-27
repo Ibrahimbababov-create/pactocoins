@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import MyPaymentsClient from "@/components/MyPaymentsClient";
+import PaymentsTitle from "@/components/PaymentsTitle";
 import EmptyState from "@/components/EmptyState";
 import { resolveViewer } from "@/lib/viewAs";
 import {
@@ -84,7 +85,7 @@ export default async function MyPaymentsPage({ searchParams }) {
         <Link href="/mop/history" className="text-xs text-gray-500">
           К истории
         </Link>
-        <h1 className="text-2xl font-bold">Мои оплаты</h1>
+        <PaymentsTitle />
         <p className="text-sm text-gray-500 mt-1">
           Сверь с гугл-таблицей: все оплаты клиентов за месяц.
         </p>
