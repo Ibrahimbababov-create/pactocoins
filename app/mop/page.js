@@ -179,6 +179,13 @@ export default async function MopDashboard() {
   const nextReward =
     (shopPrices ?? []).find((r) => r.price_coins > (profile?.balance ?? 0)) ?? null;
 
+  // «По дороге»: ближайшая награда дороже текущего баланса, но дешевле цели.
+  const goalTarget = fetchedGoal?.target_amount ?? Infinity;
+  const waypoint =
+    (shopPrices ?? []).find(
+      (r) => r.price_coins > (profile?.balance ?? 0) && r.price_coins < goalTarget
+    ) ?? null;
+
   let currentGoal = fetchedGoal;
   if (!watching && currentGoal && (profile?.balance ?? 0) >= currentGoal.target_amount) {
     const { data: achievedGoal } = await supabase
@@ -234,6 +241,62 @@ export default async function MopDashboard() {
 
       {role === "rop" && <TeamMonthCard data={teamMonth} />}
 
+      {/* Баланс — крупная цифра, обновляется онлайн */}
+      <LiveBalance
+        userId={viewId}
+        initialBalance={profile?.balance ?? 0}
+        initialTotalEarned={profile?.total_earned ?? 0}
+        initialMonthEarned={monthEarned}
+        goalTarget={currentGoal?.target_amount ?? null}
+        goalTitle={currentGoal?.rewards?.title ?? null}
+      />
+
+      <GoalWidget
+        goal={currentGoal}
+        balance={profile?.balance ?? 0}
+        coinRate={profile?.coin_rate_multiplier ?? 1}
+        monthKzt={monthTier?.value ?? 0}
+        suggestion={nextReward}
+        monthCoins={monthEarned}
+        dayOfMonth={nowInAlmaty().day}
+        waypoint={waypoint}
+      />
+
+      {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href="/mop/payments"
+            className="rounded-2xl bg-dark-800 border border-dark-700 p-4 active:bg-dark-700 transition"
+          >
+            <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-acid-400/10 text-acid-400">
+              <Icon name="receipt" className="w-[18px] h-[18px]" />
+            </span>
+            <p className="font-semibold mt-3">Мои оплаты</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+              {approvedPayments.length > 0
+                ? `${approvedPayments.length} ${plural(approvedPayments.length, "оплата", "оплаты", "оплат")} · ${approvedSum.toLocaleString("ru-RU")} ₸`
+                : "Подтверждённых пока нет"}
+            </p>
+          </Link>
+          <Link
+            href="/mop/recap"
+            className={`rounded-2xl border p-4 transition ${
+              nowInAlmaty().day <= 5
+                ? "border-acid-400/40 bg-acid-400/[0.07]"
+                : "bg-dark-800 border-dark-700 active:bg-dark-700"
+            }`}
+          >
+            <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-acid-400/10 text-acid-400">
+              <Icon name="award" className="w-[18px] h-[18px]" />
+            </span>
+            <p className="font-semibold mt-3">Итог месяца</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+              {nowInAlmaty().day <= 5 ? "Прошлый месяц уже готов" : "Как ты отработал"}
+            </p>
+          </Link>
+        </div>
+      )}
+
       {(profile?.wheel_spins ?? 0) > 0 && (
         <Link
           href="/mop/games/wheel"
@@ -263,15 +326,6 @@ export default async function MopDashboard() {
         />
       ))}
 
-      {/* Баланс — крупная цифра, обновляется онлайн */}
-      <LiveBalance
-        userId={viewId}
-        initialBalance={profile?.balance ?? 0}
-        initialTotalEarned={profile?.total_earned ?? 0}
-        initialMonthEarned={monthEarned}
-        goalTarget={currentGoal?.target_amount ?? null}
-        goalTitle={currentGoal?.rewards?.title ?? null}
-      />
 
       <WeekPlaceCard data={weekPlace} />
 
@@ -280,58 +334,6 @@ export default async function MopDashboard() {
       )}
 
       <EarningsMiniChart series={chartSeries} />
-
-      {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
-        <Link
-          href="/mop/payments"
-          className="flex items-center gap-3 rounded-2xl bg-dark-800 border border-dark-700 p-4 active:opacity-70"
-        >
-          <span className="flex items-center justify-center w-10 h-10 shrink-0 rounded-xl bg-acid-400/10 text-acid-400">
-            <Icon name="receipt" className="w-5 h-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold">Мои оплаты</p>
-            <p className="text-sm text-gray-500 truncate">
-              {approvedPayments.length > 0
-                ? `${approvedPayments.length} ${plural(approvedPayments.length, "оплата", "оплаты", "оплат")} за месяц · ${approvedSum.toLocaleString("ru-RU")} ₸`
-                : "В этом месяце подтверждённых пока нет"}
-            </p>
-          </div>
-          <Icon name="chevronRight" className="w-5 h-5 text-gray-600 shrink-0" />
-        </Link>
-      )}
-
-      {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
-        nowInAlmaty().day <= 5 ? (
-          <Link
-            href="/mop/recap"
-            className="flex items-center gap-3 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4"
-          >
-            <Icon name="award" className="w-8 h-8 text-acid-400 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-acid-400">Итог прошлого месяца готов</p>
-              <p className="text-sm text-gray-400 mt-0.5">Посмотри, как ты отработал, и покажи команде</p>
-            </div>
-            <Icon name="chevronRight" className="w-5 h-5 text-gray-600 shrink-0" />
-          </Link>
-        ) : (
-          <Link
-            href="/mop/recap"
-            className="flex items-center justify-between gap-2 px-1 text-sm text-gray-500 active:opacity-60"
-          >
-            <span>Итог месяца</span>
-            <Icon name="chevronRight" className="w-4 h-4 text-gray-600" />
-          </Link>
-        )
-      )}
-
-      <GoalWidget
-        goal={currentGoal}
-        balance={profile?.balance ?? 0}
-        coinRate={profile?.coin_rate_multiplier ?? 1}
-        monthKzt={monthTier?.value ?? 0}
-        suggestion={nextReward}
-      />
 
       {profile?.is_guest && (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">

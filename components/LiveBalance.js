@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase-browser";
 import { haptic } from "@/lib/haptics";
 import { monthRangeAlmaty, currentMonthKeyAlmaty } from "@/lib/timezone";
 
-const SIZE = 208;
-const STROKE = 10;
+const SIZE = 232;
+const STROKE = 9;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -136,20 +136,34 @@ export default function LiveBalance({
 
   const pct = goalTarget > 0 ? Math.min(100, (balance / goalTarget) * 100) : 0;
   const offset = CIRCUMFERENCE * (1 - pct / 100);
-  const remainingToGoal = goalTarget > 0 ? Math.max(0, goalTarget - balance) : 0;
 
   return (
     <div className="flex flex-col items-center">
-      {/* Монета: тёмный диск, по краю — кольцо прогресса до цели.
-          Никакой карточки вокруг: монета и есть главный объект экрана. */}
+      {/* Монета: литой диск с ободом. Дуга по ободу показывает путь до цели,
+          а сама цель описана карточкой ниже, без дублей. */}
       <div className="relative" style={{ width: SIZE, height: SIZE }}>
         <div
-          className="absolute rounded-full border border-dark-600"
+          className="absolute rounded-full opacity-70"
+          style={{
+            inset: -18,
+            background:
+              "radial-gradient(closest-side, rgb(var(--c-accent) / 0.16), transparent)",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
           style={{
             inset: STROKE - 1,
             background:
-              "radial-gradient(120% 120% at 32% 20%, rgb(var(--c-coin-1)) 0%, rgb(var(--c-coin-2)) 58%, rgb(var(--c-coin-3)) 100%)",
+              "radial-gradient(120% 120% at 32% 18%, rgb(var(--c-coin-1)) 0%, rgb(var(--c-coin-2)) 58%, rgb(var(--c-coin-3)) 100%)",
+            boxShadow:
+              "inset 0 2px 0 rgb(255 255 255 / 0.06), inset 0 -10px 24px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.45)",
           }}
+        />
+        {/* тонкий внутренний кант, как на настоящей монете */}
+        <div
+          className="absolute rounded-full border border-acid-400/25"
+          style={{ inset: STROKE + 12 }}
         />
 
         <svg width={SIZE} height={SIZE} className="relative -rotate-90">
@@ -177,13 +191,8 @@ export default function LiveBalance({
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {goalTitle && (
-            <p className="text-[11px] font-semibold text-acid-400 px-6 text-center truncate max-w-full">
-              коплю на {goalTitle}
-            </p>
-          )}
-          <div className="relative mt-0.5">
-            <span className="block font-display text-[38px] leading-none font-extrabold tracking-tight tabular-nums">
+          <div className="relative">
+            <span className="block font-display text-[42px] leading-none font-extrabold tracking-tight tabular-nums">
               {fmt(shownBalance)}
             </span>
             {floaters.map((f) => (
@@ -197,30 +206,19 @@ export default function LiveBalance({
               </span>
             ))}
           </div>
-          <p className="text-gray-500 text-xs mt-1.5">коинов</p>
+          <p className="text-gray-500 text-xs mt-2 tracking-wide">коинов</p>
         </div>
       </div>
 
-      {goalTitle && remainingToGoal > 0 && (
-        <p className="text-xs text-gray-500 mt-2.5">
-          До цели осталось {fmt(remainingToGoal)}
-        </p>
-      )}
-
-      <div className="flex items-center w-full border-y border-dark-700 py-3 mt-4">
-        <div className="flex-1">
-          <p className="text-xs text-gray-500">Заработано в этом месяце</p>
-          <p className="font-display text-[17px] font-medium tabular-nums mt-1">
-            {fmt(monthEarned)}
-          </p>
-        </div>
-        <div className="w-px h-8 bg-dark-700" />
-        <div className="flex-1 pl-4">
-          <p className="text-xs text-gray-500">Всего заработано</p>
-          <p className="font-display text-[17px] font-medium tabular-nums mt-1">
-            {fmt(totalEarned)}
-          </p>
-        </div>
+      <div className="mt-5 flex items-center justify-center gap-2 flex-wrap">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-acid-400/10 border border-acid-400/25 px-3 py-1.5 text-sm text-acid-400">
+          <span className="font-display font-medium tabular-nums">+{fmt(monthEarned)}</span>
+          <span className="text-xs text-gray-400">в этом месяце</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-dark-800 border border-dark-700 px-3 py-1.5 text-sm">
+          <span className="font-display font-medium tabular-nums">{fmt(totalEarned)}</span>
+          <span className="text-xs text-gray-500">за всё время</span>
+        </span>
       </div>
     </div>
   );
