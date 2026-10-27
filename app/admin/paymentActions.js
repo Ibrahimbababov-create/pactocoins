@@ -10,6 +10,7 @@ import { monthRevenueBefore } from "@/lib/revenueMonth";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { revokeMentorBonus, recalcMentorBonus } from "@/lib/mentorBonus";
 import { addCoins } from "@/lib/addCoins";
+import { logRevenueChange } from "@/lib/revenueAudit";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -99,6 +100,17 @@ export async function cancelPayment(requestId, reason) {
     })
     .eq("id", requestId);
 
+  await logRevenueChange(admin, {
+    requestId,
+    userId: request.user_id,
+    actorId: admin_user.id,
+    source: "web",
+    action: "cancel",
+    before: { status: "approved", amount_kzt: request.amount_kzt, credited_coins: coins, earned_at: request.earned_at, client_name: request.client_name },
+    after: { status: "rejected" },
+    note: reason,
+  });
+
   if (coins) {
     await admin.from("transactions").insert({
       user_id: request.user_id,
@@ -180,6 +192,23 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
   }
 
   await admin.from("revenue_requests").update(patch).eq("id", requestId);
+
+  const auditBefore = { amount_kzt: request.amount_kzt, credited_coins: oldCoins };
+  const auditAfter = { amount_kzt: newAmount, credited_coins: newCoins };
+  if (patch.earned_at) {
+    auditBefore.earned_at = request.earned_at;
+    auditAfter.earned_at = patch.earned_at;
+  }
+  await logRevenueChange(admin, {
+    requestId,
+    userId: request.user_id,
+    actorId: admin_user.id,
+    source: "web",
+    action: "edit",
+    before: auditBefore,
+    after: auditAfter,
+    note: reason,
+  });
 
   // Сумма изменилась — процент наставника пересчитываем от новой.
   await recalcMentorBonus(admin, { ...request, ...patch, status: "approved" });

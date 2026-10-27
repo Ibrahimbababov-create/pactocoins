@@ -1,6 +1,7 @@
 "use server";
 
 import { formatCoins, spinsAcc, spinsNom } from "@/lib/plural";
+import { logRevenueChange, logRevenueChanges, pickRevenueFields } from "@/lib/revenueAudit";
 import { cancelApprovedRevenue } from "@/lib/cancelRevenue";
 import { decisionContact } from "@/lib/adminContact";
 
@@ -296,6 +297,17 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     return { error: updateUserError.message };
   }
 
+  await logRevenueChange(admin, {
+    requestId,
+    userId: request.user_id,
+    actorId: admin_user.id,
+    source: "web",
+    action: "approve",
+    before: { status: "pending", earned_at: request.earned_at },
+    after: { status: "approved", earned_at: earnedAtIso, credited_coins: coins, amount_kzt: request.amount_kzt, client_name: request.client_name },
+    note: comment,
+  });
+
   const transactionPayload = {
     user_id: request.user_id,
     type: "earn",
@@ -375,6 +387,17 @@ export async function rejectRevenueRequest(requestId, comment) {
   // Уже обработана (второй клик или кнопкой в Telegram) — человеку второе
   // «отклонена» не шлём.
   if (!claimed?.length) return { error: "Заявка уже обработана" };
+
+  await logRevenueChange(admin, {
+    requestId,
+    userId: request?.user_id,
+    actorId: admin_user.id,
+    source: "web",
+    action: "reject",
+    before: { status: "pending" },
+    after: { status: "rejected", amount_kzt: request?.amount_kzt },
+    note: comment,
+  });
 
   if (request?.user_id) {
     const rejectText = `❌ Заявка на выручку ${Number(request.amount_kzt).toLocaleString("ru-RU")} ₸ отклонена`;
@@ -968,11 +991,20 @@ export async function manualAdjustBalanceBulk(userIds, amount, description) {
 // ---------- Полный сброс тестовых данных ----------
 
 export async function resetAllStats() {
-  await requireAdmin();
+  const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
   await admin.from("transactions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { count: wipedCount } = await admin
+    .from("revenue_requests")
+    .select("id", { count: "exact", head: true });
   await admin.from("revenue_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await logRevenueChange(admin, {
+    actorId: admin_user.id,
+    source: "web",
+    action: "delete",
+    note: `Полный сброс данных: удалено заявок на выручку ${wipedCount ?? "?"}`,
+  });
   await admin.from("bonus_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   await admin.from("purchase_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
@@ -997,11 +1029,29 @@ export async function resetAllStats() {
 // ---------- Сброс данных одного сотрудника ----------
 
 export async function resetUserStats(userId) {
-  await requireAdmin();
+  const admin_user = await requireAdmin();
   const admin = createAdminClient();
+
+  const { data: wiped } = await admin
+    .from("revenue_requests")
+    .select("id, user_id, amount_kzt, earned_at, status, client_name, product_kind, pay_kind, credited_coins")
+    .eq("user_id", userId)
+    .limit(500);
 
   await admin.from("transactions").delete().eq("user_id", userId);
   await admin.from("revenue_requests").delete().eq("user_id", userId);
+  await logRevenueChanges(
+    admin,
+    (wiped ?? []).map((r) => ({
+      requestId: r.id,
+      userId: r.user_id,
+      actorId: admin_user.id,
+      source: "web",
+      action: "delete",
+      before: pickRevenueFields(r),
+      note: "Сброс данных сотрудника",
+    }))
+  );
   await admin.from("bonus_requests").delete().eq("user_id", userId);
   await admin.from("purchase_requests").delete().eq("user_id", userId);
 
