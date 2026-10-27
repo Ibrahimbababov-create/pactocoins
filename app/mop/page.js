@@ -224,6 +224,33 @@ export default async function MopDashboard() {
   // Карточка турнира на главной уже есть — баннер про турнир не дублируем.
   const tournamentShown = tournament?.status === "registration" || tournament?.status === "running";
 
+  const canJoinTournament =
+    !profile?.is_guest && ["mop", "rop", "mentor", "admin"].includes(profile?.role);
+  const ribbons = [];
+  if ((profile?.wheel_spins ?? 0) > 0) {
+    ribbons.push({
+      key: "wheel",
+      href: "/mop/games/wheel",
+      icon: "wheel",
+      text: `У тебя ${profile.wheel_spins} ${spinsNom(profile.wheel_spins)} на колесе фортуны`,
+    });
+  }
+  if (tournament?.status === "registration" && !tournament.joined && canJoinTournament) {
+    ribbons.push({
+      key: "tournament",
+      href: `/mop/games/tournament/${tournament.id}`,
+      icon: "trophy",
+      text: `Идёт запись на турнир, в банке ${Number(tournament.pot || 0).toLocaleString("ru-RU")}`,
+    });
+  } else if (tournament?.status === "running" && tournament.waitingMe) {
+    ribbons.push({
+      key: "tournament",
+      href: `/mop/games/tournament/${tournament.id}`,
+      icon: "trophy",
+      text: "Соперник ждёт твоего ответа по матчу",
+    });
+  }
+
   return (
     <div className="space-y-6">
       {CURRENT_ANNOUNCEMENT && !(CURRENT_ANNOUNCEMENT.hideWhenTournament && tournamentShown) && (
@@ -253,6 +280,19 @@ export default async function MopDashboard() {
       )}
 
       {role === "rop" && <TeamMonthCard data={teamMonth} />}
+
+      {/* Лента над монетой: одна строка про то, что горит прямо сейчас */}
+      {ribbons.map((r) => (
+        <Link
+          key={r.key}
+          href={r.href}
+          className="flex items-center gap-2.5 rounded-xl border border-acid-400/30 bg-acid-400/[0.07] px-3.5 py-2.5 active:opacity-70"
+        >
+          <Icon name={r.icon} className="w-5 h-5 text-acid-400 shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-acid-400">{r.text}</span>
+          <Icon name="chevronRight" className="w-4 h-4 text-gray-600 shrink-0" />
+        </Link>
+      ))}
 
       {/* Баланс — крупная цифра, обновляется онлайн */}
       <LiveBalance
@@ -308,22 +348,6 @@ export default async function MopDashboard() {
             </p>
           </Link>
         </div>
-      )}
-
-      {(profile?.wheel_spins ?? 0) > 0 && (
-        <Link
-          href="/mop/games/wheel"
-          className="flex items-center gap-3 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4"
-        >
-          <Icon name="wheel" className="w-8 h-8 text-acid-400 shrink-0" />
-          <div>
-            <p className="font-bold text-acid-400">
-              У тебя {profile.wheel_spins}{" "}
-              {spinsNom(profile.wheel_spins)} на колесе фортуны
-            </p>
-            <p className="text-sm text-gray-400 mt-0.5">Нажми, чтобы крутить →</p>
-          </div>
-        </Link>
       )}
 
       <TournamentHomeCard
