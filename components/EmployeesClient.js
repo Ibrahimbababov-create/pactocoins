@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { roleLabel } from "@/lib/roles";
+import { matchesName } from "@/lib/translit";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import {
@@ -49,12 +50,29 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
   const [adjustReason, setAdjustReason] = useState("");
   const [message, setMessage] = useState(null);
   const [openGroups, setOpenGroups] = useState(() => new Set());
+  const [query, setQuery] = useState("");
+  const q = query.trim();
+  const qLower = q.toLowerCase().replace(/^@/, "");
+
+  // Ищем по имени (и кириллицей, и латиницей), по email и telegram-нику.
+  // Уволенные тоже находятся: они лежат в своей группе.
+  const matched = useMemo(() => {
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        matchesName(u.name, q) ||
+        (qLower &&
+          [u.email, u.telegram_username].some((v) =>
+            String(v ?? "").toLowerCase().includes(qLower)
+          ))
+    );
+  }, [users, q, qLower]);
 
   const grouped = useMemo(() => {
     const g = Object.fromEntries(GROUPS.map((x) => [x.key, []]));
-    for (const u of users) g[groupOf(u)].push(u);
+    for (const u of matched) g[groupOf(u)].push(u);
     return g;
-  }, [users]);
+  }, [matched]);
 
   const rops = useMemo(
     () =>
@@ -275,10 +293,44 @@ export default function EmployeesClient({ users, projects = [], mentors = [] }) 
         </form>
       )}
 
+      <div className="sticky top-0 z-20 bg-dark-900 py-2 -mx-1 px-1 space-y-1">
+        <div className="relative">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Найти сотрудника по имени"
+            aria-label="Поиск сотрудника"
+            className="w-full bg-dark-800 border border-dark-600 rounded-xl pl-4 pr-10 py-2.5 text-base text-white [&::-webkit-search-cancel-button]:hidden"
+          />
+          {query && (
+            <button
+              type="button"
+              aria-label="Очистить поиск"
+              onClick={() => setQuery("")}
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-gray-500"
+            >
+              <Icon name="x" className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        {q && (
+          <p className="text-xs text-gray-500 px-1">
+            Найдено: {matched.length}
+          </p>
+        )}
+      </div>
+
+      {q && matched.length === 0 && (
+        <p className="text-sm text-gray-500 text-center py-6">
+          Никого не нашлось. Попробуй часть имени или почту.
+        </p>
+      )}
+
       {GROUPS.map((g) => {
         const list = grouped[g.key];
         if (!list.length) return null;
-        const isOpen = openGroups.has(g.key);
+        const isOpen = !!q || openGroups.has(g.key);
         return (
           <div
             key={g.key}
