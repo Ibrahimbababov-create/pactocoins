@@ -118,7 +118,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
       {favorite}
       <div>
         {shownImage && (
-          <div className="relative w-full h-28 rounded-lg mb-2 overflow-hidden bg-dark-700">
+          <div className="relative -mx-4 -mt-4 mb-3 h-32 rounded-t-2xl overflow-hidden bg-dark-700">
             <Image
               key={shownImage}
               src={shownImage}
@@ -126,7 +126,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
               fill
               unoptimized={isRawImage(shownImage)}
               sizes="(max-width: 500px) 45vw, 200px"
-              className="object-contain"
+              className="object-cover"
             />
           </div>
         )}
@@ -214,7 +214,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
             <button
               onClick={() => onSetGoal(reward, variant)}
               disabled={isPending}
-              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 active:text-acid-400 active:border-acid-400 transition disabled:opacity-50 flex items-center justify-center gap-1"
+              className="w-full mt-1 rounded-lg py-1.5 text-xs text-gray-500 active:text-acid-400 transition disabled:opacity-50 flex items-center justify-center gap-1"
             >
               <Icon name="target" className="w-3.5 h-3.5" />
               Копить на это
@@ -656,14 +656,14 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
                   {favoriteButtonFor(reward)}
                   <div>
                     {reward.image_url && (
-                      <div className="relative w-full h-28 rounded-lg mb-2 overflow-hidden bg-dark-700">
+                      <div className="relative -mx-4 -mt-4 mb-3 h-32 rounded-t-2xl overflow-hidden bg-dark-700">
                         <Image
                           src={reward.image_url}
                           alt=""
                           fill
                           unoptimized={isRawImage(reward.image_url)}
                           sizes="(max-width: 500px) 45vw, 200px"
-                          className="object-contain"
+                          className="object-cover"
                         />
                       </div>
                     )}
@@ -788,7 +788,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
                             <button
                               onClick={() => handleSetGoal(reward)}
                               disabled={isPending}
-                              className="w-full mt-1.5 rounded-lg py-1.5 text-xs text-gray-400 border border-dark-600 active:text-acid-400 active:border-acid-400 transition disabled:opacity-50 flex items-center justify-center gap-1"
+                              className="w-full mt-1 rounded-lg py-1.5 text-xs text-gray-500 active:text-acid-400 transition disabled:opacity-50 flex items-center justify-center gap-1"
                             >
                               <Icon name="target" className="w-3.5 h-3.5" />
                               Копить на это
