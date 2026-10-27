@@ -117,7 +117,7 @@ function SegmentRow({ seg, index, onDone }) {
           Размер приза
           <input
             type="number"
-            min="0"
+            min="-1000"
             value={s.prize_amount}
             onChange={(e) => set("prize_amount", e.target.value)}
             disabled={s.prize_type === "nothing" || s.prize_type === "custom"}

@@ -10,6 +10,7 @@ import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { PLACE_SPINS } from "@/lib/tournamentRounds";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
 import { haptic } from "@/lib/haptics";
+import Link from "next/link";
 import Icon from "@/components/Icon";
 
 // Колесо фортуны. Результат решает сервер (spinWheel), колесо только
@@ -47,11 +48,12 @@ function rarity(weight, total) {
 
 // Что написать на секторе: крупно число, мелко пояснение.
 function segmentFace(seg, isTop) {
+  if (seg.prize_type === "coins" && seg.prize_amount < 0) return { big: `-${Math.abs(seg.prize_amount)}`, small: "потеря" };
   if (seg.prize_type === "coins") return { big: Number(seg.prize_amount).toLocaleString("ru-RU"), small: isTop ? "джекпот" : "коинов" };
   if (seg.prize_type === "spins") return { big: `+${seg.prize_amount}`, small: spinsNom(seg.prize_amount) };
   if (seg.prize_type === "chips") return { big: String(seg.prize_amount), small: chipsNom(seg.prize_amount) };
   if (seg.prize_type === "custom") return { big: "приз", small: seg.label.slice(0, 12) };
-  return { big: "мимо", small: "" };
+  return { big: "пусто", small: "" };
 }
 
 function Confetti() {
@@ -80,11 +82,13 @@ function Confetti() {
 }
 
 function ResultModal({ result, spins, chips, chipPrice, jackpotAmount, onClose, onAgain, onBuyAndSpin }) {
-  const coins = result.prizeType === "coins";
+  const loss = result.prizeType === "coins" && (result.nominalAmount ?? result.prizeAmount) < 0;
+  const coins = result.prizeType === "coins" && !loss;
   const extra = result.prizeType === "spins";
   const chipWin = result.prizeType === "chips";
   const jackpot = coins && jackpotAmount > 0 && result.prizeAmount >= jackpotAmount;
   const big = coins && result.prizeAmount >= 100;
+  const empty = result.prizeType === "nothing";
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-6"
@@ -99,10 +103,26 @@ function ResultModal({ result, spins, chips, chipPrice, jackpotAmount, onClose, 
         onClick={(e) => e.stopPropagation()}
       >
         {(big || jackpot || extra || (chipWin && result.prizeAmount >= 25)) && <Confetti />}
-        <span className="mx-auto flex items-center justify-center w-16 h-16 rounded-full bg-acid-400/15 border border-acid-400/40 text-acid-400">
-          <Icon name={jackpot ? "trophy" : extra ? "wheel" : chipWin ? "coin" : "sparkle"} className="w-8 h-8" />
+        <span
+          className={`mx-auto flex items-center justify-center w-16 h-16 rounded-full border ${
+            loss || empty ? "bg-dark-700 border-dark-600 text-gray-400" : "bg-acid-400/15 border-acid-400/40 text-acid-400"
+          }`}
+        >
+          <Icon name={loss ? "coin" : empty ? "wheel" : jackpot ? "trophy" : extra ? "wheel" : chipWin ? "coin" : "sparkle"} className="w-8 h-8" />
         </span>
-        <p className="mt-4 text-sm text-gray-400">{jackpot ? "Джекпот!" : extra ? "Бонус" : "Твой выигрыш"}</p>
+        <p className="mt-4 text-sm text-gray-400">
+          {loss ? "Не повезло" : empty ? "Пусто" : jackpot ? "Джекпот!" : extra ? "Бонус" : "Твой выигрыш"}
+        </p>
+        {loss && (
+          <>
+            <p className="mt-1 font-display font-bold text-5xl text-amber-400 tabular-nums leading-none">
+              {result.prizeAmount < 0 ? `-${Math.abs(result.prizeAmount).toLocaleString("ru-RU")}` : "0"}
+            </p>
+            <p className="mt-2 text-sm text-gray-400">
+              {result.prizeAmount < 0 ? "коинов ушло с баланса" : "На балансе пусто, терять нечего"}
+            </p>
+          </>
+        )}
         {coins && (
           <>
             <p className="mt-1 font-display font-bold text-5xl text-acid-400 tabular-nums leading-none">
@@ -135,7 +155,7 @@ function ResultModal({ result, spins, chips, chipPrice, jackpotAmount, onClose, 
             <p className="mt-2 text-sm text-gray-400">Админ свяжется по призу</p>
           </>
         )}
-        {result.prizeType === "nothing" && <p className="mt-1 font-display font-bold text-2xl">В этот раз мимо</p>}
+        {empty && <p className="mt-1 font-display font-bold text-2xl">В этот раз пусто, крути ещё</p>}
         <div className="mt-6 space-y-2">
           {spins === 0 && chips >= chipPrice && (
             <button
@@ -305,6 +325,7 @@ export default function WheelClient({
       if (typeof res.chips === "number") setChips(res.chips);
       setResult(res);
       if (res.prizeType === "nothing") haptic.light();
+      else if (res.prizeType === "coins" && (res.nominalAmount ?? res.prizeAmount) < 0) haptic.warning();
       else haptic.success();
     });
 
@@ -333,7 +354,8 @@ export default function WheelClient({
   ];
 
   // Сначала коины по убыванию, потом фишки по убыванию.
-  const worth = (x) => (x.prize_type === "coins" ? 100000 + x.prize_amount : x.prize_type === "chips" ? x.prize_amount : 0);
+  const worth = (x) =>
+    x.prize_type === "coins" ? (x.prize_amount < 0 ? -100000 + x.prize_amount : 100000 + x.prize_amount) : x.prize_type === "chips" ? x.prize_amount : 0;
   // Одинаковые сектора (на колесе их бывает два) в списке — одной карточкой.
   const prizes = Object.values(
     segments.reduce((acc, s) => {
@@ -556,18 +578,28 @@ export default function WheelClient({
                     isTop ? "border-acid-400/50 bg-acid-400/10" : "border-dark-600 bg-dark-800"
                   }`}
                 >
-                  <p className={`font-display font-bold tabular-nums ${isTop ? "text-acid-400" : ""}`}>
-                    {seg.prize_type === "coins" || seg.prize_type === "chips"
-                      ? `+${Number(seg.prize_amount).toLocaleString("ru-RU")}`
-                      : seg.prize_type === "spins"
-                        ? `+${seg.prize_amount} ${spinsNom(seg.prize_amount)}`
-                        : seg.label}
+                  <p
+                    className={`font-display font-bold tabular-nums ${
+                      isTop ? "text-acid-400" : seg.prize_type === "coins" && seg.prize_amount < 0 ? "text-amber-400" : ""
+                    }`}
+                  >
+                    {seg.prize_type === "coins" && seg.prize_amount < 0
+                      ? `-${Math.abs(seg.prize_amount).toLocaleString("ru-RU")}`
+                      : seg.prize_type === "coins" || seg.prize_type === "chips"
+                        ? `+${Number(seg.prize_amount).toLocaleString("ru-RU")}`
+                        : seg.prize_type === "spins"
+                          ? `+${seg.prize_amount} ${spinsNom(seg.prize_amount)}`
+                          : seg.prize_type === "nothing"
+                            ? "Пусто"
+                            : seg.label}
                   </p>
                   <p className="text-[11px] text-gray-500">
                     {isTop
                       ? "джекпот · "
-                      : seg.prize_type === "coins"
-                        ? "коинов · "
+                      : seg.prize_type === "coins" && seg.prize_amount < 0
+                        ? "потеря коинов · "
+                        : seg.prize_type === "coins"
+                          ? "коинов · "
                         : seg.prize_type === "chips"
                           ? `${chipsNom(seg.prize_amount)} · `
                           : ""}
@@ -590,7 +622,14 @@ export default function WheelClient({
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-600 px-1">Бонусы подаются как обычно, заявкой на главном экране.</p>
+        <Link
+          href="/mop#bonus"
+          className="flex items-center justify-center gap-2 w-full rounded-2xl border border-acid-400/40 text-acid-400 font-bold py-3 active:scale-[.98] transition"
+        >
+          <Icon name="plus" className="w-4 h-4" />
+          Запросить бонус
+        </Link>
+        <p className="text-xs text-gray-600 px-1">Откроется форма заявки на главном экране.</p>
       </div>
 
       {bigWins.length > 0 && (

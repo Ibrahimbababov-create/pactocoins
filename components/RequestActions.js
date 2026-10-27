@@ -10,6 +10,12 @@ export default function RequestActions({ multiplier = 1, monthKzt = 0 }) {
   const [activeForm, setActiveForm] = useState(null); // null | "revenue" | "bonus"
   const boxRef = useRef(null);
 
+  // Ссылка «Запросить бонус» с экрана колеса ведёт на /mop#bonus: сразу
+  // открываем форму бонуса.
+  useEffect(() => {
+    if (window.location.hash === "#bonus") setActiveForm("bonus");
+  }, []);
+
   // Кнопки внизу экрана, и форма раскрывалась за его краем — казалось,
   // что нажатие не сработало. Подкручиваем к началу формы.
   useEffect(() => {
