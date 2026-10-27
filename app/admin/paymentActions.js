@@ -10,6 +10,7 @@ import { revokeMentorBonus } from "@/lib/mentorBonus";
 import { applyPaymentAdjustment } from "@/lib/paymentAdjust";
 import { addCoins } from "@/lib/addCoins";
 import { logRevenueChange } from "@/lib/revenueAudit";
+import { markTelegramRequestHandled, userNameById } from "@/lib/telegramMessageSync";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -134,6 +135,8 @@ export async function cancelPayment(requestId, reason) {
   }`;
   if (reason?.trim()) text += `\n\n💬 ${escapeHtml(reason.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");
+
+  await markTelegramRequestHandled(admin, { table: "revenue_requests", id: requestId, status: "cancelled", byName: await userNameById(admin, admin_user.id) });
 
   revalidatePath("/admin/payments");
   revalidatePath("/mop/rating");

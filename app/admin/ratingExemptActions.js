@@ -11,6 +11,7 @@ import { sendTelegramMessage } from "@/lib/telegramBot";
 import { addCoins } from "@/lib/addCoins";
 import { addSpins } from "@/lib/addSpins";
 import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
+import { markTelegramRequestHandled, userNameById } from "@/lib/telegramMessageSync";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -283,6 +284,8 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
       "notify_requests"
     );
   }
+
+  await markTelegramRequestHandled(admin, { table: "bonus_requests", id: requestId, status: "approved", byName: await userNameById(admin, admin_user.id) });
 
   revalidatePath("/admin/bonus-requests");
   revalidatePath("/admin");
