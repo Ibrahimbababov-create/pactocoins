@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
+import Icon from "@/components/Icon";
 import {
   createCategory,
   deleteCategory,
@@ -17,9 +18,36 @@ export default function CategoriesManager({ categories }) {
   const [message, setMessage] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
 
+  // Пока порядок не сохранился, не даём свежим данным с сервера откатить
+  // то, что админ уже переставил на экране.
+  const saveTimer = useRef(null);
+  const latest = useRef(categories);
+
   useEffect(() => {
+    if (saveTimer.current) return;
     setItems(categories);
   }, [categories]);
+
+  function scheduleSave(next) {
+    latest.current = next;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      startTransition(async () => {
+        const res = await reorderCategories(latest.current.map((c) => c.id));
+        if (res?.error) showMessage(res.error, "error");
+      });
+    }, 500);
+  }
+
+  function move(index, dir) {
+    const to = index + dir;
+    if (to < 0 || to >= items.length) return;
+    const updated = [...items];
+    [updated[index], updated[to]] = [updated[to], updated[index]];
+    setItems(updated);
+    scheduleSave(updated);
+  }
 
   function showMessage(text, type = "success") {
     setMessage({ text, type });
@@ -61,8 +89,9 @@ export default function CategoriesManager({ categories }) {
   }
 
   function handleDrop() {
+    if (dragIndex === null) return;
     setDragIndex(null);
-    startTransition(() => reorderCategories(items.map((c) => c.id)));
+    scheduleSave(items);
   }
 
   return (
@@ -80,7 +109,7 @@ export default function CategoriesManager({ categories }) {
       {open && (
       <>
       <p className="text-sm text-gray-500">
-        Зажми и перетащи, чтобы поменять порядок
+        Стрелками двигай категорию вверх или вниз (на компьютере можно ещё перетащить). Порядок сохраняется сам.
       </p>
 
       {message && (
@@ -109,16 +138,35 @@ export default function CategoriesManager({ categories }) {
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="text-gray-500">⠿⠿</span>
-              <span className="text-sm">{c.name}</span>
+                            <span className="text-sm">{c.name}</span>
             </div>
-            <button
-              onClick={() => handleDelete(c.id, c.name)}
-              disabled={isPending}
-              className="text-xs bg-red-500/20 text-red-400 rounded px-2 py-1"
-            >
-              Удалить
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                aria-label="Выше"
+                className="w-8 h-8 flex items-center justify-center rounded bg-dark-600 text-gray-300 disabled:opacity-30"
+              >
+                <Icon name="chevronDown" className="w-4 h-4 rotate-180" />
+              </button>
+              <button
+                type="button"
+                onClick={() => move(i, 1)}
+                disabled={i === items.length - 1}
+                aria-label="Ниже"
+                className="w-8 h-8 flex items-center justify-center rounded bg-dark-600 text-gray-300 disabled:opacity-30"
+              >
+                <Icon name="chevronDown" className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(c.id, c.name)}
+                disabled={isPending}
+                className="text-xs bg-red-500/20 text-red-400 rounded px-2 h-8 ml-1"
+              >
+                Удалить
+              </button>
+            </div>
           </div>
         ))}
       </div>
