@@ -3,9 +3,11 @@
 import { formatCoins } from "@/lib/plural";
 import { tieredRevenueCoins } from "@/lib/coinRate";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { submitRevenueRequest } from "@/app/mop/revenue/actions";
+import { submitRevenueRequest, getClientHints } from "@/app/mop/revenue/actions";
+import { clientKey } from "@/lib/revenueKinds";
 import { haptic } from "@/lib/haptics";
 import { recentDaysAlmaty, PAYMENT_DATE_MAX_DAYS_BACK } from "@/lib/timezone";
 
@@ -33,10 +35,84 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
   // рендере сервера, — чтобы «сегодня» было по часам на момент заявки.
   const [paymentDay, setPaymentDay] = useState("");
   const [dayOptions, setDayOptions] = useState([]);
+  const [clientName, setClientName] = useState("");
+  const [productKind, setProductKind] = useState("");
+  const [payKind, setPayKind] = useState("");
+  const [isFinalPart, setIsFinalPart] = useState(false);
+  const [hints, setHints] = useState({ open: [], names: [] });
+
+  // Список дат и подсказки по клиентам готовим при открытии формы.
+  useEffect(() => {
+    if (!open) return;
+    setDayOptions(paymentDayOptions());
+    let alive = true;
+    getClientHints()
+      .then((h) => alive && setHints(h))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
+  // Пока форма открыта, страница под ней не прокручивается.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  // Незакрытые клиенты, подходящие под введённое: пустое поле показывает всех,
+  // иначе только те, чьё имя начинается с введённого. Тёзок не склеиваем.
+  const typed = clientKey(clientName);
+  const suggestions = hints.open
+    .filter((h) => !typed || clientKey(h.name).startsWith(typed))
+    .slice(0, 6);
 
   // Та же формула, что при одобрении: шкала месяца и личный множитель.
   // Дата оплаты может быть в прошлом месяце — тогда это лишь прикидка.
   const coins = amount ? tieredRevenueCoins(Number(amount), multiplier, monthKzt) : 0;
+
+  function submit(confirmDuplicate) {
+    startTransition(async () => {
+      const res = await submitRevenueRequest(
+        Number(amount),
+        comment,
+        receiptConfirmed,
+        paymentDay || undefined,
+        { clientName, productKind, payKind, isFinalPart, confirmDuplicate }
+      );
+
+      if (res.duplicate) {
+        haptic.error();
+        if (window.confirm("Похоже, такая оплата уже внесена. Всё равно добавить?")) {
+          submit(true);
+        }
+        return;
+      }
+
+      if (res.error) {
+        setError(res.error);
+        haptic.error();
+        return;
+      }
+
+      haptic.success();
+
+      setAmount("");
+      setComment("");
+      setReceiptConfirmed(false);
+      setPaymentDay("");
+      setClientName("");
+      setProductKind("");
+      setPayKind("");
+      setIsFinalPart(false);
+      setOpen(false);
+      router.refresh();
+    });
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -55,50 +131,40 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
       return;
     }
 
-    startTransition(async () => {
-      const res = await submitRevenueRequest(
-        amountNum,
-        comment,
-        receiptConfirmed,
-        paymentDay || undefined
-      );
+    if (clientName.trim().length < 2) {
+      setError("Укажи ФИО клиента");
+      haptic.error();
+      return;
+    }
+    if (!productKind) {
+      setError("Выбери продукт: курс или интенсив / МК");
+      haptic.error();
+      return;
+    }
+    if (!payKind) {
+      setError("Выбери вид оплаты: целиком или часть");
+      haptic.error();
+      return;
+    }
 
-      if (res.error) {
-        setError(res.error);
-        haptic.error();
-        return;
-      }
-
-      haptic.success();
-
-      setAmount("");
-      setComment("");
-      setReceiptConfirmed(false);
-      setPaymentDay("");
-      setOpen(false);
-      router.refresh();
-    });
+    submit(false);
   }
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => {
-          haptic.light();
-          setDayOptions(paymentDayOptions());
-          setOpen(true);
-        }}
-        className="flex-1 bg-acid-400 text-black font-bold rounded-2xl py-4 active:scale-[0.98] transition"
-      >
-        Записать выручку
-      </button>
-    );
-  }
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  const segBtn = (active) =>
+    `flex-1 rounded-lg border px-3 py-2.5 text-sm font-semibold transition active:scale-[0.98] ${
+      active
+        ? "border-acid-400 bg-acid-400/15 text-acid-400"
+        : "border-dark-600 bg-dark-700 text-gray-300"
+    }`;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60" onClick={() => setOpen(false)}>
     <form
       onSubmit={handleSubmit}
-      className="bg-dark-800 border border-dark-600 rounded-2xl p-5 space-y-4"
+      onClick={(e) => e.stopPropagation()}
+      className="bg-dark-800 border border-dark-600 rounded-t-2xl p-5 space-y-4 w-full max-w-lg max-h-[92vh] overflow-y-auto pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
     >
       <div className="flex items-center justify-between">
         <p className="font-semibold">Новая заявка</p>
@@ -109,6 +175,81 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
         >
           Отмена
         </button>
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">ФИО клиента</label>
+        <input
+          type="text"
+          required
+          maxLength={80}
+          list="revenue-client-names"
+          autoComplete="off"
+          value={clientName}
+          onChange={(e) => setClientName(e.target.value)}
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
+          placeholder="Фамилия Имя"
+        />
+        <datalist id="revenue-client-names">
+          {hints.names.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+        <p className="text-xs text-gray-500 mt-1">
+          Достаточно имени, фамилия желательна. Без телефонов.
+        </p>
+        {suggestions.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs text-gray-500">Клиенты, у которых оплата не закрыта:</p>
+            {suggestions.map((h, i) => (
+              <button
+                key={`${h.name}-${h.date}-${i}`}
+                type="button"
+                onClick={() => {
+                  haptic.light();
+                  setClientName(h.name);
+                }}
+                className="w-full text-left rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-gray-200 active:scale-[0.99]"
+              >
+                {h.name}, {h.amount.toLocaleString("ru-RU")} ₸, {h.dateLabel}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">Продукт</label>
+        <div className="flex gap-2">
+          <button type="button" className={segBtn(productKind === "course")} onClick={() => setProductKind("course")}>
+            Курс
+          </button>
+          <button type="button" className={segBtn(productKind === "intensive")} onClick={() => setProductKind("intensive")}>
+            Интенсив / МК
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">Оплата</label>
+        <div className="flex gap-2">
+          <button type="button" className={segBtn(payKind === "full")} onClick={() => setPayKind("full")}>
+            Целиком
+          </button>
+          <button type="button" className={segBtn(payKind === "part")} onClick={() => setPayKind("part")}>
+            Часть
+          </button>
+        </div>
+        {payKind === "part" && (
+          <label className="flex items-center gap-3 mt-2 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isFinalPart}
+              onChange={(e) => setIsFinalPart(e.target.checked)}
+            />
+            <span className="text-sm text-gray-300">Это последняя часть</span>
+          </label>
+        )}
       </div>
 
       <div>
@@ -171,7 +312,7 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
           onChange={(e) => setComment(e.target.value)}
           rows={2}
           className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
-          placeholder="Клиент, номер сделки и т.д."
+          placeholder="Номер сделки и т.д."
         />
       </div>
 
@@ -197,5 +338,7 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
         {isPending ? "Отправляем..." : "Отправить на подтверждение"}
       </button>
     </form>
+    </div>,
+    document.body
   );
 }

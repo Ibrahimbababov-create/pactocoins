@@ -1,5 +1,6 @@
 "use client";
 
+import { revenueKindText } from "@/lib/revenueKinds";
 import { formatCoins } from "@/lib/plural";
 
 import { useState, useTransition } from "react";
@@ -176,6 +177,12 @@ export default function PaymentsClient({ employees, initialRows }) {
               <p className="text-xs text-gray-600">
                 оплата от {formatDateTimeAlmaty(r.earned_at || r.created_at)}
               </p>
+              {r.client_name && (
+                <p className="text-sm text-gray-400">
+                  Клиент: {r.client_name}
+                  {revenueKindText(r) ? ` · ${revenueKindText(r)}` : ""}
+                </p>
+              )}
               {r.comment && (
                 <p className="text-xs text-gray-500 mt-1">{r.comment}</p>
               )}

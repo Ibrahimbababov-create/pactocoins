@@ -7,6 +7,7 @@ import { formatDateTimeAlmaty, formatPaymentDay, almatyDayKey } from "@/lib/time
 import CancelWithReason from "@/components/CancelWithReason";
 import { loadRequestHistory } from "@/app/admin/historyActions";
 import EmptyState from "@/components/EmptyState";
+import { revenueKindText } from "@/lib/revenueKinds";
 import Icon from "@/components/Icon";
 import {
   approveRevenueRequest,
@@ -236,6 +237,14 @@ export default function RevenueRequestsClient({
                     <span className="text-xs text-gray-500"> · по шкале месяца</span>
                   )}
                 </p>
+                {r.client_name && (
+                  <p className="text-sm">
+                    Клиент: <span className="font-semibold">{r.client_name}</span>
+                    {revenueKindText(r) && (
+                      <span className="text-gray-400"> · {revenueKindText(r)}</span>
+                    )}
+                  </p>
+                )}
                 {r.comment && (
                   <p className="text-xs text-gray-500">{r.comment}</p>
                 )}
@@ -348,6 +357,12 @@ export default function RevenueRequestsClient({
                     {/* Сколько реально начислили (шкала, множитель), а не базовый расчёт */}
                     {formatCoins(r.credited_coins ?? r.calculated_coins)}
                   </p>
+                  {r.client_name && (
+                    <p className="text-sm text-gray-400">
+                      Клиент: {r.client_name}
+                      {revenueKindText(r) ? ` · ${revenueKindText(r)}` : ""}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-600">
                     оплата {formatPaymentDay(r.earned_at || r.created_at)} ·
                     обработано {formatDateTimeAlmaty(r.reviewed_at || r.created_at)}

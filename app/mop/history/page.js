@@ -17,6 +17,7 @@ export default async function HistoryPage() {
     { count: pendingRevenue },
     { count: pendingBonus },
     { count: pendingPurchases },
+    { data: payments },
   ] = await Promise.all([
     supabase
       .from("transactions")
@@ -45,6 +46,14 @@ export default async function HistoryPage() {
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("status", "pending"),
+    // Оплаты клиентов: ФИО, продукт и вид оплаты для сверки с таблицей зарплат.
+    supabase
+      .from("revenue_requests")
+      .select("id, client_name, product_kind, pay_kind, is_final_part, amount_kzt, status, earned_at, created_at")
+      .eq("user_id", user.id)
+      .not("client_name", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(HISTORY_LIMIT),
   ]);
 
   const pendingCount =
@@ -56,6 +65,7 @@ export default async function HistoryPage() {
       <HistoryClient
         transactions={transactions ?? []}
         purchases={purchases ?? []}
+        payments={payments ?? []}
         pendingCount={pendingCount}
         truncated={
           (transactions?.length ?? 0) >= HISTORY_LIMIT ||
