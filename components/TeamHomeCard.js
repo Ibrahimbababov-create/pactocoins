@@ -53,17 +53,17 @@ export default function TeamHomeCard({ overview }) {
       </div>
 
       <div className="grid grid-cols-3 gap-2 mt-3">
-        <div className="rounded-xl bg-dark-700/60 px-3 py-2">
+        <div className="rounded-xl bg-dark-700/60 px-2.5 py-2">
           <p className="text-[11px] text-gray-500">Сегодня</p>
-          <p className="text-sm font-bold tabular-nums mt-0.5">{kztShort(overview.today)}</p>
+          <p className="text-[13px] whitespace-nowrap font-bold tabular-nums mt-0.5">{kztShort(overview.today)}</p>
         </div>
-        <div className="rounded-xl bg-dark-700/60 px-3 py-2">
+        <div className="rounded-xl bg-dark-700/60 px-2.5 py-2">
           <p className="text-[11px] text-gray-500">Неделя</p>
-          <p className="text-sm font-bold tabular-nums mt-0.5">{kztShort(overview.week)}</p>
+          <p className="text-[13px] whitespace-nowrap font-bold tabular-nums mt-0.5">{kztShort(overview.week)}</p>
         </div>
-        <div className="rounded-xl bg-dark-700/60 px-3 py-2">
+        <div className="rounded-xl bg-dark-700/60 px-2.5 py-2">
           <p className="text-[11px] text-gray-500">С оплатами</p>
-          <p className="text-sm font-bold tabular-nums mt-0.5">
+          <p className="text-[13px] whitespace-nowrap font-bold tabular-nums mt-0.5">
             {paid} из {people.length}
           </p>
         </div>

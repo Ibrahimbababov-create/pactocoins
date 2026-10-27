@@ -24,6 +24,7 @@ import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { getMyWeekPlace, getMyMonthTier } from "@/lib/dashboardPulse";
 import { WeekPlaceCard, MonthTierCard } from "@/components/DashboardPulse";
 import TeamHomeCard, { RopWallet } from "@/components/TeamHomeCard";
+import MentorHomeCard from "@/components/MentorHomeCard";
 import { getTeamOverview } from "@/lib/teamStats";
 import { getFeaturedTournament } from "@/lib/tournamentView";
 import TournamentHomeCard from "@/components/TournamentHomeCard";
@@ -284,6 +285,9 @@ export default async function MopDashboard() {
 
       {/* У РОПа сверху команда, личные коины компактно: руководителю важнее,
           как идут люди, чем кольцо баланса. */}
+      {role === "mentor" && (
+        <MentorHomeCard admin={createAdminClient()} mentorId={viewId} />
+      )}
       {isRop && <TeamHomeCard overview={teamOverview} />}
       {isRop && (
         <RopWallet
