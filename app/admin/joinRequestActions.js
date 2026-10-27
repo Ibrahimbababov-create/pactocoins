@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { markTelegramRequestHandled, userNameById } from "@/lib/telegramMessageSync";
 import {
   approveJoinRequestInternal,
   rejectJoinRequestInternal,
@@ -30,9 +32,22 @@ async function requireAdminOrMentor() {
   return user;
 }
 
+async function syncJoinMessage(userId, requestId, status, result) {
+  if (result?.error) return;
+  const admin = createAdminClient();
+  await markTelegramRequestHandled(admin, {
+    table: "join_requests",
+    id: requestId,
+    status,
+    byName: await userNameById(admin, userId),
+  });
+}
+
 export async function approveJoinRequest(requestId, comment) {
-  await requireAdminOrMentor();
+  const user = await requireAdminOrMentor();
   const result = await approveJoinRequestInternal(requestId, comment);
+
+  await syncJoinMessage(user.id, requestId, "approved", result);
 
   revalidatePath("/admin/join-requests");
   revalidatePath("/admin/employees");
@@ -40,8 +55,10 @@ export async function approveJoinRequest(requestId, comment) {
 }
 
 export async function rejectJoinRequest(requestId, comment) {
-  await requireAdminOrMentor();
+  const user = await requireAdminOrMentor();
   const result = await rejectJoinRequestInternal(requestId, comment);
+
+  await syncJoinMessage(user.id, requestId, "rejected", result);
 
   revalidatePath("/admin/join-requests");
   return result;

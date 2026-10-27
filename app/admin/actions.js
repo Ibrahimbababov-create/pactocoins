@@ -24,6 +24,7 @@ import { addSpins } from "@/lib/addSpins";
 import { revokeAttendanceChest } from "@/lib/attendanceChest";
 import { chipsNom } from "@/lib/plural";
 import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
+import { markTelegramRequestHandled, userNameById } from "@/lib/telegramMessageSync";
 
 function parseSale(formData) {
   const salePrice = Number(formData.get("sale_price_coins"));
@@ -355,6 +356,8 @@ export async function approveRevenueRequest(requestId, earnedAtDate, comment) {
     earnedAtIso,
   });
 
+  await markTelegramRequestHandled(admin, { table: "revenue_requests", id: requestId, status: "approved", byName: await userNameById(admin, admin_user.id) });
+
   await maybeGraduateTrainee(admin, request.user_id);
 
   revalidatePath("/admin/revenue-requests");
@@ -411,6 +414,8 @@ export async function rejectRevenueRequest(requestId, comment) {
     );
   }
 
+  await markTelegramRequestHandled(admin, { table: "revenue_requests", id: requestId, status: "rejected", byName: await userNameById(admin, admin_user.id) });
+
   revalidatePath("/admin/revenue-requests");
   return { success: true };
 }
@@ -427,6 +432,8 @@ export async function cancelApprovedRevenueRequest(requestId, comment) {
     comment,
   });
   if (res.error) return { error: res.error };
+
+  await markTelegramRequestHandled(admin, { table: "revenue_requests", id: requestId, status: "cancelled", byName: await userNameById(admin, admin_user.id) });
 
   revalidatePath("/admin/revenue-requests");
   revalidatePath("/admin");
@@ -515,6 +522,12 @@ export async function updatePurchaseStatus(purchaseId, newStatus, comment) {
     await notifyUser(admin, purchase.user_id, text, "notify_requests", {
       markup: await decisionContact(admin),
     });
+  }
+
+  // Сообщение в группе правим, только когда заявка ушла из «ждёт решения»
+  // (иначе кнопок там уже нет).
+  if (purchase.status === "pending" && (newStatus === "approved" || newStatus === "rejected")) {
+    await markTelegramRequestHandled(admin, { table: "purchase_requests", id: purchaseId, status: newStatus, byName: await userNameById(admin, admin_user.id) });
   }
 
   revalidatePath("/admin/purchase-requests");
@@ -837,6 +850,8 @@ export async function approveBonusRequest(requestId, comment) {
     );
   }
 
+  await markTelegramRequestHandled(admin, { table: "bonus_requests", id: requestId, status: "approved", byName: await userNameById(admin, admin_user.id) });
+
   revalidatePath("/admin/bonus-requests");
   revalidatePath("/admin");
   return { success: true };
@@ -875,6 +890,8 @@ export async function rejectBonusRequest(requestId, comment) {
       "notify_requests"
     );
   }
+
+  await markTelegramRequestHandled(admin, { table: "bonus_requests", id: requestId, status: "rejected", byName: await userNameById(admin, admin_user.id) });
 
   revalidatePath("/admin/bonus-requests");
   return { success: true };
@@ -952,6 +969,8 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
       }`;
   if (comment?.trim()) text += `\n\n💬 ${escapeHtml(comment.trim())}`;
   await notifyUser(admin, request.user_id, text, "notify_requests");
+
+  await markTelegramRequestHandled(admin, { table: "bonus_requests", id: requestId, status: "cancelled", byName: await userNameById(admin, admin_user.id) });
 
   revalidatePath("/admin/bonus-requests");
   revalidatePath("/admin");

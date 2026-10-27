@@ -16,8 +16,10 @@ import {
   sendTelegramMessage,
   sendTelegramPhoto,
   sendTelegramDocument,
+  clearTelegramButtons,
 } from "@/lib/telegramBot";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { describeHandledRequest } from "@/lib/telegramMessageSync";
 import { welcomeNewMembers, sendWelcomePreview } from "@/lib/groupWelcome";
 import { renderRatingImage } from "@/lib/ratingImage";
 import { getEarningsForRange } from "@/lib/weeklyMonthlyReport";
@@ -930,6 +932,19 @@ export async function POST(request) {
     return NextResponse.json({ ok: true });
   }
 
+  // Первый шаг отклонения покупки или «Оставить» на уже закрытой заявке:
+  // не рисуем кнопки заново, а говорим, что всё уже решено.
+  if (action === "reject_purchase" || action === "keep_purchase") {
+    const handledText = await describeHandledRequest(createAdminClient(), "purchase_requests", requestId);
+    if (handledText) {
+      await answerCallbackQuery(callback.id, handledText, true);
+      try {
+        await clearTelegramButtons(chatId, messageId);
+      } catch {}
+      return NextResponse.json({ ok: true });
+    }
+  }
+
   // Отклонение покупки — в два шага, чтобы не отклонить случайным тапом.
   if (action === "reject_purchase") {
     await editTelegramMessage(chatId, messageId, callback.message.text, {
@@ -993,7 +1008,24 @@ export async function POST(request) {
       : await handler(requestId);
 
     if (result.error) {
-      await answerCallbackQuery(callback.id, result.error);
+      // Заявку уже обработали (на сайте или другой админ): говорим об этом
+      // понятно и убираем «мёртвые» кнопки с сообщения.
+      const handledTable = action.endsWith("_rev")
+        ? "revenue_requests"
+        : action.endsWith("_bonus")
+        ? "bonus_requests"
+        : action.endsWith("_join")
+        ? "join_requests"
+        : "purchase_requests";
+      const handledText = await describeHandledRequest(createAdminClient(), handledTable, requestId);
+      if (handledText) {
+        await answerCallbackQuery(callback.id, handledText, true);
+        try {
+          await clearTelegramButtons(chatId, messageId);
+        } catch {}
+      } else {
+        await answerCallbackQuery(callback.id, result.error);
+      }
       return NextResponse.json({ ok: true });
     }
 
