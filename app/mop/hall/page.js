@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import EmptyState from "@/components/EmptyState";
+import RatingHallTabs from "@/components/RatingHallTabs";
 import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { getHallOfFame } from "@/lib/hallOfFame";
@@ -76,7 +77,8 @@ export default async function HallPage() {
   if (!hall || !hall.bestDay) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-display font-bold">Зал славы</h1>
+        <h1 className="text-2xl font-display font-bold">Рейтинг</h1>
+        <RatingHallTabs active="hall" />
         <EmptyState
           icon="trophy"
           title="Рекордов пока нет"
@@ -92,14 +94,17 @@ export default async function HallPage() {
   const monthLabel = monthRangeAlmaty(hall.monthKey).label;
   const progress = leader && record.value > 0 ? Math.min(100, Math.round((leader.value / record.value) * 100)) : 0;
 
+  const medals = ["1", "2", "3"];
+  const company = hall.companyMonth;
+  const companyGap = company ? company.value - (hall.companyNow ?? 0) : 0;
+
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-display font-bold">Зал славы</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Рекорды компании по подтверждённой выручке. Обновляется раз в несколько минут.
-        </p>
+        <h1 className="text-2xl font-display font-bold">Рейтинг</h1>
+        <p className="text-sm text-gray-500 mt-1">Рекорды компании по подтверждённой выручке</p>
       </div>
+      <RatingHallTabs active="hall" />
 
       <div className="rounded-3xl border border-acid-400/30 bg-gradient-to-br from-acid-400/15 via-dark-800 to-dark-800 p-5">
         <p className="text-xs text-gray-400">Рекорд месяца сейчас, {monthLabel}</p>
@@ -158,6 +163,77 @@ export default async function HallPage() {
         value={`${hall.mostDeals.value} ${plural(hall.mostDeals.value, "оплата", "оплаты", "оплат")}`}
         when={formatPaymentDay(noon(hall.mostDeals.when))}
       />
+
+      {hall.mostPayMonth && (
+        <Record
+          icon="receipt"
+          title="Больше всего оплат за месяц"
+          rec={hall.mostPayMonth}
+          value={`${hall.mostPayMonth.value} ${plural(hall.mostPayMonth.value, "оплата", "оплаты", "оплат")}`}
+          when={monthRangeAlmaty(hall.mostPayMonth.when).label}
+        />
+      )}
+      {hall.bestIntensive && (
+        <Record
+          icon="sparkle"
+          title="Самая большая оплата по интенсивам и МК"
+          rec={hall.bestIntensive}
+          value={kzt(hall.bestIntensive.value)}
+          when={formatPaymentDay(hall.bestIntensive.at)}
+        />
+      )}
+      {hall.fastest && (
+        <Record
+          icon="clock"
+          title="Самый ранний миллион за месяц"
+          rec={hall.fastest}
+          value={`${hall.fastest.dom}-го числа`}
+          when={`${formatPaymentDay(noon(hall.fastest.when))}, ${monthRangeAlmaty(hall.fastest.monthKey).label}`}
+        />
+      )}
+
+      {hall.topDays?.length > 0 && (
+        <div className="rounded-2xl bg-dark-800 border border-dark-700 p-4">
+          <p className="text-xs text-gray-500">Лучшие дни компании, все вместе</p>
+          <ul className="mt-2 space-y-2">
+            {hall.topDays.map((d, i) => (
+              <li key={d.when} className="flex items-center gap-3">
+                <span className="flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-acid-400/10 text-acid-400 font-display font-bold text-sm">
+                  {medals[i]}
+                </span>
+                <span className="flex-1 text-sm text-gray-400">{formatPaymentDay(noon(d.when))}</span>
+                <span className="font-display font-bold">{kzt(d.value)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {company && (
+        <div className="rounded-2xl bg-dark-800 border border-dark-700 p-4">
+          <p className="text-xs text-gray-500">Рекорд компании за месяц, все вместе</p>
+          <p className="font-display font-bold text-lg">{kzt(company.value)}</p>
+          <p className="text-sm text-gray-400">{monthRangeAlmaty(company.when).label}</p>
+          <p className="mt-2 text-sm text-gray-300">
+            {company.when === hall.monthKey
+              ? "Это идёт текущий месяц, и он сейчас лучший в истории"
+              : companyGap > 0
+                ? `В этом месяце уже ${kzt(hall.companyNow)}, до рекорда ${kzt(companyGap)}`
+                : "Рекорд побит в этом месяце!"}
+          </p>
+          {hall.monthTop?.length > 0 && (
+            <ul className="mt-3 pt-3 border-t border-dark-700 space-y-1.5">
+              {hall.monthTop.map((p, i) => (
+                <li key={p.userId} className="flex items-center gap-2 text-sm">
+                  <span className="w-5 text-gray-500">{i + 1}</span>
+                  <span className="flex-1 truncate">{p.name}</span>
+                  <span className="font-semibold text-acid-400">{kzt(p.value)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
