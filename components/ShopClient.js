@@ -242,11 +242,12 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
   );
 }
 
-function SuggestForm({ onDone, initiallyOpen = false }) {
+function SuggestForm({ onDone, categories = [], initiallyOpen = false }) {
   const [open, setOpen] = useState(initiallyOpen);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
   const [photo, setPhoto] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -257,6 +258,7 @@ function SuggestForm({ onDone, initiallyOpen = false }) {
     setTitle("");
     setPrice("");
     setDescription("");
+    setCategory("");
     setPhoto(null);
   }
 
@@ -274,7 +276,7 @@ function SuggestForm({ onDone, initiallyOpen = false }) {
         }
         imageUrl = up.url;
       }
-      const res = await submitRewardSuggestion(title, price, description, imageUrl);
+      const res = await submitRewardSuggestion(title, price, description, imageUrl, category);
       if (res.error) {
         setMsg(res.error);
       } else {
@@ -317,6 +319,18 @@ function SuggestForm({ onDone, initiallyOpen = false }) {
         placeholder="Цена в коинах"
         className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
       />
+      <select
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
+      >
+        <option value="">Выбери категорию</option>
+        {categories.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -350,7 +364,7 @@ function SuggestForm({ onDone, initiallyOpen = false }) {
       <div className="flex gap-2 pt-1">
         <button
           onClick={submit}
-          disabled={pending || uploading || !title.trim() || !price}
+          disabled={pending || uploading || !title.trim() || !price || !category}
           className="flex-1 rounded-lg py-2 text-sm font-bold bg-acid-400 text-black disabled:opacity-40"
         >
           {pending ? "Отправляю…" : "Отправить"}
@@ -369,7 +383,7 @@ function SuggestForm({ onDone, initiallyOpen = false }) {
   );
 }
 
-export default function ShopClient({ grouped, balance, favoriteIds = [], isGuest = false }) {
+export default function ShopClient({ grouped, categoryNames, balance, favoriteIds = [], isGuest = false }) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null);
   const [message, setMessage] = useState(null);
@@ -990,6 +1004,9 @@ export default function ShopClient({ grouped, balance, favoriteIds = [], isGuest
 
       <div id="suggest" ref={suggestRef} className="scroll-mt-16">
         <SuggestForm
+          categories={(categoryNames ?? Object.keys(grouped ?? {})).filter(
+            (c) => c !== "Предложено сотрудниками"
+          )}
           initiallyOpen={fromSuggestLink}
           onDone={() => {
             setMessage({ type: "success", text: "Отправлено, ждём решения админа" });

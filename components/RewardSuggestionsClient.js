@@ -15,11 +15,16 @@ const statusLabels = {
   rejected: { label: "Отклонено", color: "bg-red-500/10 text-red-400" },
 };
 
-export default function RewardSuggestionsClient({ suggestions }) {
+export default function RewardSuggestionsClient({ suggestions, categories = [] }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState(null);
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const [comments, setComments] = useState({});
+  const [cats, setCats] = useState({});
+
+  function catFor(s) {
+    return cats[s.id] ?? (categories.includes(s.category) ? s.category : "");
+  }
 
   const pending = suggestions.filter(
     (s) => s.status === "pending" && !hiddenIds.has(s.id)
@@ -45,9 +50,15 @@ export default function RewardSuggestionsClient({ suggestions }) {
 
   function handleApprove(id) {
     const comment = comments[id] || undefined;
+    const s = suggestions.find((x) => x.id === id);
+    const category = s ? catFor(s) : "";
+    if (!category) {
+      showMessage("Выбери категорию", "error");
+      return;
+    }
     hide(id);
     startTransition(async () => {
-      const res = await approveRewardSuggestion(id, comment);
+      const res = await approveRewardSuggestion(id, comment, category);
       if (res?.error) {
         unhide(id);
         showMessage(res.error, "error");
@@ -117,6 +128,20 @@ export default function RewardSuggestionsClient({ suggestions }) {
                 )}
               </div>
             </div>
+            <select
+              value={catFor(s)}
+              onChange={(e) =>
+                setCats((prev) => ({ ...prev, [s.id]: e.target.value }))
+              }
+              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white"
+            >
+              <option value="">Категория не выбрана</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
             <input
               value={comments[s.id] || ""}
               onChange={(e) =>
@@ -128,7 +153,7 @@ export default function RewardSuggestionsClient({ suggestions }) {
             <div className="flex gap-2">
               <button
                 onClick={() => handleApprove(s.id)}
-                disabled={isPending}
+                disabled={isPending || !catFor(s)}
                 className="flex-1 bg-acid-400 text-black font-bold rounded-lg px-3 py-2 text-sm"
               >
                 Добавить в магазин
