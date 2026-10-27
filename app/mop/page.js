@@ -17,7 +17,7 @@ import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 import { getMonthEarned } from "@/lib/earnings";
 import EarningsMiniChart from "@/components/EarningsMiniChart";
-import { recentDaysAlmaty, almatyDayKey, formatPaymentDay } from "@/lib/timezone";
+import { recentDaysAlmaty, almatyDayKey, formatPaymentDay, nowInAlmaty } from "@/lib/timezone";
 import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
@@ -265,6 +265,30 @@ export default async function MopDashboard() {
       )}
 
       <EarningsMiniChart series={chartSeries} />
+
+      {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
+        nowInAlmaty().day <= 5 ? (
+          <Link
+            href="/mop/recap"
+            className="flex items-center gap-3 rounded-2xl border border-acid-400/30 bg-gradient-to-br from-acid-400/10 to-dark-800 p-4"
+          >
+            <Icon name="award" className="w-8 h-8 text-acid-400 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-acid-400">Итог прошлого месяца готов</p>
+              <p className="text-sm text-gray-400 mt-0.5">Посмотри, как ты отработал, и покажи команде</p>
+            </div>
+            <Icon name="chevronRight" className="w-5 h-5 text-gray-600 shrink-0" />
+          </Link>
+        ) : (
+          <Link
+            href="/mop/recap"
+            className="flex items-center justify-between gap-2 px-1 text-sm text-gray-500 active:opacity-60"
+          >
+            <span>Итог месяца</span>
+            <Icon name="chevronRight" className="w-4 h-4 text-gray-600" />
+          </Link>
+        )
+      )}
 
       <GoalWidget
         goal={currentGoal}
