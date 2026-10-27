@@ -609,6 +609,56 @@ export async function toggleRewardActive(rewardId, isActive) {
   return { success: true };
 }
 
+// Удаление скрытых наград навсегда. Покупки и предложения ссылаются на
+// награду, поэтому те, у кого есть история, не трогаем: остаются скрытыми,
+// история покупок не страдает. Удаляем только то, что уже скрыто.
+export async function deleteHiddenRewards(ids) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const wanted = [...new Set(Array.isArray(ids) ? ids : [])].filter(Boolean);
+  if (wanted.length === 0) return { error: "Ничего не выбрано" };
+
+  const { data: rewards, error: readError } = await admin
+    .from("rewards")
+    .select("id, title, is_active")
+    .in("id", wanted);
+  if (readError) return { error: "Не получилось проверить награды" };
+
+  const hidden = (rewards ?? []).filter((r) => !r.is_active);
+  if (hidden.length === 0) {
+    return { error: "Удалять можно только скрытые награды" };
+  }
+  const hiddenIds = hidden.map((r) => r.id);
+
+  const [{ data: bought }, { data: suggested }] = await Promise.all([
+    admin.from("purchase_requests").select("reward_id").in("reward_id", hiddenIds),
+    admin.from("reward_suggestions").select("reward_id").in("reward_id", hiddenIds),
+  ]);
+  const withHistory = new Set([
+    ...(bought ?? []).map((x) => x.reward_id),
+    ...(suggested ?? []).map((x) => x.reward_id),
+  ]);
+
+  const deletable = hidden.filter((r) => !withHistory.has(r.id));
+  const kept = hidden.filter((r) => withHistory.has(r.id)).map((r) => r.title);
+
+  let deleted = 0;
+  for (const r of deletable) {
+    const { error } = await admin
+      .from("rewards")
+      .delete()
+      .eq("id", r.id)
+      .eq("is_active", false);
+    if (error) kept.push(r.title);
+    else deleted += 1;
+  }
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/mop/shop");
+  return { success: true, deleted, kept };
+}
+
 export async function updateReward(rewardId, formData) {
   await requireAdmin();
   const admin = createAdminClient();
@@ -1276,11 +1326,15 @@ export async function reorderCategories(orderedIds) {
   await requireAdmin();
   const admin = createAdminClient();
 
-  for (let i = 0; i < orderedIds.length; i++) {
-    await admin
-      .from("reward_categories")
-      .update({ sort_order: i })
-      .eq("id", orderedIds[i]);
+  // Все обновления уходят разом, а не по очереди: так порядок
+  // сохраняется за один заход, без подвисаний.
+  const results = await Promise.all(
+    orderedIds.map((id, i) =>
+      admin.from("reward_categories").update({ sort_order: i }).eq("id", id)
+    )
+  );
+  if (results.some((r) => r.error)) {
+    return { error: "Не удалось сохранить порядок" };
   }
 
   revalidatePath("/admin/rewards");

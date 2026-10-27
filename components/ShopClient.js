@@ -17,17 +17,17 @@ import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
 
 const GLOW_STYLES = {
-  gold: "0 0 24px rgba(250, 204, 21, 0.55)",
-  purple: "0 0 24px rgba(168, 85, 247, 0.55)",
-  cyan: "0 0 24px rgba(34, 211, 238, 0.55)",
-  red: "0 0 24px rgba(248, 113, 113, 0.55)",
+  gold: "0 0 10px rgba(250, 204, 21, 0.16)",
+  purple: "0 0 10px rgba(168, 85, 247, 0.16)",
+  cyan: "0 0 10px rgba(34, 211, 238, 0.16)",
+  red: "0 0 10px rgba(248, 113, 113, 0.16)",
 };
 
 const GLOW_BORDERS = {
-  gold: "border-yellow-400",
-  purple: "border-purple-400",
-  cyan: "border-cyan-400",
-  red: "border-red-400",
+  gold: "border-yellow-400/50",
+  purple: "border-purple-400/50",
+  cyan: "border-cyan-400/50",
+  red: "border-red-400/50",
 };
 
 // Логотипы-векторы (simpleicons, svg на викискладе) оптимизатор картинок
