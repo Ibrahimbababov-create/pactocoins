@@ -41,9 +41,10 @@ function periodPresets() {
   const months = recentMonthKeysAlmaty(2);
   const thisKey = months[0].key;
   const prevKey = months[1].key;
-  const prevEnd = almatyDayKey(new Date(new Date(monthRangeAlmaty(prevKey).end).getTime() - 86400000));
+  const lastDay = (key) => almatyDayKey(new Date(new Date(monthRangeAlmaty(key).end).getTime() - 86400000));
+  const prevEnd = lastDay(prevKey);
   return [
-    { id: "month", label: "Этот месяц", from: `${thisKey}-01`, to: today },
+    { id: "month", label: "Этот месяц", from: `${thisKey}-01`, to: lastDay(thisKey) },
     { id: "prev", label: "Прошлый месяц", from: `${prevKey}-01`, to: prevEnd },
     { id: "week", label: "7 дней", from: dayShift(6), to: today },
   ];
