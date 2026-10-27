@@ -9,6 +9,7 @@ import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
 import { syncBotCommands } from "@/lib/botCommands";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { sweepTournaments } from "@/lib/tournament";
+import { announceHallRecords } from "@/lib/hallNotify";
 import {
   isMondayInAlmaty,
   isFirstOfMonthInAlmaty,
@@ -59,6 +60,13 @@ export async function GET(request) {
     summary.tournaments = await sweepTournaments(createAdminClient(), { limit: 100 });
   } catch (err) {
     console.error("[cron] tournaments sweep failed:", err);
+  }
+
+  // Новые рекорды Зала славы: одно сообщение в командную группу.
+  try {
+    summary.hall = await announceHallRecords(createAdminClient());
+  } catch (err) {
+    console.error("[cron] hall of fame announce failed:", err);
   }
 
   try {

@@ -17,7 +17,8 @@ import { getTraineeOnboarding } from "@/lib/onboarding";
 import OnboardingTrainee from "@/components/OnboardingTrainee";
 import { getMonthEarned } from "@/lib/earnings";
 import EarningsMiniChart from "@/components/EarningsMiniChart";
-import { recentDaysAlmaty, almatyDayKey, formatPaymentDay, nowInAlmaty } from "@/lib/timezone";
+import { recentDaysAlmaty, almatyDayKey, formatPaymentDay, nowInAlmaty, currentMonthKeyAlmaty, monthRangeAlmaty } from "@/lib/timezone";
+import { plural } from "@/lib/plural";
 import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
 import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
@@ -39,6 +40,7 @@ export default async function MopDashboard() {
   // Раньше часть запросов шла следом, по очереди, и каждый ждал
   // предыдущего — на этом терялось примерно по пол-секунды на открытие.
   const chartDays = recentDaysAlmaty(10);
+  const monthRange = monthRangeAlmaty(currentMonthKeyAlmaty());
   const chartStartIso = new Date(
     `${chartDays[0].key}T00:00:00+05:00`
   ).toISOString();
@@ -61,6 +63,7 @@ export default async function MopDashboard() {
     tournament,
     chest,
     surveyForMe,
+    { data: monthPayments },
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", viewId).single(),
     supabase
@@ -115,7 +118,19 @@ export default async function MopDashboard() {
     viewId === user.id ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
     // Опрос команды: карточка, пока он открыт и человек его не прошёл.
     viewId === user.id ? showSurveyCard(createAdminClient(), user.id) : false,
+    // Оплаты текущего месяца для карточки «Мои оплаты»
+    supabase
+      .from("revenue_requests")
+      .select("amount_kzt, status")
+      .eq("user_id", viewId)
+      .or(
+        `and(earned_at.gte.${monthRange.start},earned_at.lt.${monthRange.end}),and(earned_at.is.null,created_at.gte.${monthRange.start},created_at.lt.${monthRange.end})`
+      )
+      .limit(500),
   ]);
+
+  const approvedPayments = (monthPayments ?? []).filter((r) => r.status === "approved");
+  const approvedSum = approvedPayments.reduce((sum, r) => sum + (Number(r.amount_kzt) || 0), 0);
 
   const hasPending =
     (pendingRevenue?.length ?? 0) > 0 || (pendingBonus?.length ?? 0) > 0;
@@ -265,6 +280,26 @@ export default async function MopDashboard() {
       )}
 
       <EarningsMiniChart series={chartSeries} />
+
+      {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
+        <Link
+          href="/mop/payments"
+          className="flex items-center gap-3 rounded-2xl bg-dark-800 border border-dark-700 p-4 active:opacity-70"
+        >
+          <span className="flex items-center justify-center w-10 h-10 shrink-0 rounded-xl bg-acid-400/10 text-acid-400">
+            <Icon name="receipt" className="w-5 h-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Мои оплаты</p>
+            <p className="text-sm text-gray-500 truncate">
+              {approvedPayments.length > 0
+                ? `${approvedPayments.length} ${plural(approvedPayments.length, "оплата", "оплаты", "оплат")} за месяц · ${approvedSum.toLocaleString("ru-RU")} ₸`
+                : "В этом месяце подтверждённых пока нет"}
+            </p>
+          </div>
+          <Icon name="chevronRight" className="w-5 h-5 text-gray-600 shrink-0" />
+        </Link>
+      )}
 
       {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
         nowInAlmaty().day <= 5 ? (
