@@ -98,6 +98,13 @@ export async function middleware(request) {
       );
     }
 
+    // РОП работает в своём кабинете, не в админской оболочке.
+    if (isRopAdminPage && profile?.role === "rop") {
+      return NextResponse.redirect(
+        new URL("/mop/reconcile" + request.nextUrl.search, request.url)
+      );
+    }
+
     if (
       isAdminPage &&
       profile?.role !== "admin" &&

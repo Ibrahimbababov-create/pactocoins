@@ -157,6 +157,7 @@ export async function setReconcileSkip(userId, skip) {
   if (res?.error) return { error: res.error };
 
   revalidatePath("/admin/reconcile");
+  revalidatePath("/mop/reconcile");
   return { ok: true };
 }
 
@@ -188,6 +189,7 @@ export async function linkSheetName(projectId, sheetName, userId) {
   if (res?.error) return { error: res.error };
 
   revalidatePath("/admin/reconcile");
+  revalidatePath("/mop/reconcile");
   return { ok: true };
 }
 
@@ -223,5 +225,6 @@ export async function saveProjectSheet(form) {
   const res = await saveSheetSources(admin, upsertSource(sources, built.source));
   if (res.error) return { error: res.error };
   revalidatePath("/admin/reconcile");
+  revalidatePath("/mop/reconcile");
   return { ok: true };
 }
