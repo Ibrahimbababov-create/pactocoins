@@ -1,8 +1,11 @@
 import { createClient } from "@/lib/supabase-server";
 import PaymentsClient from "@/components/PaymentsClient";
+import { almatyDayKey, currentMonthKeyAlmaty, monthRangeAlmaty } from "@/lib/timezone";
 
 export default async function PaymentsPage() {
   const supabase = createClient();
+  const monthKey = currentMonthKeyAlmaty();
+  const range = monthRangeAlmaty(monthKey);
 
   const [{ data: employees }, { data: rows }] = await Promise.all([
     supabase
@@ -17,8 +20,14 @@ export default async function PaymentsPage() {
       .select("*, users!revenue_requests_user_id_fkey(name)")
       .eq("status", "approved")
       .order("earned_at", { ascending: false, nullsFirst: false })
-      .limit(30),
+      .gte("earned_at", range.start)
+      .lt("earned_at", range.end)
+      .limit(2000),
   ]);
+
+  // По умолчанию показываем текущий месяц по Алматы: так сразу видны итоги.
+  const monthFrom = `${monthKey}-01`;
+  const monthTo = almatyDayKey(new Date(new Date(range.end).getTime() - 86400000));
 
   return (
     <div className="space-y-4">
@@ -31,7 +40,10 @@ export default async function PaymentsPage() {
         </p>
       </div>
 
-      <PaymentsClient employees={employees ?? []} initialRows={rows ?? []} />
+      <PaymentsClient employees={employees ?? []} initialRows={rows ?? []}
+        initialFrom={monthFrom}
+        initialTo={monthTo}
+      />
     </div>
   );
 }

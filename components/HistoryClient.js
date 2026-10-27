@@ -102,6 +102,17 @@ export default function HistoryClient({ transactions, purchases, payments = [], 
         ))}
       </div>
 
+      {tab === "payments" && (
+        <Link
+          href="/mop/payments"
+          className="flex items-center gap-2 rounded-xl border border-dark-600 bg-dark-800 px-4 py-3 text-sm active:opacity-60"
+        >
+          <Icon name="receipt" className="w-4 h-4 text-gray-400" />
+          <span className="flex-1">Мои оплаты по месяцам и клиентам</span>
+          <Icon name="chevronRight" className="w-4 h-4 text-gray-600" />
+        </Link>
+      )}
+
       {isEmpty && (
         <EmptyState
           icon="history"
