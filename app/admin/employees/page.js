@@ -45,8 +45,25 @@ export default async function EmployeesPage() {
 
   const monthEarnedMap = await getMonthEarnedMap(supabase, (users ?? []).map((u) => u.id));
 
+  // Для уволенных показываем, сколько выручки они принесли: баланс коинов
+  // при увольнении обнуляется, а история оплат остаётся.
+  const firedIds = (users ?? []).filter((u) => u.is_active === false).map((u) => u.id);
+  const firedRevenue = {};
+  if (firedIds.length) {
+    const { data: paid } = await supabase
+      .from("revenue_requests")
+      .select("user_id, amount_kzt")
+      .eq("status", "approved")
+      .in("user_id", firedIds)
+      .limit(5000);
+    for (const r of paid ?? []) {
+      firedRevenue[r.user_id] = (firedRevenue[r.user_id] ?? 0) + Number(r.amount_kzt ?? 0);
+    }
+  }
+
   const usersWithGoals = (users ?? []).map((u) => ({
     ...u,
+    fired_revenue: firedRevenue[u.id] ?? 0,
     month_earned: monthEarnedMap[u.id] ?? 0,
     goal: goalByUser[u.id] ?? null,
     onboarding:

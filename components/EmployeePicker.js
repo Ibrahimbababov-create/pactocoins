@@ -7,14 +7,20 @@ import { ROLE_LABELS } from "@/lib/roles";
 const ROLE_LABEL = ROLE_LABELS;
 
 function groupEmployees(employees) {
-  const rops = employees.filter((e) => e.role === "rop");
-  const admins = employees.filter((e) => e.role === "admin");
-  const observers = employees.filter((e) => e.role === "observer");
+  const live = employees.filter((e) => e.is_active !== false);
+  const rops = live.filter((e) => e.role === "rop");
+  const admins = live.filter((e) => e.role === "admin");
+  const observers = live.filter((e) => e.role === "observer");
 
   const byRop = new Map(rops.map((r) => [r.id, []]));
   const noTeam = [];
+  const fired = [];
 
   for (const e of employees) {
+    if (e.is_active === false) {
+      fired.push(e);
+      continue;
+    }
     if (e.role === "rop" || e.role === "admin" || e.role === "observer") continue;
     if (e.rop_id && byRop.has(e.rop_id)) byRop.get(e.rop_id).push(e);
     else noTeam.push(e);
@@ -34,6 +40,7 @@ function groupEmployees(employees) {
     admins: admins.sort(byName),
     observers: observers.sort(byName),
     noTeam: noTeam.sort(byName),
+    fired: fired.sort(byName),
   };
 }
 
@@ -241,10 +248,22 @@ export default function EmployeePicker({
                     grouped.observers.map((e) => <Row key={e.id} emp={e} />)}
                 </div>
               )}
+              {grouped.fired.length > 0 && (
+                <div>
+                  <GroupHeader
+                    groupKey="fired"
+                    label="Уволенные"
+                    count={grouped.fired.length}
+                  />
+                  {openGroups.fired &&
+                    grouped.fired.map((e) => <Row key={e.id} emp={e} subLabel="уволен" />)}
+                </div>
+              )}
               {!grouped.teams.length &&
                 !grouped.noTeam.length &&
                 !grouped.admins.length &&
-                !grouped.observers.length && (
+                !grouped.observers.length &&
+                !grouped.fired.length && (
                   <p className="px-3 py-2 text-xs text-gray-500">Список пуст</p>
                 )}
             </>

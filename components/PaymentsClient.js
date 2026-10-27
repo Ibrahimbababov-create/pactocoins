@@ -105,14 +105,11 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
   const [filters, setFilters] = useState({ userIds: initialUserIds, from: initialFrom, to: initialTo, query: "" });
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // В списке выбора: действующие сотрудники, а уволенный виден только если
-  // он уже выбран (например, по ссылке), чтобы его можно было снять.
-  const pickable = useMemo(() => {
-    const chosen = new Set(initialUserIds);
-    return employees
-      .filter((e) => e.is_active !== false || chosen.has(e.id))
-      .map((e) => (e.is_active === false ? { ...e, name: `${e.name} (уволен)` } : e));
-  }, [employees, initialUserIds]);
+  // В списке выбора есть и уволенные: их оплаты тоже сверяются с таблицами.
+  const pickable = useMemo(
+    () => employees.map((e) => (e.is_active === false ? { ...e, name: `${e.name} (уволен)` } : e)),
+    [employees]
+  );
   const nameById = useMemo(() => new Map(pickable.map((e) => [e.id, e.name])), [pickable]);
 
   function toggleUser(id) {
