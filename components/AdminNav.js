@@ -51,7 +51,7 @@ const SECTIONS = [
       "/admin/reconcile",
     ],
   },
-  { href: "/admin/onboarding", label: "Обучение", owns: ["/admin/onboarding"] },
+  { href: "/admin/onboarding", label: "Обучение", owns: ["/admin/onboarding", "/admin/news"] },
 ];
 
 // Наставнику открыты ровно два раздела, и ведут они прямо на нужные

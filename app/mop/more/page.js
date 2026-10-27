@@ -8,6 +8,7 @@ import { WhatsNewButton } from "@/components/WhatsNew";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { showSurveyCard } from "@/lib/survey";
 import SurveyPromoCard from "@/components/SurveyPromoCard";
+import { loadNewsFor, NEWS_ROLES } from "@/lib/appNews";
 
 // Длинные подписи — только для этого экрана, короткие живут в lib/roles.js
 const ROLE_LABELS = {
@@ -52,6 +53,11 @@ export default async function MorePage() {
 
   // Разложено по смыслу: сначала своё, потом рабочее, потом настройки.
   // Одним списком из семи одинаковых строк это читалось как свалка.
+  const showNews =
+    !profile?.is_guest && NEWS_ROLES.includes(watching ? profile?.role : role);
+  const newsAll = showNews ? await loadNewsFor(createAdminClient(), viewId, 20) : [];
+  const newsUnread = newsAll.filter((n) => n.unread).length;
+
   const groups = [
     {
       title: "Мои коины",
@@ -94,6 +100,12 @@ export default async function MorePage() {
     {
       title: "Работа",
       items: [
+        newsAll.length > 0 && {
+          href: "/mop/news",
+          label: "Новости",
+          icon: "megaphone",
+          badge: newsUnread,
+        },
         role !== "trainee" && {
           href: "/mop/materials",
           label: "Регламенты и обучение",
