@@ -32,6 +32,9 @@ import ChestCard from "@/components/Chest";
 import { getPendingChest, chestEligible } from "@/lib/chest";
 import { showSurveyCard } from "@/lib/survey";
 import SurveyPromoCard from "@/components/SurveyPromoCard";
+import NewsHomeCard from "@/components/NewsHomeCard";
+import ImportantNewsModal from "@/components/ImportantNewsModal";
+import { loadNewsFor, NEWS_ROLES } from "@/lib/appNews";
 
 // «По дороге» — только вещи и впечатления. Привилегии, подписки, особые
 // призы и «+1% бонусом» не показываем: на экране они выглядят странно.
@@ -76,6 +79,7 @@ export default async function MopDashboard() {
     tournament,
     chest,
     surveyForMe,
+    newsAll,
     { data: monthPayments },
   ] = await Promise.all([
     supabase.from("users").select("*").eq("id", viewId).single(),
@@ -131,6 +135,8 @@ export default async function MopDashboard() {
     viewId === user.id ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
     // Опрос команды: карточка, пока он открыт и человек его не прошёл.
     viewId === user.id ? showSurveyCard(createAdminClient(), user.id) : false,
+    // Новости приложения: пока таблиц нет, вернётся пустой список.
+    loadNewsFor(createAdminClient(), viewId, 20),
     // Оплаты текущего месяца для карточки «Мои оплаты»
     supabase
       .from("revenue_requests")
@@ -160,6 +166,20 @@ export default async function MopDashboard() {
   const role = effectiveRole(watching ? "admin" : profile?.role);
   const isTrainee = role === "trainee";
   const isRop = role === "rop";
+
+  // Новости видят сотрудники; гостю и наблюдателю не показываем.
+  const newsRole = watching ? profile?.role : role;
+  const showNews = !profile?.is_guest && NEWS_ROLES.includes(newsRole) && newsAll.length > 0;
+  const newsUnread = newsAll.filter((n) => n.unread).length;
+  // Окно с важными новостями только самому человеку: админ в режиме
+  // просмотра ничего не видит и ничего не отмечает.
+  const importantNews =
+    showNews && !watching && NEWS_ROLES.includes(profile?.role)
+      ? newsAll
+          .filter((n) => n.important && n.unread)
+          .reverse()
+          .map((n) => ({ id: n.id, title: n.title, body: n.body }))
+      : [];
   const teamOverview = isRop ? await getTeamOverview(createAdminClient(), viewId) : null;
   let ropName = null;
   let onboardingDays = null;
@@ -270,6 +290,9 @@ export default async function MopDashboard() {
       <div>
         <p className="text-gray-500 text-sm">Привет, {profile?.name}</p>
       </div>
+
+      {showNews && <NewsHomeCard latest={newsAll[0]} unread={newsUnread} />}
+      {importantNews.length > 0 && <ImportantNewsModal items={importantNews} />}
 
       {chestEligible(profile) && <ChestCard chest={chest} />}
 

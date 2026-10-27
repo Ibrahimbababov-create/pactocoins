@@ -61,6 +61,13 @@ const GROUPS = [
     ],
   },
   {
+    match: ["/admin/onboarding", "/admin/news"],
+    items: [
+      { href: "/admin/onboarding", label: "Обучение" },
+      { href: "/admin/news", label: "Новости" },
+    ],
+  },
+  {
     match: ["/admin/budget", "/admin/funds"],
     items: [
       { href: "/admin/budget", label: "Бюджет" },
