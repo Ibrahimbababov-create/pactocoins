@@ -9,6 +9,7 @@ import {
   createProject,
   renameProject,
   setProjectActive,
+  setProjectIntensiveInPlan,
   setProjectRops,
   setUserProject,
   addUsersToProject,
@@ -136,6 +137,27 @@ export default function ProjectsClient({ projects, rops, peopleByProject, people
                 </button>
               </div>
             </div>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 w-4 h-4 accent-acid-400"
+                checked={p.intensive_in_plan !== false}
+                disabled={isPending}
+                onChange={(e) =>
+                  run(() => setProjectIntensiveInPlan(p.id, e.target.checked))
+                }
+              />
+              <span className="min-w-0">
+                <span className="block text-sm">
+                  Интенсивы и МК входят в план проекта
+                </span>
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  Если выключить, выручка по интенсивам и МК не засчитывается в
+                  выполнение плана. Рейтинг и коины не меняются.
+                </span>
+              </span>
+            </label>
 
             <div>
               <p className="text-xs text-gray-500 mb-2">Кто ведёт проект</p>

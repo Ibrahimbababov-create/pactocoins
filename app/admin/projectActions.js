@@ -50,6 +50,29 @@ export async function renameProject(projectId, name) {
   return { success: true };
 }
 
+// Входят ли интенсивы и МК в план проекта. Рейтинг и коины от флага не
+// зависят: они всегда считают всю подтверждённую выручку.
+export async function setProjectIntensiveInPlan(projectId, value) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("projects")
+    .update({ intensive_in_plan: value === true })
+    .eq("id", projectId);
+  if (error) {
+    if (/intensive_in_plan/.test(error.message)) {
+      return {
+        error:
+          "Настройка ещё не включена в базе. Нужно применить SQL project_intensive_in_plan.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/projects");
+  return { success: true };
+}
+
 // Проект не удаляем, а закрываем: люди и их выручка остаются привязанными
 // к истории, иначе прошлое рассыпется.
 export async function setProjectActive(projectId, isActive) {
