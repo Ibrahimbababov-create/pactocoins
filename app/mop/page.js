@@ -21,8 +21,10 @@ import { recentDaysAlmaty, almatyDayKey, formatPaymentDay, nowInAlmaty, currentM
 import { plural } from "@/lib/plural";
 import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
-import { getMyWeekPlace, getMyTeamMonth, getMyMonthTier } from "@/lib/dashboardPulse";
-import { WeekPlaceCard, TeamMonthCard, MonthTierCard } from "@/components/DashboardPulse";
+import { getMyWeekPlace, getMyMonthTier } from "@/lib/dashboardPulse";
+import { WeekPlaceCard, MonthTierCard } from "@/components/DashboardPulse";
+import TeamHomeCard, { RopWallet } from "@/components/TeamHomeCard";
+import { getTeamOverview } from "@/lib/teamStats";
 import { getFeaturedTournament } from "@/lib/tournamentView";
 import TournamentHomeCard from "@/components/TournamentHomeCard";
 import ChestCard from "@/components/Chest";
@@ -156,7 +158,8 @@ export default async function MopDashboard() {
   // кабинет глазами стажёра или РОПа. В базе роль при этом не меняется.
   const role = effectiveRole(watching ? "admin" : profile?.role);
   const isTrainee = role === "trainee";
-  const teamMonth = role === "rop" ? await getMyTeamMonth(supabase, viewId) : null;
+  const isRop = role === "rop";
+  const teamOverview = isRop ? await getTeamOverview(createAdminClient(), viewId) : null;
   let ropName = null;
   let onboardingDays = null;
   if (isTrainee) {
@@ -279,7 +282,16 @@ export default async function MopDashboard() {
         <BirthdayProfile birthday={profile?.birthday} variant="prompt" />
       )}
 
-      {role === "rop" && <TeamMonthCard data={teamMonth} />}
+      {/* У РОПа сверху команда, личные коины компактно: руководителю важнее,
+          как идут люди, чем кольцо баланса. */}
+      {isRop && <TeamHomeCard overview={teamOverview} />}
+      {isRop && (
+        <RopWallet
+          balance={profile?.balance ?? 0}
+          monthEarned={monthEarned}
+          goal={currentGoal}
+        />
+      )}
 
       {/* Лента над монетой: одна строка про то, что горит прямо сейчас */}
       {ribbons.map((r) => (
@@ -295,25 +307,29 @@ export default async function MopDashboard() {
       ))}
 
       {/* Баланс — крупная цифра, обновляется онлайн */}
-      <LiveBalance
-        userId={viewId}
-        initialBalance={profile?.balance ?? 0}
-        initialTotalEarned={profile?.total_earned ?? 0}
-        initialMonthEarned={monthEarned}
-        goalTarget={currentGoal?.target_amount ?? null}
-        goalTitle={currentGoal?.rewards?.title ?? null}
-      />
+      {!isRop && (
+        <LiveBalance
+          userId={viewId}
+          initialBalance={profile?.balance ?? 0}
+          initialTotalEarned={profile?.total_earned ?? 0}
+          initialMonthEarned={monthEarned}
+          goalTarget={currentGoal?.target_amount ?? null}
+          goalTitle={currentGoal?.rewards?.title ?? null}
+        />
+      )}
 
-      <GoalWidget
-        goal={currentGoal}
-        balance={profile?.balance ?? 0}
-        coinRate={profile?.coin_rate_multiplier ?? 1}
-        monthKzt={monthTier?.value ?? 0}
-        suggestion={nextReward}
-        monthCoins={monthEarned}
-        dayOfMonth={nowInAlmaty().day}
-        waypoint={waypoint}
-      />
+      {!isRop && (
+        <GoalWidget
+          goal={currentGoal}
+          balance={profile?.balance ?? 0}
+          coinRate={profile?.coin_rate_multiplier ?? 1}
+          monthKzt={monthTier?.value ?? 0}
+          suggestion={nextReward}
+          monthCoins={monthEarned}
+          dayOfMonth={nowInAlmaty().day}
+          waypoint={waypoint}
+        />
+      )}
 
       {!profile?.is_guest && ["mop", "rop", "mentor", "trainee"].includes(role) && (
         <div className="grid grid-cols-2 gap-3">
