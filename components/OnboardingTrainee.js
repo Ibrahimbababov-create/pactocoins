@@ -398,23 +398,73 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
   }
 
   const totalDays = days.filter((d) => d.complete).length;
+  const gatingAll = days.flatMap((d) => d.blocks).filter((b) => b.gates);
+  const gatingDone = gatingAll.filter((b) => b.done).length;
+  const pct = gatingAll.length ? Math.round((gatingDone / gatingAll.length) * 100) : 0;
+  const next =
+    days
+      .filter((d) => !d.locked)
+      .flatMap((d) => d.blocks.map((b) => ({ ...b, day: d.day })))
+      .find((b) => !b.done && !b.locked && b.gates) ?? null;
+  const allLearned = gatingAll.length > 0 && !next;
+
+  function goNext() {
+    if (!next) return;
+    setOpenDay(next.day);
+    if (next.kind === "test" && next.hasContent) setTestId(next.id);
+    else if (next.kind === "article" && next.html) setReaderId(next.id);
+    else if (next.kind === "links" && next.hasContent) setExpanded(next.id);
+  }
 
   return (
     <div className="space-y-4">
-      <div className="bg-gradient-to-br from-sky-500/10 to-dark-800 border border-sky-500/30 rounded-2xl p-5 space-y-2">
-        <p className="flex items-center gap-2 text-lg font-bold text-sky-300">
-          <Icon name="award" className="w-5 h-5 shrink-0" />
-          Обучение стажёра
-        </p>
+      <div className="bg-gradient-to-br from-acid-400/10 to-dark-800 border border-acid-400/30 rounded-2xl p-5 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-lg font-bold text-acid-400">
+            <Icon name="award" className="w-5 h-5 shrink-0" />
+            Обучение стажёра
+          </p>
+          <span className="font-display font-bold text-acid-400 tabular-nums">
+            {pct}%
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-dark-700 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-acid-400 transition-all duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+
+        {allLearned ? (
+          <p className="text-sm text-gray-300">
+            Всё пройдено, молодец. Остался последний шаг: закрой{" "}
+            <b className="text-white">первую оплату</b>, и ты МОП.
+          </p>
+        ) : next ? (
+          <div className="rounded-xl bg-dark-900/50 border border-dark-600 p-3">
+            <p className="text-[11px] text-gray-500">Что делать сейчас</p>
+            <p className="text-sm font-semibold mt-0.5">
+              День {next.day} · {next.title}
+            </p>
+            <button
+              onClick={goNext}
+              className="mt-2.5 w-full rounded-xl bg-acid-400 text-black py-2.5 text-sm font-bold active:scale-[0.98] transition-transform"
+            >
+              {next.kind === "test" ? "Пройти тест" : "Продолжить"}
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">
+            Материалы для обучения ещё готовятся. Загляни чуть позже.
+          </p>
+        )}
+
         <p className="text-sm text-gray-400">
-          Учимся три дня. Блоки идут по порядку: прошёл один, открылся
-          следующий.
+          Учимся три дня, блоки идут по порядку. Как только закроешь{" "}
+          <b className="text-white">первую оплату</b>, станешь МОПом и сможешь
+          зарабатывать коины с выручки.
         </p>
-        <p className="text-sm text-gray-400">
-          Как только закроешь <b className="text-white">первую оплату</b>,
-          станешь МОПом.
-        </p>
-        <p className="text-xs text-gray-500 pt-1">
+        <p className="text-xs text-gray-500">
           {ropName
             ? `Твой руководитель: ${ropName}`
             : "Руководитель не выбран. Выбери его в Настройках."}{" "}
@@ -574,7 +624,7 @@ export default function OnboardingTrainee({ days: serverDays, ropName }) {
                         )}
                         {optional && b.owner === "rop" && !b.hasContent && !isTest && (
                           <p className="text-xs text-gray-500 mt-1">
-                            Твой РОП ещё не добавил материал — можно пропустить.
+                            Твой РОП ещё не добавил материал, можно пропустить.
                           </p>
                         )}
 
