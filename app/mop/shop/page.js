@@ -37,6 +37,12 @@ export default async function ShopPage() {
     (variantsByReward[v.reward_id] ||= []).push(v);
   });
 
+  // Новинки: награды, добавленные за последние 7 суток (активные, скрытые не берём)
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const newIds = (rewards ?? [])
+    .filter((r) => r.created_at && new Date(r.created_at).getTime() >= weekAgo)
+    .map((r) => r.id);
+
   const grouped = groupRewards(categories, rewards, variantsByReward);
   const favoriteIds = await loadFavoriteIds(supabase, user.id);
 
@@ -66,6 +72,7 @@ export default async function ShopPage() {
         balance={profile?.balance ?? 0}
         favoriteIds={favoriteIds}
         isGuest={!!profile?.is_guest}
+        newIds={newIds}
       />
     </div>
   );

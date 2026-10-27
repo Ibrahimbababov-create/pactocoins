@@ -89,7 +89,16 @@ function FavoriteButton({ active, onToggle }) {
 // и т.п.) — сначала выбираешь вариант строкой (название + своя цена сразу
 // видна), потом обычный «Купить». Есть и «Копить на это» — цель просто
 // запоминает, какой именно вариант выбрали.
-function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPurchased, favorite }) {
+// Тихая метка у свежих наград: исчезает сама, когда награда перестаёт быть новой
+function NewTag() {
+  return (
+    <p className="text-[10px] leading-none font-semibold text-acid-400/80 mb-1">
+      Новинка
+    </p>
+  );
+}
+
+function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPurchased, favorite, isNew = false }) {
   const [selected, setSelected] = useState(reward.variants[0]?.id ?? null);
   const [confirming, setConfirming] = useState(false);
 
@@ -130,6 +139,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
             />
           </div>
         )}
+        {isNew && <NewTag />}
         <p className="font-semibold text-sm leading-tight line-clamp-2">{reward.title}</p>
         {reward.description && (
           <p className="text-xs text-gray-500 mt-1 line-clamp-2">{reward.description}</p>
@@ -242,7 +252,7 @@ function VariantCard({ reward, displayBalance, isPending, onBuy, onSetGoal, isPu
   );
 }
 
-function SuggestForm({ onDone, categories = [], initiallyOpen = false }) {
+function SuggestForm({ onDone, categories = [], initiallyOpen = false, leading = null }) {
   const [open, setOpen] = useState(initiallyOpen);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
@@ -289,7 +299,8 @@ function SuggestForm({ onDone, categories = [], initiallyOpen = false }) {
 
   if (!open) {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-2">
+        {leading}
         <button
           onClick={() => setOpen(true)}
           className="inline-flex items-center gap-1 rounded-full border border-dark-600 px-3 py-1 text-xs text-gray-400 active:scale-95 transition"
@@ -335,11 +346,16 @@ function SuggestForm({ onDone, categories = [], initiallyOpen = false }) {
       </select>
       <textarea
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        onChange={(e) => setDescription(e.target.value.slice(0, 60))}
+        maxLength={60}
         rows={2}
         placeholder="Описание (необязательно)"
         className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white"
       />
+      <p className="text-[11px] text-gray-600 flex justify-between gap-2">
+        <span>Коротко, одной строкой: длинное на карточке обрезается</span>
+        <span className="tabular-nums shrink-0">{description.length}/60</span>
+      </p>
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -385,7 +401,7 @@ function SuggestForm({ onDone, categories = [], initiallyOpen = false }) {
   );
 }
 
-export default function ShopClient({ grouped, categoryNames, balance, favoriteIds = [], isGuest = false }) {
+export default function ShopClient({ grouped, categoryNames, balance, favoriteIds = [], isGuest = false, newIds = [] }) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null);
   const [message, setMessage] = useState(null);
@@ -398,6 +414,8 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
   const [favorites, setFavorites] = useState(() => new Set(favoriteIds));
   const searchParams = useSearchParams();
   const suggestRef = useRef(null);
+  const newSet = useMemo(() => new Set(newIds), [newIds]);
+  const [onlyNew, setOnlyNew] = useState(false);
 
   // Из «Ещё» человек приходит сюда ради формы «Предложить награду», а она
   // в самом низу. Якорь в ссылке не работает: список товаров дорисовывается
@@ -434,6 +452,20 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
   // одну кучу. Внутри категории порядок задан админкой (sort_order, потом
   // цена). Выбрана категория или идёт поиск — секция одна, без заголовка.
   const sections = useMemo(() => {
+    if (onlyNew) {
+      // Новинки одним списком; награда из нескольких категорий — один раз
+      const seen = new Set();
+      const list = [];
+      Object.values(filteredGrouped).forEach((items) =>
+        items.forEach((r) => {
+          if (newSet.has(r.id) && !seen.has(r.id)) {
+            seen.add(r.id);
+            list.push(r);
+          }
+        })
+      );
+      return list.length > 0 ? [["Новинки недели", list]] : [];
+    }
     if (activeCategory) {
       return [[activeCategory, filteredGrouped[activeCategory] ?? []]];
     }
@@ -445,7 +477,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
         items.filter((r) => !r.category || r.category === category || !grouped[r.category]),
       ])
       .filter(([, items]) => items.length > 0);
-  }, [filteredGrouped, activeCategory, grouped]);
+  }, [filteredGrouped, activeCategory, grouped, onlyNew, newSet]);
 
   // Избранное: каждая награда один раз, даже если лежит в нескольких категориях
   const favoriteRewards = useMemo(() => {
@@ -636,6 +668,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
                     onBuy={handleBuyVariant}
                     onSetGoal={handleSetGoal}
                     favorite={favoriteButtonFor(reward)}
+                    isNew={newSet.has(reward.id)}
                   />
                 );
               }
@@ -669,6 +702,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
                         />
                       </div>
                     )}
+                    {newSet.has(reward.id) && <NewTag />}
                     <p className="font-semibold text-sm leading-tight line-clamp-2">
                       {reward.title}
                     </p>
@@ -822,7 +856,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
 
   const categories = Object.keys(grouped);
   const isSearching = query.trim().length > 0;
-  const showCategoryHeadings = !activeCategory && !isSearching;
+  const showCategoryHeadings = !activeCategory && !isSearching && !onlyNew;
 
   return (
     <div className="space-y-6">
@@ -894,7 +928,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
 
       {/* Категории — фильтр в одну строку, без раскрывающихся секций и без
           повторения этого же списка где-то ещё */}
-      {!isSearching && (
+      {!isSearching && !onlyNew && (
         <div className="-mx-4 px-4">
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
             <button
@@ -929,7 +963,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
 
       {/* Моё избранное: компактный горизонтальный ряд. Тап по карточке
           прокручивает к полной карточке ниже, сердечко убирает из избранного. */}
-      {!isSearching && !activeCategory && !isGuest && favoriteRewards.length > 0 && (
+      {!isSearching && !activeCategory && !onlyNew && !isGuest && favoriteRewards.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-baseline gap-2">
             <h2 className="text-sm font-semibold text-gray-300">Моё избранное</h2>
@@ -996,6 +1030,20 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
             (c) => c !== "Предложено сотрудниками"
           )}
           initiallyOpen={fromSuggestLink}
+          leading={
+            newSet.size > 0 ? (
+              <button
+                onClick={() => setOnlyNew((v) => !v)}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs active:scale-95 transition ${
+                  onlyNew
+                    ? "bg-acid-400 text-black border-acid-400 font-semibold"
+                    : "border-acid-400/40 text-acid-400"
+                }`}
+              >
+                Новинки
+              </button>
+            ) : null
+          }
           onDone={() => {
             setMessage({ type: "success", text: "Отправлено, ждём решения админа" });
             setTimeout(() => setMessage(null), 3000);
@@ -1005,11 +1053,25 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
 
       {sections.map(([category, items]) => (
         <section key={category} className="space-y-3">
-          {showCategoryHeadings && (
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-sm font-semibold text-gray-300">{category}</h2>
-              <span className="text-xs text-gray-600 tabular-nums">{items.length}</span>
+          {onlyNew ? (
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-gray-300">
+                Новинки недели · {items.length}
+              </h2>
+              <button
+                onClick={() => setOnlyNew(false)}
+                className="text-xs text-acid-400 active:scale-95"
+              >
+                Показать всё
+              </button>
             </div>
+          ) : (
+            showCategoryHeadings && (
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-sm font-semibold text-gray-300">{category}</h2>
+                <span className="text-xs text-gray-600 tabular-nums">{items.length}</span>
+              </div>
+            )
           )}
           <div className="grid grid-cols-2 gap-3 items-stretch">
             {items.map((reward) => renderCard(reward))}

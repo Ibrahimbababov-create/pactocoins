@@ -110,6 +110,30 @@ function toAlmatyDatetimeLocal(isoString) {
 
 // Основная категория + дополнительные. Дополнительные выбираются в
 // выпадающем списке с поиском, а не десятком чипов.
+// Описание коротко, одной строкой: на карточке длинное всё равно обрезается.
+// У старых наград текст может быть длиннее: показываем как есть, а ограничение
+// включается, когда его начинают править.
+function DescriptionField({ defaultValue = "", placeholder }) {
+  const [value, setValue] = useState(defaultValue ?? "");
+  return (
+    <div className="space-y-1">
+      <textarea
+        name="description"
+        rows={2}
+        maxLength={60}
+        value={value}
+        onChange={(e) => setValue(e.target.value.slice(0, 60))}
+        placeholder={placeholder}
+        className={FIELD}
+      />
+      <p className="text-[11px] text-gray-600 flex justify-between gap-2">
+        <span>Коротко, одной строкой: длинное на карточке обрезается</span>
+        <span className="tabular-nums shrink-0">{value.length}/60</span>
+      </p>
+    </div>
+  );
+}
+
 function CategoryPicker({ categories, initialMain, initialExtras, supported }) {
   const [main, setMain] = useState(initialMain ?? categories[0]?.name ?? "");
   const [extras, setExtras] = useState(initialExtras ?? []);
@@ -561,13 +585,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
             ))}
           </select>
         </div>
-        <textarea
-          name="description"
-          rows={2}
-          defaultValue={r.description}
-          placeholder="Описание"
-          className={FIELD}
-        />
+        <DescriptionField defaultValue={r.description} placeholder="Описание" />
         <label className="block space-y-1">
           <span className="text-xs text-gray-500">
             {r.image_url ? "Заменить фото" : "Фото (необязательно)"}
@@ -768,12 +786,7 @@ export default function RewardsAdminClient({ rewards, categories }) {
               ))}
             </select>
           </div>
-          <textarea
-            name="description"
-            rows={2}
-            placeholder="Описание (необязательно)"
-            className={FIELD}
-          />
+          <DescriptionField placeholder="Описание (необязательно)" />
           <label className="block space-y-1">
             <span className="text-xs text-gray-500">Фото (необязательно)</span>
             <input

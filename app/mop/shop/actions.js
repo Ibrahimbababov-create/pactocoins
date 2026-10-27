@@ -320,6 +320,10 @@ export async function submitRewardSuggestion(title, priceCoins, description, ima
   const price = Math.floor(Number(priceCoins));
   if (!price || price <= 0) return { error: "Укажи цену в коинах" };
 
+  if ((description || "").trim().length > 60) {
+    return { error: "Описание длиннее 60 знаков: сократи до одной короткой строки" };
+  }
+
   const cleanCategory = (category || "").trim();
   if (!cleanCategory) return { error: "Выбери категорию" };
   const { data: cat } = await supabase
