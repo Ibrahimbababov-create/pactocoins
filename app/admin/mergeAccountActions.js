@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAndApplyLevelUp } from "@/lib/levelUp";
 import { addCoins } from "@/lib/addCoins";
+import { logRevenueChange } from "@/lib/revenueAudit";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -26,7 +27,7 @@ async function requireAdmin() {
 }
 
 export async function mergeAccounts(oldUserId, newUserId) {
-  await requireAdmin();
+  const admin_user = await requireAdmin();
 
   if (!oldUserId || !newUserId) {
     return { error: "Выбери оба аккаунта" };
@@ -70,6 +71,14 @@ export async function mergeAccounts(oldUserId, newUserId) {
     .from("revenue_requests")
     .update({ user_id: newUserId })
     .eq("user_id", oldUserId);
+
+  await logRevenueChange(admin, {
+    userId: newUserId,
+    actorId: admin_user.id,
+    source: "web",
+    action: "other",
+    note: "Объединение аккаунтов: оплаты перенесены со старого аккаунта на этот",
+  });
 
   await admin
     .from("bonus_requests")

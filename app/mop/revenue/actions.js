@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { escapeHtml } from "@/lib/notifyUser";
 import { calculateRevenueCoins } from "@/lib/coinRate";
+import { logRevenueChange, pickRevenueFields } from "@/lib/revenueAudit";
 import { paymentDateToIso, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 import {
   validateClientName,
@@ -153,6 +154,16 @@ export async function submitRevenueRequest(
     .single();
 
   if (error) return { error: "Не удалось отправить заявку" };
+
+  await logRevenueChange(createAdminClient(), {
+    requestId: inserted.id,
+    userId: user.id,
+    actorId: user.id,
+    actorName: profile?.name,
+    source: "web",
+    action: "create",
+    after: pickRevenueFields(inserted),
+  });
 
   const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
 

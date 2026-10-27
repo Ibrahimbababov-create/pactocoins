@@ -408,6 +408,8 @@ async function handleCancelCommand(msg) {
   const res = await cancelApprovedRevenue(admin, request.id, {
     byUserId: await adminUserId(msg.from?.id),
     comment,
+    source: "telegram",
+    actorName: tgActorName(msg.from),
   });
 
   if (res.error) {
@@ -598,6 +600,14 @@ async function applicantContact(action, requestId) {
 }
 
 // id админа в нашей базе — чтобы в истории было видно, кто отменил.
+function tgActorName(from) {
+  if (!from) return "Telegram";
+  return (
+    [from.first_name, from.last_name].filter(Boolean).join(" ") ||
+    (from.username ? `@${from.username}` : "Telegram")
+  );
+}
+
 async function adminUserId(telegramId) {
   if (!telegramId) return null;
   const { data } = await createAdminClient()
@@ -972,8 +982,14 @@ export async function POST(request) {
   if (handler) {
     const passActor =
       action === "approve_purchase" || action === "reject_purchase_go";
+    const isRevenue = action === "approve_rev" || action === "reject_rev";
     const result = passActor
       ? await handler(requestId, callback.from.id)
+      : isRevenue
+      ? await handler(requestId, {
+          telegramId: callback.from.id,
+          name: tgActorName(callback.from),
+        })
       : await handler(requestId);
 
     if (result.error) {

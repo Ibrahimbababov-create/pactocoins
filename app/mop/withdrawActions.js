@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { sendTelegramMessage, clearTelegramButtons } from "@/lib/telegramBot";
+import { logRevenueChange } from "@/lib/revenueAudit";
 
 const TABLES = {
   revenue: { table: "revenue_requests", adminPath: "/admin/revenue-requests" },
@@ -42,6 +43,19 @@ export async function withdrawMyRequest(kind, id) {
 
   if (error) return { error: "Не получилось отозвать, попробуй ещё раз" };
   if (!rows?.length) return { error: "Заявку уже рассмотрели, отозвать нельзя" };
+
+  if (kind === "revenue") {
+    await logRevenueChange(admin, {
+      requestId: id,
+      userId: user.id,
+      actorId: user.id,
+      source: "web",
+      action: "reject",
+      before: { status: "pending" },
+      after: { status: "rejected" },
+      note: "Отозвана сотрудником",
+    });
+  }
 
   // В рабочей группе убираем кнопки и отвечаем на сообщение заявки, чтобы
   // админ не тратил на неё время. Сбой Телеграма отзыв не отменяет.

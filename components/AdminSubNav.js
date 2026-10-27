@@ -15,6 +15,7 @@ const GROUPS = [
       "/admin/join-requests",
       "/admin/payments",
       "/admin/reconcile",
+      "/admin/audit",
     ],
     items: [
       { href: "/admin/revenue-requests", label: "Выручка", badgeKey: "revenue" },
@@ -23,6 +24,7 @@ const GROUPS = [
       { href: "/admin/join-requests", label: "Новые люди", badgeKey: "join" },
       { href: "/admin/payments", label: "Оплаты" },
       { href: "/admin/reconcile", label: "Сверка" },
+      { href: "/admin/audit", label: "Журнал оплат" },
     ],
   },
   {
