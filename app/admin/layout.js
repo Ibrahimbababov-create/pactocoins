@@ -41,6 +41,7 @@ export default async function AdminLayout({ children }) {
     { count: pendingBonus },
     { count: pendingPurchase },
     { count: pendingJoin },
+    { count: pendingEdits },
   ] = await Promise.all([
     supabase
       .from("reward_suggestions")
@@ -62,6 +63,12 @@ export default async function AdminLayout({ children }) {
       .from("join_requests")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending"),
+    // Исправления оплат: до миграции таблицы нет, запрос вернёт ошибку и
+    // count = null, счётчик просто будет 0.
+    supabase
+      .from("revenue_edit_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
   ]);
 
   const requestCounts = {
@@ -69,13 +76,15 @@ export default async function AdminLayout({ children }) {
     bonus: pendingBonus ?? 0,
     purchase: pendingPurchase ?? 0,
     join: pendingJoin ?? 0,
+    edits: pendingEdits ?? 0,
     suggestions: pendingSuggestions ?? 0,
   };
   const pendingRequests =
     requestCounts.revenue +
     requestCounts.bonus +
     requestCounts.purchase +
-    requestCounts.join;
+    requestCounts.join +
+    requestCounts.edits;
 
   return (
     // accentColor — чтобы галочки и переключатели были в цвет темы, а не
