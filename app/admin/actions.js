@@ -21,6 +21,7 @@ import { maybeGraduateTrainee } from "@/lib/onboarding";
 import { fetchTelegraphContent } from "@/lib/telegraph";
 import { addCoins } from "@/lib/addCoins";
 import { addSpins } from "@/lib/addSpins";
+import { grantAttendanceChest, revokeAttendanceChest } from "@/lib/attendanceChest";
 import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
 
 function parseSale(formData) {
@@ -826,7 +827,9 @@ export async function approveBonusRequest(requestId, comment) {
   // Крутки на колесе фортуны вместо коинов.
   if (spinOnly) {
     await addSpins(admin, request.user_id, spinsAward);
-    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!`;
+    // Приход вовремя дарит ещё и сундук (один в день, lib/attendanceChest.js).
+    const chestLine = await grantAttendanceChest(admin, request);
+    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!${chestLine}`;
     await notifyUser(
       admin,
       request.user_id,
@@ -914,6 +917,7 @@ export async function cancelApprovedBonusRequest(requestId, comment) {
 
   if (spinOnly) {
     await addSpins(admin, request.user_id, -spinsAward);
+    await revokeAttendanceChest(admin, request);
   } else if (coins) {
     const { data: profile } = await admin
       .from("users")

@@ -8,6 +8,7 @@ import { formatCoins, spinsNom } from "@/lib/plural";
 import ChestCard from "@/components/Chest";
 import { getPendingChest, chestEligible } from "@/lib/chest";
 import { MODE_NAME } from "@/lib/clashMode";
+import { viewAsRole, viewAsUserId } from "@/lib/viewAs";
 
 export const dynamic = "force-dynamic";
 
@@ -130,7 +131,9 @@ export default async function GamesPage() {
   ]);
   const [tournament, chest] = await Promise.all([
     getFeaturedTournament(createAdminClient(), profile),
-    chestEligible(profile) ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
+    // В режиме просмотра сундуки админа не показываем: открыть их нельзя.
+    chestEligible(profile) && !(profile?.role === "admin" && (viewAsRole() || viewAsUserId()))
+      ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
   ]);
 
   const spins = profile?.wheel_spins ?? 0;

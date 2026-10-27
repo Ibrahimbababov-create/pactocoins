@@ -10,6 +10,7 @@ import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { sendTelegramMessage } from "@/lib/telegramBot";
 import { addCoins } from "@/lib/addCoins";
 import { addSpins } from "@/lib/addSpins";
+import { grantAttendanceChest } from "@/lib/attendanceChest";
 import { bonusLabel, bonusSpins } from "@/lib/bonusCategories";
 
 async function requireAdmin() {
@@ -275,7 +276,9 @@ export async function approveBonusRequestExempt(requestId, ratingExempt, comment
   // Крутки на колесе фортуны вместо коинов.
   if (spinOnly) {
     await addSpins(admin, request.user_id, spinsAward);
-    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!`;
+    // Приход вовремя дарит ещё и сундук (один в день, lib/attendanceChest.js).
+    const chestLine = await grantAttendanceChest(admin, request);
+    const spinText = `🎡 +${spinsAward} ${spinsNom(spinsAward)} на колесе фортуны: «${bonusLabel(request.category)}»!${chestLine}`;
     await notifyUser(
       admin,
       request.user_id,
