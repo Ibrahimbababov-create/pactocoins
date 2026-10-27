@@ -286,6 +286,7 @@ export default async function MopDashboard() {
 
       {/* Записать выручку / Бонус */}
       <RequestActions
+        canSubmitRevenue={!profile?.is_guest && !watching && role !== "observer"}
         multiplier={profile?.coin_rate_multiplier ?? 1}
         monthKzt={monthTier?.value ?? 0}
       />
@@ -304,7 +305,7 @@ export default async function MopDashboard() {
                   {r.amount_kzt.toLocaleString("ru-RU")} ₸ ожидает подтверждения
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  оплата за {formatPaymentDay(r.earned_at || r.created_at)}
+                  {r.client_name ? `${r.client_name} · ` : ""}оплата за {formatPaymentDay(r.earned_at || r.created_at)}
                   {r.comment ? ` · ${r.comment}` : ""}
                 </p>
               </div>

@@ -174,7 +174,12 @@ export default async function AdminOverview({ searchParams }) {
       name: nextRevenue[0].users?.name,
       title: `${nextRevenue[0].amount_kzt.toLocaleString("ru-RU")} ₸`,
       sub: `→ ${formatCoins(nextForecast[nextRevenue[0].id] ?? nextRevenue[0].calculated_coins ?? 0)}`,
-      comment: nextRevenue[0].comment,
+      comment: [
+        nextRevenue[0].client_name ? `Клиент: ${nextRevenue[0].client_name}` : null,
+        nextRevenue[0].comment,
+      ]
+        .filter(Boolean)
+        .join(" · "),
     },
     nextBonus?.[0] && {
       type: "bonus",

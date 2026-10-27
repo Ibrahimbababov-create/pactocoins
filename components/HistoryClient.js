@@ -6,13 +6,21 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import EmptyState from "@/components/EmptyState";
 import Icon from "@/components/Icon";
-import { almatyDayKey } from "@/lib/timezone";
+import { almatyDayKey, formatPaymentDay } from "@/lib/timezone";
+import { revenueKindText } from "@/lib/revenueKinds";
 
 const FILTERS = [
   { key: "all", label: "Всё" },
   { key: "earn", label: "Начисления" },
   { key: "purchases", label: "Покупки" },
+  { key: "payments", label: "Оплаты" },
 ];
+
+const paymentStatusMeta = {
+  pending: { label: "Ожидает", color: "bg-amber-500/10 text-amber-400" },
+  approved: { label: "Подтверждена", color: "bg-acid-400/10 text-acid-400" },
+  rejected: { label: "Отклонена", color: "bg-red-500/10 text-red-400" },
+};
 
 const purchaseStatusMeta = {
   pending: { label: "Ожидает", color: "bg-amber-500/10 text-amber-400" },
@@ -48,16 +56,17 @@ function groupByDay(items) {
   return groups;
 }
 
-export default function HistoryClient({ transactions, purchases, pendingCount, truncated = false, limit = 300 }) {
+export default function HistoryClient({ transactions, purchases, payments = [], pendingCount, truncated = false, limit = 300 }) {
   const [tab, setTab] = useState("all");
 
   const filteredTransactions = useMemo(() => {
-    if (tab === "purchases") return [];
+    if (tab === "purchases" || tab === "payments") return [];
     if (tab === "earn") return transactions.filter((t) => t.amount_coins > 0);
     return transactions;
   }, [tab, transactions]);
 
-  const rows = tab === "purchases" ? purchases : filteredTransactions;
+  const rows =
+    tab === "purchases" ? purchases : tab === "payments" ? payments : filteredTransactions;
   const groups = useMemo(() => groupByDay(rows), [rows]);
   const isEmpty = rows.length === 0;
 
@@ -100,6 +109,8 @@ export default function HistoryClient({ transactions, purchases, pendingCount, t
           hint={
             tab === "purchases"
               ? "Здесь появятся твои покупки в магазине."
+              : tab === "payments"
+              ? "Здесь появятся оплаты клиентов, которые ты записал."
               : "Здесь появятся начисления и списания коинов."
           }
           action={
@@ -120,7 +131,33 @@ export default function HistoryClient({ transactions, purchases, pendingCount, t
               {g.label}
             </p>
 
-            {tab === "purchases"
+            {tab === "payments"
+              ? g.items.map((p) => {
+                  const meta = paymentStatusMeta[p.status] ?? paymentStatusMeta.pending;
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{p.client_name}</p>
+                        <p className="text-xs text-gray-500">
+                          {revenueKindText(p)}
+                          {revenueKindText(p) ? " · " : ""}оплата {formatPaymentDay(p.earned_at || p.created_at)}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold tabular-nums">
+                          {p.amount_kzt.toLocaleString("ru-RU")} ₸
+                        </p>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${meta.color}`}>
+                          {meta.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              : tab === "purchases"
               ? g.items.map((p) => {
                   const meta = purchaseStatusMeta[p.status] ?? {
                     label: p.status,
