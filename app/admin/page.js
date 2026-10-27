@@ -14,7 +14,7 @@ import {
 } from "@/lib/timezone";
 import { getEarnedMap } from "@/lib/earnings";
 import ViewAsSwitch from "@/components/ViewAsSwitch";
-import { viewAsRole, viewAsUserId, isViewableRole } from "@/lib/viewAs";
+import { viewAsRole, viewAsUserId, VIEWABLE } from "@/lib/viewAs";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { getProgramCost, getBudgetForecast, BUDGET_SHARE, NET_MARGIN } from "@/lib/programCost";
 import { createAdminClient } from "@/lib/supabase-admin";
@@ -121,9 +121,10 @@ export default async function AdminOverview({ searchParams }) {
       .order("name"),
   ]);
 
-  const viewRoles = [...new Set((roleRows ?? []).map((r) => r.role))].filter(
-    isViewableRole
-  );
+  // Кнопки ролей показываем всегда: раньше роль без живых людей (например,
+  // стажёр, когда все стажёры уволены) пропадала из списка, и посмотреть
+  // кабинет этой роли было нельзя.
+  const viewRoles = VIEWABLE;
   // Глазами человека смотрим тех, у кого за спиной своя работа с людьми:
   // РОПы, наставники, менеджеры. Стажёры и наблюдатели — только ролью.
   const viewPeople = (roleRows ?? []).filter((r) =>
