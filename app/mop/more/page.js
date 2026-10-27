@@ -102,7 +102,7 @@ export default async function MorePage() {
       items: [
         newsAll.length > 0 && {
           href: "/mop/news",
-          label: "Новости",
+          label: "Что важно",
           icon: "megaphone",
           badge: newsUnread,
         },

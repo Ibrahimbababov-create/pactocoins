@@ -25,10 +25,10 @@ export default async function AdminNewsPage() {
 
   const header = (
     <div>
-      <h1 className="text-2xl font-display font-bold">Новости</h1>
+      <h1 className="text-2xl font-display font-bold">Что важно (новости)</h1>
       <p className="text-sm text-gray-400 mt-1">
         Сотрудники видят новости в приложении на главном экране и в разделе «Ещё». Важные
-        всплывают окном при входе, и их нужно подтвердить кнопкой.
+        показываются плашкой наверху главной, её можно закрыть.
       </p>
     </div>
   );

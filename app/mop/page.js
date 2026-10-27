@@ -33,7 +33,7 @@ import { getPendingChest, chestEligible } from "@/lib/chest";
 import { showSurveyCard } from "@/lib/survey";
 import SurveyPromoCard from "@/components/SurveyPromoCard";
 import NewsHomeCard from "@/components/NewsHomeCard";
-import ImportantNewsModal from "@/components/ImportantNewsModal";
+import ImportantNewsBanner from "@/components/ImportantNewsBanner";
 import { loadNewsFor, NEWS_ROLES } from "@/lib/appNews";
 
 // «По дороге» — только вещи и впечатления. Привилегии, подписки, особые
@@ -171,7 +171,7 @@ export default async function MopDashboard() {
   const newsRole = watching ? profile?.role : role;
   const showNews = !profile?.is_guest && NEWS_ROLES.includes(newsRole) && newsAll.length > 0;
   const newsUnread = newsAll.filter((n) => n.unread).length;
-  // Окно с важными новостями только самому человеку: админ в режиме
+  // Плашка с важным только самому человеку: админ в режиме
   // просмотра ничего не видит и ничего не отмечает.
   const importantNews =
     showNews && !watching && NEWS_ROLES.includes(profile?.role)
@@ -292,7 +292,7 @@ export default async function MopDashboard() {
       </div>
 
       {showNews && <NewsHomeCard latest={newsAll[0]} unread={newsUnread} />}
-      {importantNews.length > 0 && <ImportantNewsModal items={importantNews} />}
+      {importantNews.length > 0 && <ImportantNewsBanner items={importantNews} />}
 
       {chestEligible(profile) && <ChestCard chest={chest} />}
 

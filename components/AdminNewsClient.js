@@ -22,14 +22,11 @@ function Preview({ title, body, important }) {
             <Icon name="megaphone" className="w-5 h-5" />
           </span>
           <div className="min-w-0 flex-1">
-            {important && <p className="text-xs text-acid-400 mb-0.5">Важная новость</p>}
+            {important && <p className="text-xs text-acid-400 mb-0.5">Важно</p>}
             <p className="font-display font-bold leading-snug break-words">{title || "Заголовок"}</p>
           </div>
         </div>
         <NewsText text={body || "Текст новости"} className="mt-3 text-sm text-gray-300 leading-relaxed" />
-        {important && (
-          <div className="mt-4 rounded-xl bg-acid-400 text-black font-bold text-center py-3">Прочитал(а)</div>
-        )}
       </div>
     </div>
   );
@@ -153,7 +150,7 @@ export default function AdminNewsClient({ items, staffTotal }) {
             className="mt-1 w-4 h-4 shrink-0"
           />
           <span className="text-sm">
-            Важная: показать окном при входе, нужно нажать «Прочитал(а)»
+            Важная: показать плашкой наверху главной
           </span>
         </label>
 

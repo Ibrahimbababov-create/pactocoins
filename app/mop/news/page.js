@@ -46,11 +46,11 @@ export default async function NewsPage() {
         >
           <Icon name="chevronLeft" className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-display font-bold">Новости</h1>
+        <h1 className="text-2xl font-display font-bold">Что важно</h1>
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-gray-500">Пока новостей нет.</p>
+        <p className="text-sm text-gray-500">Пока ничего нового нет.</p>
       ) : (
         <NewsList items={items} readOnly={watching} />
       )}
