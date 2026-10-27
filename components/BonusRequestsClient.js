@@ -13,7 +13,6 @@ import {
   cancelApprovedBonusRequest,
 } from "@/app/admin/actions";
 import {
-  manualAdjustBalanceExempt,
   manualAdjustBalanceBulkExempt,
   approveBonusRequestExempt,
 } from "@/app/admin/ratingExemptActions";
@@ -45,15 +44,7 @@ export default function BonusRequestsClient({
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const [comments, setComments] = useState({});
 
-  // Одному участнику
-  // Никого не выбираем заранее: раньше стоял первый по списку, и коины
-  // уходили ему, если админ забывал выбрать человека.
-  const [singleUserId, setSingleUserId] = useState("");
-  const [singleAmount, setSingleAmount] = useState("");
-  const [singleReason, setSingleReason] = useState("");
-  const [singleExempt, setSingleExempt] = useState(false);
-
-  // Нескольким участникам
+  // Один режим на всех: выбрал одного или нескольких, одинаковая сумма каждому.
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [bulkAmount, setBulkAmount] = useState("");
   const [bulkReason, setBulkReason] = useState("");
@@ -170,35 +161,6 @@ export default function BonusRequestsClient({
     });
   }
 
-  function handleSingleSubmit(e) {
-    e.preventDefault();
-    const amount = Number(singleAmount);
-    if (!singleUserId) {
-      showMessage("Выбери сотрудника", "error");
-      return;
-    }
-    if (!amount) return;
-    const who = employees.find((x) => x.id === singleUserId)?.name ?? "сотруднику";
-    const what = amount > 0 ? `Начислить ${formatCoins(amount)}` : `Списать ${formatCoins(-amount)}`;
-    if (!window.confirm(`${what}: ${who}?`)) return;
-
-    startTransition(async () => {
-      const res = await manualAdjustBalanceExempt(
-        singleUserId,
-        amount,
-        singleReason,
-        singleExempt
-      );
-      if (res.error) showMessage(res.error, "error");
-      else {
-        showMessage("Начислено");
-        setSingleAmount("");
-        setSingleReason("");
-        setSingleExempt(false);
-      }
-    });
-  }
-
   function toggleEmployeeSelected(id) {
     setSelectedEmployeeIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -208,20 +170,36 @@ export default function BonusRequestsClient({
   function handleEmployeeBulkSubmit(e) {
     e.preventDefault();
     const amount = Number(bulkAmount);
-    if (selectedEmployeeIds.length === 0 || !amount) return;
-    const what = amount > 0 ? `Начислить по ${formatCoins(amount)}` : `Списать по ${formatCoins(-amount)}`;
-    if (!window.confirm(`${what}, людей: ${selectedEmployeeIds.length}?`)) return;
+    if (selectedEmployeeIds.length === 0) {
+      showMessage("Выбери сотрудника", "error");
+      return;
+    }
+    if (!amount) return;
+    const count = selectedEmployeeIds.length;
+    const who = count === 1 ? employees.find((x) => x.id === selectedEmployeeIds[0])?.name ?? "сотруднику" : null;
+    const what = amount > 0 ? "Начислить" : "Списать";
+    const sum = formatCoins(Math.abs(amount));
+    const question = who
+      ? `${what} ${sum}: ${who}?`
+      : `${what} по ${sum}, людей: ${count}?`;
+    if (!window.confirm(question)) return;
 
     startTransition(async () => {
       const res = await manualAdjustBalanceBulkExempt(
         selectedEmployeeIds,
         amount,
-        bulkReason,
+        bulkReason || (count === 1 ? "Ручная корректировка" : ""),
         bulkExempt
       );
       if (res.error) showMessage(res.error, "error");
-      else {
-        showMessage(`Начислено ${res.count} чел.`);
+      else if (!res.count) {
+        showMessage("Никому не получилось: баланс не может уйти в минус", "error");
+      } else {
+        showMessage(
+          count === 1
+            ? amount > 0 ? "Начислено" : "Списано"
+            : `${amount > 0 ? "Начислено" : "Списано"}: ${res.count} чел.`
+        );
         setBulkAmount("");
         setBulkReason("");
         setSelectedEmployeeIds([]);
@@ -253,64 +231,21 @@ export default function BonusRequestsClient({
         />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* Одному участнику */}
-        <form
-          onSubmit={handleSingleSubmit}
-          className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
-        >
-          <p className="text-xs text-gray-400">
-            Добавить одному участнику
-          </p>
-          <EmployeePicker
-            employees={employees}
-            value={singleUserId}
-            onChange={setSingleUserId}
-          />
-          <input
-            type="number"
-            value={singleAmount}
-            onChange={(e) => setSingleAmount(e.target.value)}
-            placeholder="Количество коинов (можно минус)"
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-          />
-          <input
-            value={singleReason}
-            onChange={(e) => setSingleReason(e.target.value)}
-            placeholder="За что"
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm"
-          />
-          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={singleExempt}
-              onChange={(e) => setSingleExempt(e.target.checked)}
-            />
-            Не учитывать в рейтинге (ДР и т.п.)
-          </label>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-acid-400 text-black font-bold rounded-lg py-2.5 text-sm"
-          >
-            Начислить
-          </button>
-        </form>
-
-        {/* Нескольким участникам */}
+      <div className="grid gap-4">
+        {/* Бонус: одному или нескольким сразу */}
         <form
           onSubmit={handleEmployeeBulkSubmit}
           className="bg-dark-800 border border-dark-600 rounded-2xl p-4 space-y-3"
         >
           <p className="text-xs text-gray-400">
-            Добавить нескольким одинаково
+            Бонус: выбери одного или нескольких, каждый получит одинаково
           </p>
           <EmployeePicker
             employees={employees}
             multiple
             values={selectedEmployeeIds}
             onToggle={toggleEmployeeSelected}
-            placeholder="Найти сотрудников…"
+            placeholder="Найти сотрудника…"
           />
           <input
             type="number"
@@ -338,7 +273,7 @@ export default function BonusRequestsClient({
             disabled={isPending}
             className="w-full bg-acid-400 text-black font-bold rounded-lg py-2.5 text-sm"
           >
-            Начислить выбранным ({selectedEmployeeIds.length})
+            {selectedEmployeeIds.length > 1 ? `Начислить выбранным (${selectedEmployeeIds.length})` : "Начислить"}
           </button>
         </form>
       </div>

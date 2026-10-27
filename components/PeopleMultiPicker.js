@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Icon from "@/components/Icon";
 import { matchesName } from "@/lib/translit";
 
@@ -81,11 +81,18 @@ export default function PeopleMultiPicker({
         {found.length === 0 && (
           <p className="text-xs text-gray-500 py-3">Никого не нашлось</p>
         )}
-        {found.map((u) => {
+        {found.map((u, i) => {
           const on = picked.has(u.id);
+          // Необязательные заголовки групп: u.group у соседних людей.
+          const header = u.group && u.group !== found[i - 1]?.group;
           return (
+            <Fragment key={u.id}>
+            {header && (
+              <p className="pt-3 pb-1 text-[11px] font-bold text-gray-500">
+                {u.group}
+              </p>
+            )}
             <button
-              key={u.id}
               type="button"
               disabled={u.already}
               onClick={() => toggle(u.id)}
@@ -115,6 +122,7 @@ export default function PeopleMultiPicker({
                 <span className="text-xs text-gray-600 shrink-0">{u.hint}</span>
               )}
             </button>
+            </Fragment>
           );
         })}
       </div>

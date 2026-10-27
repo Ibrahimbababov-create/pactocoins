@@ -22,6 +22,8 @@ export default function ProjectsClient({ projects, rops, peopleByProject, people
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState(null);
 
+  const projectNameById = Object.fromEntries(projects.map((x) => [x.id, x.name]));
+
   function run(fn) {
     startTransition(async () => {
       const res = await fn();
@@ -220,21 +222,24 @@ export default function ProjectsClient({ projects, rops, peopleByProject, people
                   label="добавить людей"
                   // В проекте работают РОПы, менеджеры и стажёры. Наблюдатель
                   // смотрит со стороны, наставник ведёт стажёров любых
-                  // проектов — им тут делать нечего. Кто уже в этом проекте,
-                  // виден в поиске с пометкой, чтобы его не искали зря.
+                  // проектов. Кто уже в этом проекте, не показываем вовсе.
+                  // Сверху те, у кого проекта нет, ниже те, кого перенесём.
                   people={people
-                    .filter((u) => worksInProject(u.role))
+                    .filter((u) => worksInProject(u.role) && u.project_id !== p.id)
                     .map((u) => ({
                       id: u.id,
                       name: u.name,
-                      already: u.project_id === p.id,
-                      hint:
-                        u.project_id === p.id
-                          ? "уже здесь"
-                          : u.project_id
-                          ? "в другом проекте"
-                          : "",
-                    }))}
+                      group: u.project_id ? "В других проектах" : "Без проекта",
+                      hint: u.project_id
+                        ? `${projectNameById[u.project_id] ?? "другой проект"}, будет перенесён`
+                        : "",
+                    }))
+                    .sort(
+                      (x, y) =>
+                        (x.group === "Без проекта" ? 0 : 1) -
+                          (y.group === "Без проекта" ? 0 : 1) ||
+                        x.name.localeCompare(y.name)
+                    )}
                   onAdd={(ids) => run(() => addUsersToProject(ids, p.id))}
                 />
               </div>
