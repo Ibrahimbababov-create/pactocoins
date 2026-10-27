@@ -20,7 +20,8 @@ import EarningsMiniChart from "@/components/EarningsMiniChart";
 import { recentDaysAlmaty, almatyDayKey, formatPaymentDay, nowInAlmaty, currentMonthKeyAlmaty, monthRangeAlmaty } from "@/lib/timezone";
 import { plural } from "@/lib/plural";
 import Icon from "@/components/Icon";
-import { effectiveRole, resolveViewer } from "@/lib/viewAs";
+import { effectiveRole, resolveViewer, viewAsRole } from "@/lib/viewAs";
+import HomeRibbon from "@/components/HomeRibbon";
 import { getMyWeekPlace, getMyMonthTier } from "@/lib/dashboardPulse";
 import { WeekPlaceCard, MonthTierCard } from "@/components/DashboardPulse";
 import TeamHomeCard, { RopWallet } from "@/components/TeamHomeCard";
@@ -63,6 +64,9 @@ export default async function MopDashboard() {
 
   // Чей кабинет открыт: свой или, в режиме просмотра, выбранного человека.
   const { viewId, watching } = await resolveViewer(supabase, user.id);
+  // Просмотр глазами другого человека или роли (только админ): личные
+  // ленты, сундуки и опросы здесь не нужны, это данные самого админа.
+  const previewing = watching || !!viewAsRole();
 
   const [
     { data: profile },
@@ -132,9 +136,9 @@ export default async function MopDashboard() {
     // Турнир, если идёт запись или игра. Сбой здесь не должен ронять главную.
     getFeaturedTournament(createAdminClient(), { id: viewId }).catch(() => null),
     // Сундук открывает только сам человек, не админ в режиме просмотра.
-    viewId === user.id ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
+    viewId === user.id && !previewing ? getPendingChest(createAdminClient(), user.id).catch(() => null) : null,
     // Опрос команды: карточка, пока он открыт и человек его не прошёл.
-    viewId === user.id ? showSurveyCard(createAdminClient(), user.id) : false,
+    viewId === user.id && !previewing ? showSurveyCard(createAdminClient(), user.id) : false,
     // Новости приложения: пока таблиц нет, вернётся пустой список.
     loadNewsFor(createAdminClient(), viewId, 20),
     // Оплаты текущего месяца для карточки «Мои оплаты»
@@ -251,24 +255,31 @@ export default async function MopDashboard() {
   const canJoinTournament =
     !profile?.is_guest && ["mop", "rop", "mentor", "admin"].includes(profile?.role);
   const ribbons = [];
-  if ((profile?.wheel_spins ?? 0) > 0) {
+  // В просмотре админом ленты не нужны (previewing). Каждую можно скрыть
+  // крестиком: level — число, при росте которого лента вернётся.
+  if (!previewing && (profile?.wheel_spins ?? 0) > 0) {
     ribbons.push({
       key: "wheel",
+      level: profile.wheel_spins,
       href: "/mop/games/wheel",
       icon: "wheel",
       text: `У тебя ${profile.wheel_spins} ${spinsNom(profile.wheel_spins)} на колесе фортуны`,
     });
   }
-  if (tournament?.status === "registration" && !tournament.joined && canJoinTournament) {
+  if (previewing) {
+    // ничего
+  } else if (tournament?.status === "registration" && !tournament.joined && canJoinTournament) {
     ribbons.push({
-      key: "tournament",
+      key: `tournament-reg-${tournament.id}`,
+      level: 1,
       href: `/mop/games/tournament/${tournament.id}`,
       icon: "trophy",
       text: `Идёт запись на турнир, в банке ${Number(tournament.pot || 0).toLocaleString("ru-RU")}`,
     });
   } else if (tournament?.status === "running" && tournament.waitingMe) {
     ribbons.push({
-      key: "tournament",
+      key: `tournament-run-${tournament.id}`,
+      level: 1,
       href: `/mop/games/tournament/${tournament.id}`,
       icon: "trophy",
       text: "Соперник ждёт твоего ответа по матчу",
@@ -322,15 +333,7 @@ export default async function MopDashboard() {
 
       {/* Лента над монетой: одна строка про то, что горит прямо сейчас */}
       {ribbons.map((r) => (
-        <Link
-          key={r.key}
-          href={r.href}
-          className="flex items-center gap-2.5 rounded-xl border border-acid-400/30 bg-acid-400/[0.07] px-3.5 py-2.5 active:opacity-70"
-        >
-          <Icon name={r.icon} className="w-5 h-5 text-acid-400 shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-acid-400">{r.text}</span>
-          <Icon name="chevronRight" className="w-4 h-4 text-gray-600 shrink-0" />
-        </Link>
+        <HomeRibbon key={r.key} id={r.key} level={r.level} href={r.href} icon={r.icon} text={r.text} />
       ))}
 
       {/* Баланс — крупная цифра, обновляется онлайн */}

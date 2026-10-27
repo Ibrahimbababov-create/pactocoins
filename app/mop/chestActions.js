@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { chestEligible } from "@/lib/chest";
+import { viewAsRole, viewAsUserId } from "@/lib/viewAs";
 
 // Открыть сундук. Всё содержимое начисляет claim_chest одним запросом:
 // отметка «открыл» и фишки/крутки на счёт либо вместе, либо никак.
@@ -20,6 +21,10 @@ export async function openChest() {
     .eq("id", user.id)
     .single();
   if (!chestEligible(profile)) return { error: "Этот сундук не для тебя" };
+  // Админ в режиме просмотра чужими глазами сундуки не открывает.
+  if (profile.role === "admin" && (viewAsRole() || viewAsUserId())) {
+    return { error: "В режиме просмотра сундук не открыть" };
+  }
 
   const { data: res, error } = await admin.rpc("claim_chest", { uid: user.id });
   if (error) return { error: "Не получилось открыть, попробуй ещё раз" };

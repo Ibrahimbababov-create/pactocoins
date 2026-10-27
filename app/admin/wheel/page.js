@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import WheelAdminClient from "@/components/WheelAdminClient";
 import ChestAdminClient from "@/components/ChestAdminClient";
 import { chestEligible } from "@/lib/chest";
+import { ATTENDANCE_CHEST_TITLE } from "@/lib/attendanceChest";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,8 @@ export default async function AdminWheelPage() {
     admin
       .from("chest_gifts")
       .select("id, title, chips, spins, coins, user_id, is_active, created_at, users!chest_gifts_user_id_fkey(name)")
+      // Ежедневные сундуки за приход не засоряют список подарков админа.
+      .neq("title", ATTENDANCE_CHEST_TITLE)
       .order("created_at", { ascending: false })
       .limit(10),
     admin.from("users").select("role, is_active, is_guest, email").eq("is_active", true),

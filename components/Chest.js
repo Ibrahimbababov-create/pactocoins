@@ -445,6 +445,15 @@ export default function ChestCard({ chest }) {
           <span className="min-w-0 flex-1">
             <span className="block text-xs text-acid-400">Тебе сундук</span>
             <span className="block font-bold leading-tight line-clamp-2 mt-0.5">{chest.title}</span>
+            {(chest.count > 1 || chest.chips > 0 || chest.spins > 0) && (
+              <span className="block text-xs text-gray-400 mt-0.5">
+                {chest.count > 1 ? `Неоткрытых: ${chest.count}` : ""}
+                {chest.count > 1 && (chest.chips > 0 || chest.spins > 0) ? " · " : ""}
+                {chest.spins > 0 ? `${chest.spins} ${spinsNom(chest.spins)}` : ""}
+                {chest.spins > 0 && chest.chips > 0 ? ", " : ""}
+                {chest.chips > 0 ? `${chest.chips} ${chipsNom(chest.chips)}` : ""}
+              </span>
+            )}
           </span>
           <span className="shrink-0 rounded-xl bg-acid-400 text-black font-bold text-sm px-3.5 py-2">Открыть</span>
         </button>
