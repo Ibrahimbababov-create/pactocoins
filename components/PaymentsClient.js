@@ -4,7 +4,8 @@ import { revenueKindText, PRODUCT_LABELS, PAY_LABELS } from "@/lib/revenueKinds"
 import { buildCsv, downloadCsv } from "@/lib/csv";
 import { formatCoins } from "@/lib/plural";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
@@ -25,11 +26,110 @@ function dateInputValue(iso) {
 
 const LIST_LIMIT = 60;
 
-export default function PaymentsClient({ employees, initialRows, initialFrom = "", initialTo = "" }) {
+const MAX_PEOPLE = 100;
+
+// Окно выбора людей: поиск, команды, «Выбрать всех», «Сбросить».
+// Рисуем в body, чтобы оно не зависело от обёрток страницы.
+function PeopleDialog({ employees, values, onToggle, onSetAll, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-label="Выбор сотрудников"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md max-h-[85vh] flex flex-col bg-dark-800 border border-dark-600 rounded-t-2xl sm:rounded-2xl"
+      >
+        <div className="flex items-center justify-between gap-3 p-4 pb-2">
+          <p className="font-display font-bold">Кого показать</p>
+          <button type="button" onClick={onClose} aria-label="Закрыть" className="p-1 text-gray-400">
+            <Icon name="x" className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 px-4 pb-2">
+          <button
+            type="button"
+            onClick={() => onSetAll(employees.slice(0, MAX_PEOPLE).map((e) => e.id))}
+            className="text-xs border border-dark-600 rounded-lg px-3 py-1.5 text-gray-200"
+          >
+            Выбрать всех
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetAll([])}
+            className="text-xs border border-dark-600 rounded-lg px-3 py-1.5 text-gray-400"
+          >
+            Сбросить
+          </button>
+          <span className="text-xs text-gray-500 self-center">
+            Выбрано: {values.length}
+          </span>
+        </div>
+        <div className="px-4 overflow-y-auto min-h-0 flex-1">
+          <EmployeePicker
+            employees={employees}
+            multiple
+            values={values}
+            onToggle={onToggle}
+          />
+        </div>
+        <div className="p-4 pt-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full bg-acid-400 text-black font-bold rounded-lg py-2.5 text-sm"
+          >
+            Готово
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+export default function PaymentsClient({ employees, initialRows, initialFrom = "", initialTo = "", initialUserIds = [] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [rows, setRows] = useState(initialRows ?? []);
-  const [filters, setFilters] = useState({ userId: "", from: initialFrom, to: initialTo, query: "" });
+  const [filters, setFilters] = useState({ userIds: initialUserIds, from: initialFrom, to: initialTo, query: "" });
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // В списке выбора: действующие сотрудники, а уволенный виден только если
+  // он уже выбран (например, по ссылке), чтобы его можно было снять.
+  const pickable = useMemo(() => {
+    const chosen = new Set(initialUserIds);
+    return employees
+      .filter((e) => e.is_active !== false || chosen.has(e.id))
+      .map((e) => (e.is_active === false ? { ...e, name: `${e.name} (уволен)` } : e));
+  }, [employees, initialUserIds]);
+  const nameById = useMemo(() => new Map(pickable.map((e) => [e.id, e.name])), [pickable]);
+
+  function toggleUser(id) {
+    setFilters((f) => ({
+      ...f,
+      userIds: f.userIds.includes(id)
+        ? f.userIds.filter((x) => x !== id)
+        : f.userIds.length < MAX_PEOPLE ? [...f.userIds, id] : f.userIds,
+    }));
+  }
+
+  // Чип с крестиком убирает человека и сразу обновляет итоги.
+  function removeUser(id) {
+    const next = { ...filters, userIds: filters.userIds.filter((x) => x !== id) };
+    setFilters(next);
+    search(next);
+  }
   const [editingId, setEditingId] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
   const [message, setMessage] = useState(null);
@@ -40,6 +140,15 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
   }
 
   function search(next = filters) {
+    // Выбор и период лежат в адресе: ссылку можно отправить, обновление не сбросит.
+    try {
+      const params = new URLSearchParams();
+      if (next.userIds?.length) params.set("u", next.userIds.join(","));
+      if (next.from) params.set("from", next.from);
+      if (next.to) params.set("to", next.to);
+      const qs = params.toString();
+      window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+    } catch {}
     startTransition(async () => {
       const res = await findPayments(next);
       if (res?.error) return say(res.error, "error");
@@ -125,18 +234,19 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
     <div className="space-y-4">
       <div className="bg-dark-800 border border-dark-700 rounded-2xl p-4 space-y-3">
         <div className="grid gap-2 sm:grid-cols-4">
-          <label className="space-y-1">
-            <span className="text-xs text-gray-500">Сотрудник</span>
-            {/* Список на 25 имён листать неудобно: тут поиск по имени и
-                команды РОПов, а пустой выбор значит «все». */}
-            <EmployeePicker
-              employees={employees}
-              value={filters.userId}
-              onChange={(id) => setFilters((f) => ({ ...f, userId: id }))}
-              clearLabel="Все сотрудники"
-              onClear={() => setFilters((f) => ({ ...f, userId: "" }))}
-            />
-          </label>
+          <div className="space-y-1">
+            <span className="text-xs text-gray-500">Сотрудники</span>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="w-full flex items-center justify-between gap-2 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-left"
+            >
+              <span className="truncate">
+                {filters.userIds.length ? `Выбрано: ${filters.userIds.length}` : "Все"}
+              </span>
+              <Icon name="users" className="w-4 h-4 text-gray-500 shrink-0" />
+            </button>
+          </div>
 
           <label className="space-y-1">
             <span className="text-xs text-gray-500">Оплаты с</span>
@@ -181,7 +291,7 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
           <button
             type="button"
             onClick={() => {
-              const empty = { userId: "", from: "", to: "", query: "" };
+              const empty = { userIds: [], from: "", to: "", query: "" };
               setFilters(empty);
               search(empty);
             }}
@@ -191,6 +301,16 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
           </button>
         </div>
       </div>
+
+      {pickerOpen && (
+        <PeopleDialog
+          employees={pickable}
+          values={filters.userIds}
+          onToggle={toggleUser}
+          onSetAll={(ids) => setFilters((f) => ({ ...f, userIds: ids }))}
+          onClose={() => { setPickerOpen(false); search(); }}
+        />
+      )}
 
       {message && (
         <p
@@ -203,6 +323,26 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
       )}
 
       <div className="bg-dark-800 border border-dark-700 rounded-2xl p-4 space-y-3">
+        {filters.userIds.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {filters.userIds.map((id) => (
+              <span
+                key={id}
+                className="inline-flex items-center gap-1 max-w-full bg-dark-700 border border-dark-600 rounded-full pl-3 pr-1.5 py-1 text-xs"
+              >
+                <span className="truncate">{nameById.get(id) ?? "Сотрудник"}</span>
+                <button
+                  type="button"
+                  onClick={() => removeUser(id)}
+                  aria-label="Убрать из выбора"
+                  className="shrink-0 p-0.5 text-gray-400"
+                >
+                  <Icon name="x" className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs text-gray-500">Итого по фильтрам</p>
