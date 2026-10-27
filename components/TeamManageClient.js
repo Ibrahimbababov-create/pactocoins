@@ -157,17 +157,17 @@ export default function TeamManageClient({ overview, others = [], watching = fal
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-4">
-            <div className="rounded-xl bg-dark-700/60 px-3 py-2">
+            <div className="rounded-xl bg-dark-700/60 px-2.5 py-2">
               <p className="text-[11px] text-gray-500">Сегодня</p>
-              <p className="text-sm font-bold tabular-nums mt-0.5">{kztShort(overview.today)}</p>
+              <p className="text-[13px] whitespace-nowrap font-bold tabular-nums mt-0.5">{kztShort(overview.today)}</p>
             </div>
-            <div className="rounded-xl bg-dark-700/60 px-3 py-2">
+            <div className="rounded-xl bg-dark-700/60 px-2.5 py-2">
               <p className="text-[11px] text-gray-500">Неделя</p>
-              <p className="text-sm font-bold tabular-nums mt-0.5">{kztShort(overview.week)}</p>
+              <p className="text-[13px] whitespace-nowrap font-bold tabular-nums mt-0.5">{kztShort(overview.week)}</p>
             </div>
-            <div className="rounded-xl bg-dark-700/60 px-3 py-2">
+            <div className="rounded-xl bg-dark-700/60 px-2.5 py-2">
               <p className="text-[11px] text-gray-500">С оплатами</p>
-              <p className="text-sm font-bold tabular-nums mt-0.5">
+              <p className="text-[13px] whitespace-nowrap font-bold tabular-nums mt-0.5">
                 {paidThisMonth} из {people.length}
               </p>
             </div>
@@ -312,13 +312,11 @@ export default function TeamManageClient({ overview, others = [], watching = fal
                   {initials(m.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold truncate">{m.name}</p>
-                    <span className={`shrink-0 text-[11px] font-semibold rounded-full px-2 py-0.5 ${TONE[st.tone]}`}>
-                      {st.label}
-                    </span>
-                  </div>
-                  <p className="font-display text-xl font-bold tabular-nums mt-1">
+                  <p className="font-semibold truncate">{m.name}</p>
+                  <span className={`inline-block mt-1 text-[11px] font-semibold rounded-full px-2 py-0.5 ${TONE[st.tone]}`}>
+                    {st.label}
+                  </span>
+                  <p className="font-display text-xl font-bold tabular-nums mt-2">
                     {kzt(m.month_kzt)}
                   </p>
                   <p className="text-xs text-gray-500 tabular-nums">
