@@ -18,16 +18,15 @@ const noon = (key) => `${key}T12:00:00+05:00`;
 // ненулевым значением, по убыванию. Пусто, если никого нет.
 function nowInfo(top, recordValue, fmt) {
   if (!top?.length || !(recordValue > 0)) return null;
-  const [lead, ...rest] = top;
+  const [lead] = top;
   if (!(lead.value > 0)) return null;
-  const others = rest.slice(0, 2).map((p) => `${p.name} ${fmt(p.value)}`);
   let main;
   if (lead.value > recordValue) main = `Рекорд сейчас бьёт: ${lead.name}, ${fmt(lead.value)}`;
   else if (lead.value === recordValue) main = `Повторяет рекорд: ${lead.name}, ${fmt(lead.value)}`;
   else {
     main = `Сейчас ближе всего: ${lead.name}, ${fmt(lead.value)}`;
   }
-  return { main, rest: others.length ? `Следом: ${others.join(", ")}` : null };
+  return { main };
 }
 
 function Record({ icon, title, rec, value, when, note, ties, now }) {
@@ -50,7 +49,6 @@ function Record({ icon, title, rec, value, when, note, ties, now }) {
         {now && (
           <div className="mt-2 pt-2 border-t border-dark-700">
             <p className="text-xs text-acid-400">{now.main}</p>
-            {now.rest && <p className="text-xs text-gray-500">{now.rest}</p>}
           </div>
         )}
       </div>
@@ -175,7 +173,6 @@ export default async function HallPage() {
         value={kzt(hall.bestDay.value)}
         when={formatPaymentDay(noon(hall.bestDay.when))}
         ties={tieNames(hall.bestDay, dayWhen)}
-        now={nowInfo(cur?.day, hall.bestDay.value, money)}
       />
       <Record
         icon="chart"
@@ -212,7 +209,6 @@ export default async function HallPage() {
           when={formatPaymentDay(noon(hall.mostDeals.when))}
           note="без мастер-классов, от 30 000 ₸"
           ties={tieNames(hall.mostDeals, dayWhen)}
-          now={nowInfo(cur?.dayCount, hall.mostDeals.value, cnt)}
         />
       )}
       {SHOW_COUNT_RECORDS && hall.mostPayMonth && (
