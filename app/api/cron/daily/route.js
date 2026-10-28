@@ -2,13 +2,10 @@ import { NextResponse } from "next/server";
 import { processBirthdaysToday } from "@/lib/birthdayBonus";
 import { resetGuestAccount } from "@/lib/guestAccount";
 import { cleanupOldWelcomes } from "@/lib/groupWelcome";
-import { runHeldReports } from "@/lib/heldReports";
-import { sendWeeklyRatingSummary } from "@/lib/ratingNotify";
 import { syncBotCommands } from "@/lib/botCommands";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { sweepTournaments } from "@/lib/tournament";
 import { announceHallRecords } from "@/lib/hallNotify";
-import { isMondayInAlmaty } from "@/lib/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,8 +19,6 @@ export async function GET(request) {
   const summary = {
     birthdays: [],
     guestReset: false,
-    weeklyReportSent: false,
-    monthlyReportSent: false,
   };
 
   try {
@@ -69,26 +64,7 @@ export async function GET(request) {
     console.error("[cron] guest reset failed:", err);
   }
 
-  // Итоги недели лично каждому, у кого были оплаты (без звука — 00:05).
-  if (isMondayInAlmaty()) {
-    try {
-      summary.weeklyRatingSummaries = await sendWeeklyRatingSummary(createAdminClient());
-    } catch (err) {
-      console.error("[cron] weekly rating summary failed:", err);
-    }
-  }
-
-  // Недельный (по понедельникам) и месячный (1-го числа) отчёты: уходят,
-  // когда за период нет необработанных заявок на выручку, иначе ждут и
-  // раз в сутки напоминают админу (lib/heldReports.js).
-  try {
-    const r = await runHeldReports({ remind: true });
-    summary.weeklyReportSent = r.weeklyReportSent;
-    summary.monthlyReportSent = r.monthlyReportSent;
-    summary.reportsHeld = r.held;
-  } catch (err) {
-    console.error("[cron] reports failed:", err);
-  }
+  // Личные итоги недели теперь уходят из cron отчётов в 10:00 (lib/heldReports.js).
 
   return NextResponse.json({ ok: true, ...summary });
 }
