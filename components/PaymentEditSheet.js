@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { submitRevenueEdit } from "@/app/mop/payments/actions";
 import { haptic } from "@/lib/haptics";
-import { revenueKindText, clientNameHasBadChars, CLIENT_NAME_HINT } from "@/lib/revenueKinds";
+import { revenueKindText } from "@/lib/revenueKinds";
 import { formatPaymentDay } from "@/lib/timezone";
 import { EDIT_REASON_MAX, editDateBounds, paymentDayKey } from "@/lib/revenueEdits";
 
@@ -25,7 +25,6 @@ export default function PaymentEditSheet({ row, onClose }) {
 
   const [amount, setAmount] = useState(String(row.amount_kzt ?? ""));
   const [day, setDay] = useState(currentDay || bounds.max);
-  const [clientName, setClientName] = useState(row.client_name ?? "");
   const [productKind, setProductKind] = useState(row.product_kind ?? "");
   const [payKind, setPayKind] = useState(row.pay_kind ?? "");
   const [isFinalPart, setIsFinalPart] = useState(row.is_final_part === true);
@@ -54,7 +53,6 @@ export default function PaymentEditSheet({ row, onClose }) {
       const res = await submitRevenueEdit(row.id, {
         amountKzt: amount,
         paymentDay: day,
-        clientName,
         productKind,
         payKind,
         isFinalPart,
@@ -109,7 +107,7 @@ export default function PaymentEditSheet({ row, onClose }) {
         </div>
 
         <p className="text-xs text-gray-500 leading-snug">
-          Поменяй то, что указано неверно. Оплата изменится, только когда админ одобрит исправление.
+          Здесь можно предложить исправить сумму, дату, продукт и вид оплаты. Админ проверит и применит. ФИО меняется отдельной кнопкой «Изменить ФИО» сразу.
         </p>
 
         <div>
@@ -143,27 +141,6 @@ export default function PaymentEditSheet({ row, onClose }) {
             className={inputCls}
           />
           <p className="text-xs text-gray-500 mt-1">С начала прошлого месяца по сегодня</p>
-        </div>
-
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">ФИО клиента</label>
-          <input
-            type="text"
-            required
-            maxLength={60}
-            name="client-fio-no-memory"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="words"
-            spellCheck={false}
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            className={inputCls}
-            placeholder="Фамилия Имя"
-          />
-          {clientNameHasBadChars(clientName) && (
-            <p className="text-xs text-red-400 mt-1">{CLIENT_NAME_HINT}</p>
-          )}
         </div>
 
         <div>
