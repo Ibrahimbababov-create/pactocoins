@@ -148,7 +148,7 @@ export default async function HallPage() {
         title="Лучший месяц"
         rec={hall.bestMonth}
         value={kzt(hall.bestMonth.value)}
-        when={monthRangeAlmaty(hall.bestMonth.when).label}
+        when={hall.bestMonth.manual ? hall.bestMonth.label : monthRangeAlmaty(hall.bestMonth.when).label}
       />
       <Record
         icon="coin"

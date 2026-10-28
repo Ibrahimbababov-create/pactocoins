@@ -15,6 +15,13 @@ import {
   refreshSheets,
 } from "@/app/admin/reconcileActions";
 
+const payWord = (n) => {
+  const a = n % 10;
+  const b = n % 100;
+  if (a === 1 && b !== 11) return "оплата";
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return "оплаты";
+  return "оплат";
+};
 const kzt = (n) => `${Math.round(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
 const col = (i) => {
   let n = Number(i) + 1;
@@ -695,6 +702,15 @@ export default function ReconcileClient({ monthKey, data, projects, isAdmin }) {
           {listOpen && linkedRows.map(renderRow)}
         </div>
       )}
+
+      {Object.entries(data.intensiveExcluded ?? {}).map(([pid, e]) => {
+        const name = projects.find((p) => p.id === pid)?.name ?? "Проект";
+        return (
+          <p key={pid} className="text-[11px] text-gray-500">
+            {name}: МК не входят в план проекта и в сверку: {e.count} {payWord(e.count)} на {kzt(e.kzt)}
+          </p>
+        );
+      })}
 
       {(data.excluded ?? []).length > 0 && (
         <p className="text-xs text-gray-600">
