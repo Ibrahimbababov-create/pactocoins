@@ -2,6 +2,9 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { logRevenueChange } from "@/lib/revenueAudit";
+import { resolveViewer } from "@/lib/viewAs";
 import { validateClientName, hidePhones, hideEmails, PRODUCT_LABELS, PAY_LABELS } from "@/lib/revenueKinds";
 import {
   EDIT_REASON_MAX,
@@ -12,6 +15,7 @@ import {
   sameValue,
 } from "@/lib/revenueEdits";
 
+const RENAME_NOTE = "Сотрудник поменял ФИО";
 const ALLOWED_ROLES = ["mop", "rop", "mentor", "trainee"];
 
 // Сотрудник предлагает исправить свою оплату. Сама оплата тут не меняется:
@@ -50,9 +54,6 @@ export async function submitRevenueEdit(requestId, input = {}) {
     return { error: "Сумма должна быть целым числом больше нуля" };
   }
 
-  const clientCheck = validateClientName(input.clientName);
-  if (clientCheck.error) return { error: clientCheck.error };
-
   const productKind = input.productKind;
   const payKind = input.payKind;
   if (!PRODUCT_LABELS[productKind]) return { error: "Выбери продукт: курс или интенсив / МК" };
@@ -78,9 +79,8 @@ export async function submitRevenueEdit(requestId, input = {}) {
   if (!sameDay) {
     proposed.earned_at = new Date(`${day}T12:00:00+05:00`).toISOString();
   }
-  if (!sameValue("client_name", request.client_name, clientCheck.name)) {
-    proposed.client_name = clientCheck.name;
-  }
+  // ФИО в предложении не участвует: его сотрудник меняет сразу, отдельной
+  // кнопкой (renameMyPaymentClient).
   if (request.product_kind !== productKind) proposed.product_kind = productKind;
   if (request.pay_kind !== payKind) proposed.pay_kind = payKind;
   if (Boolean(request.is_final_part) !== isFinalPart) proposed.is_final_part = isFinalPart;
@@ -107,4 +107,86 @@ export async function submitRevenueEdit(requestId, input = {}) {
   revalidatePath("/mop/payments");
   revalidatePath("/admin/revenue-edits");
   return { success: true };
+}
+
+const RENAME_LIMIT_PER_DAY = 5;
+
+// Сотрудник сам меняет ФИО клиента в своей оплате, без одобрения админа:
+// имя не влияет ни на коины, ни на рейтинг. Всё остальное (сумма, дата,
+// продукт, вид оплаты) по-прежнему только через submitRevenueEdit.
+export async function renameMyPaymentClient(requestId, clientName) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Не авторизован" };
+
+  const { watching } = await resolveViewer(supabase, user.id);
+  if (watching) return { error: "В режиме просмотра менять оплаты нельзя" };
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role, is_guest, is_active")
+    .eq("id", user.id)
+    .single();
+  if (profile?.is_guest) return { error: "В гостевом режиме ФИО не меняется" };
+  if (!ALLOWED_ROLES.includes(profile?.role) || profile?.is_active === false) {
+    return { error: "Менять ФИО в оплатах недоступно" };
+  }
+
+  const check = validateClientName(clientName);
+  if (check.error) return { error: check.error };
+
+  const admin = createAdminClient();
+  const { data: request } = await admin
+    .from("revenue_requests")
+    .select("id, user_id, status, client_name")
+    .eq("id", requestId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!request) return { error: "Оплата не найдена" };
+  if (request.status !== "pending" && request.status !== "approved") {
+    return { error: "Эту оплату изменить нельзя" };
+  }
+  if (sameValue("client_name", request.client_name, check.name)) {
+    return { error: "ФИО не изменилось" };
+  }
+
+  // Простая защита от злоупотреблений: не больше 5 переименований одной
+  // оплаты за сутки (считаем по журналу).
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count } = await admin
+    .from("revenue_audit")
+    .select("id", { count: "exact", head: true })
+    .eq("request_id", request.id)
+    .eq("actor_id", user.id)
+    .eq("action", "edit")
+    .eq("note", RENAME_NOTE)
+    .gte("created_at", since);
+  if ((count ?? 0) >= RENAME_LIMIT_PER_DAY) {
+    return { error: "Сегодня ФИО в этой оплате уже менялось много раз. Попробуй завтра" };
+  }
+
+  const { data: updated, error } = await admin
+    .from("revenue_requests")
+    .update({ client_name: check.name })
+    .eq("id", request.id)
+    .eq("user_id", user.id)
+    .in("status", ["pending", "approved"])
+    .select("id");
+  if (error || !updated?.length) return { error: "Не удалось сохранить ФИО" };
+
+  await logRevenueChange(admin, {
+    requestId: request.id,
+    userId: user.id,
+    actorId: user.id,
+    action: "edit",
+    source: "web",
+    before: { client_name: request.client_name },
+    after: { client_name: check.name },
+    note: RENAME_NOTE,
+  });
+
+  revalidatePath("/mop/payments");
+  return { success: true, name: check.name };
 }

@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/components/EmptyState";
 import Icon from "@/components/Icon";
 import PaymentEditSheet from "@/components/PaymentEditSheet";
-import { clientKey, revenueKindText } from "@/lib/revenueKinds";
+import { renameMyPaymentClient } from "@/app/mop/payments/actions";
+import { haptic } from "@/lib/haptics";
+import { clientKey, revenueKindText, clientNameHasBadChars, CLIENT_NAME_HINT } from "@/lib/revenueKinds";
 import { almatyDayKey, formatPaymentDay } from "@/lib/timezone";
 import { EDIT_FIELD_LABELS } from "@/lib/revenueEdits";
 
@@ -68,6 +70,69 @@ function monthBounds(monthKey) {
   return { min: `${monthKey}-01`, max: `${monthKey}-${String(last).padStart(2, "0")}` };
 }
 
+// Встроенная форма «Изменить ФИО»: имя меняется сразу, без админа.
+function RenameForm({ row, onDone }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [name, setName] = useState(row.client_name ?? "");
+  const [error, setError] = useState(null);
+
+  function save(e) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const res = await renameMyPaymentClient(row.id, name);
+      if (res?.error) {
+        haptic.error();
+        return setError(res.error);
+      }
+      haptic.success();
+      onDone(true);
+      router.refresh();
+    });
+  }
+
+  return (
+    <form onSubmit={save} className="space-y-2 border-t border-dark-700 pt-2">
+      <input
+        type="text"
+        required
+        maxLength={60}
+        name="client-fio-no-memory"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="words"
+        spellCheck={false}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Фамилия Имя"
+        className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-base focus:outline-none focus:border-acid-400"
+      />
+      {clientNameHasBadChars(name) && <p className="text-xs text-red-400">{CLIENT_NAME_HINT}</p>}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="bg-acid-400 text-black font-bold rounded-lg px-4 py-2 text-sm active:scale-95 disabled:opacity-50"
+        >
+          {isPending ? "Сохраняем..." : "Сохранить"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onDone(false)}
+          className="text-sm text-gray-400 px-2 py-2 active:opacity-70"
+        >
+          Отмена
+        </button>
+      </div>
+      <p className="text-[11px] text-gray-500 leading-snug">
+        Имя можно менять сразу. Сумму, дату и тип оплаты меняет админ по твоему запросу.
+      </p>
+    </form>
+  );
+}
+
 export default function MyPaymentsClient({
   months,
   monthKey,
@@ -82,6 +147,7 @@ export default function MyPaymentsClient({
   const [openWaiting, setOpenWaiting] = useState(false);
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [renamingId, setRenamingId] = useState(null);
 
   // Исправления по каждой оплате, новые сверху.
   const editsByRequest = useMemo(() => {
@@ -249,6 +315,7 @@ export default function MyPaymentsClient({
             const meta = STATUS[r.status] ?? STATUS.pending;
             const history = editsByRequest.get(r.id) ?? [];
             const hasPendingEdit = history.some((e) => e.status === "pending");
+            const canRename = r.status === "pending" || r.status === "approved";
             const canEdit = editsEnabled && !hasPendingEdit && r.status !== "rejected";
             return (
               <div
@@ -293,15 +360,42 @@ export default function MyPaymentsClient({
                   </div>
                 )}
 
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => setEditing(r)}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-acid-400 active:opacity-70"
-                  >
-                    <Icon name="pencil" className="w-3.5 h-3.5" />
-                    Предложить исправление
-                  </button>
+                {renamingId === r.id && (
+                  <RenameForm
+                    row={r}
+                    onDone={(saved) => {
+                      setRenamingId(null);
+                      if (saved) {
+                        setNotice("ФИО клиента обновлено.");
+                        setTimeout(() => setNotice(null), 4000);
+                      }
+                    }}
+                  />
+                )}
+
+                {(canRename || canEdit) && renamingId !== r.id && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(r)}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-acid-400 active:opacity-70"
+                      >
+                        <Icon name="pencil" className="w-3.5 h-3.5" />
+                        Предложить исправление
+                      </button>
+                    )}
+                    {canRename && (
+                      <button
+                        type="button"
+                        onClick={() => setRenamingId(r.id)}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-gray-300 active:opacity-70"
+                      >
+                        <Icon name="pencil" className="w-3.5 h-3.5" />
+                        Изменить ФИО
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             );
