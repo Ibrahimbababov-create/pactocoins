@@ -10,6 +10,8 @@ import { logRevenueChange, pickRevenueFields } from "@/lib/revenueAudit";
 import { paymentDateToIso, closedPaymentDayMessage, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 import {
   validateClientName,
+  cleanComment,
+  COMMENT_MAX,
   clientKey,
   PRODUCT_LABELS,
   PAY_LABELS,
@@ -39,6 +41,11 @@ export async function submitRevenueRequest(
   if (!receiptConfirmed) {
     return { error: "Подтверди, что отправил чек в группу" };
   }
+
+  if (String(comment ?? "").length > COMMENT_MAX * 2) {
+    return { error: `Комментарий слишком длинный: до ${COMMENT_MAX} знаков` };
+  }
+  comment = cleanComment(comment);
 
   const clientCheck = validateClientName(extra?.clientName);
   if (clientCheck.error) return { error: clientCheck.error };

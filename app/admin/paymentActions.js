@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { notifyUser, escapeHtml } from "@/lib/notifyUser";
 import { revokeMentorBonus } from "@/lib/mentorBonus";
+import { validateClientName, PRODUCT_LABELS, PAY_LABELS } from "@/lib/revenueKinds";
+import { almatyDayKey } from "@/lib/timezone";
 import { applyPaymentAdjustment } from "@/lib/paymentAdjust";
 import { addCoins } from "@/lib/addCoins";
 import { logRevenueChange } from "@/lib/revenueAudit";
@@ -146,7 +148,10 @@ export async function cancelPayment(requestId, reason) {
 // Частичная правка: сумму уменьшили (сделку поделили с другим МОПом)
 // или дата оплаты оказалась другой. Коины пересчитываются, разница
 // списывается или доначисляется (lib/paymentAdjust.js).
-export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) {
+export async function adjustPayment(
+  requestId,
+  { amountKzt, earnedAt, reason, clientName, productKind, payKind, isFinalPart }
+) {
   const admin_user = await requireAdmin();
   const admin = createAdminClient();
 
@@ -156,17 +161,47 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
     .eq("id", requestId)
     .single();
 
+  if (!request) return { error: "Оплата не найдена или уже отменена" };
+
+  // ФИО, продукт и вид оплаты: на коины не влияют, пишутся тем же обновлением.
+  const extraPatch = {};
+  // Старое ФИО, которое не трогали, не проверяем: правят только сумму.
+  const typedName = String(clientName ?? "").replace(/\s+/g, " ").trim();
+  if (clientName !== undefined && typedName !== (request.client_name ?? "")) {
+    const check = validateClientName(typedName);
+    if (check.error) return { error: check.error };
+    extraPatch.client_name = check.name;
+  }
+  if (productKind && productKind !== request.product_kind) {
+    if (!PRODUCT_LABELS[productKind]) return { error: "Выбери продукт: курс или интенсив / МК" };
+    extraPatch.product_kind = productKind;
+  }
+  if (payKind) {
+    if (!PAY_LABELS[payKind]) return { error: "Выбери вид оплаты: целиком или часть" };
+    if (payKind !== request.pay_kind) extraPatch.pay_kind = payKind;
+    const final = payKind === "full" ? true : isFinalPart === true;
+    if (final !== (request.is_final_part === true)) extraPatch.is_final_part = final;
+  }
+
+  // Дата не менялась (тот же день по Алматы): не трогаем время и коины.
+  const sameDay =
+    earnedAt && almatyDayKey(request.earned_at || request.created_at) === earnedAt;
+
   const res = await applyPaymentAdjustment(admin, {
     request,
     actorId: admin_user.id,
     amountKzt,
-    earnedAt,
+    earnedAt: sameDay ? null : earnedAt,
     reason,
+    extraPatch,
   });
   if (res.error) return { error: res.error };
 
   const { diff, newAmount } = res;
   let text = `✏️ Оплата ${money(request.amount_kzt)} ₸ исправлена на ${money(newAmount)} ₸`;
+  if (newAmount === Math.round(Number(request.amount_kzt)) && Object.keys(extraPatch).length) {
+    text = `✏️ В оплате ${money(request.amount_kzt)} ₸ исправили данные клиента или тип оплаты`;
+  }
   if (diff !== 0) {
     text += diff > 0 ? ` — начислили ещё ${formatCoins(diff)}` : ` — списали ${formatCoins(-diff)}`;
   }
@@ -176,4 +211,45 @@ export async function adjustPayment(requestId, { amountKzt, earnedAt, reason }) 
   revalidatePath("/admin/payments");
   revalidatePath("/mop/rating");
   return { success: true };
+}
+
+// Ждущей решения заявке правим только ФИО клиента (сотрудник вставил
+// лишнее). Сумма, коины и статус не трогаются, так что одобрение не
+// страдает: меняем, только пока заявка всё ещё pending.
+export async function fixPendingClientName(requestId, clientName) {
+  const admin_user = await requireAdmin();
+  const admin = createAdminClient();
+
+  const check = validateClientName(clientName);
+  if (check.error) return { error: check.error };
+
+  const { data: request } = await admin
+    .from("revenue_requests")
+    .select("id, user_id, status, client_name")
+    .eq("id", requestId)
+    .single();
+  if (!request || request.status !== "pending") return { error: "Заявка уже обработана" };
+
+  const { data: updated, error } = await admin
+    .from("revenue_requests")
+    .update({ client_name: check.name })
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
+  if (error) return { error: "Не удалось сохранить ФИО" };
+  if (!updated?.length) return { error: "Заявка уже обработана" };
+
+  await logRevenueChange(admin, {
+    requestId,
+    userId: request.user_id,
+    actorId: admin_user.id,
+    source: "web",
+    action: "edit",
+    before: { client_name: request.client_name ?? null },
+    after: { client_name: check.name },
+    note: "Админ поправил ФИО клиента",
+  });
+
+  revalidatePath("/admin/revenue-requests");
+  return { success: true, name: check.name };
 }

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
-import { validateClientName, PRODUCT_LABELS, PAY_LABELS } from "@/lib/revenueKinds";
+import { validateClientName, hidePhones, hideEmails, PRODUCT_LABELS, PAY_LABELS } from "@/lib/revenueKinds";
 import {
   EDIT_REASON_MAX,
   editDateBounds,
@@ -69,7 +69,7 @@ export async function submitRevenueEdit(requestId, input = {}) {
     return { error: "Дату оплаты можно поставить с начала прошлого месяца по сегодня" };
   }
 
-  const reason = String(input.reason ?? "").trim().slice(0, EDIT_REASON_MAX);
+  const reason = hideEmails(hidePhones(String(input.reason ?? ""))).trim().slice(0, EDIT_REASON_MAX);
   if (reason.length < 3) return { error: "Напиши, что не так с оплатой" };
 
   // В заявку кладём только то, что действительно меняется.

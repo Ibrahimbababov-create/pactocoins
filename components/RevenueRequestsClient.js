@@ -18,6 +18,7 @@ import {
   bulkRejectRevenue,
   cancelApprovedRevenueRequest,
 } from "@/app/admin/actions";
+import { fixPendingClientName } from "@/app/admin/paymentActions";
 
 const statusLabels = {
   pending: { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
@@ -40,6 +41,9 @@ export default function RevenueRequestsClient({
   const [dateOverrides, setDateOverrides] = useState({});
   const [dateEditingId, setDateEditingId] = useState(null);
   const [comments, setComments] = useState({});
+  const [nameEditingId, setNameEditingId] = useState(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const [nameOverrides, setNameOverrides] = useState({});
 
   const [nameQuery, setNameQuery] = useState("");
   const nameOk = (r) => !nameQuery.trim() || matchesName(r.users?.name ?? "", nameQuery.trim());
@@ -250,13 +254,57 @@ export default function RevenueRequestsClient({
                     <span className="text-xs text-gray-500"> · по шкале месяца</span>
                   )}
                 </p>
-                {r.client_name && (
+                {(nameOverrides[r.id] ?? r.client_name) && nameEditingId !== r.id && (
                   <p className="text-sm">
-                    Клиент: <span className="font-semibold">{r.client_name}</span>
+                    Клиент:{" "}
+                    <span className="font-semibold">{nameOverrides[r.id] ?? r.client_name}</span>
                     {revenueKindText(r) && (
                       <span className="text-gray-400"> · {revenueKindText(r)}</span>
-                    )}
+                    )}{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNameEditingId(r.id);
+                        setNameDraft(nameOverrides[r.id] ?? r.client_name ?? "");
+                      }}
+                      className="text-xs text-gray-500 underline"
+                    >
+                      править ФИО
+                    </button>
                   </p>
+                )}
+                {nameEditingId === r.id && (
+                  <div className="flex flex-wrap items-center gap-2 my-1">
+                    <input
+                      value={nameDraft}
+                      maxLength={60}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      className="bg-dark-700 border border-dark-600 rounded-lg px-2 py-1 text-sm text-white"
+                    />
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() =>
+                        startTransition(async () => {
+                          const res = await fixPendingClientName(r.id, nameDraft);
+                          if (res?.error) return showMessage(res.error, "error");
+                          setNameOverrides((prev) => ({ ...prev, [r.id]: res.name }));
+                          setNameEditingId(null);
+                          showMessage("ФИО исправлено");
+                        })
+                      }
+                      className="text-xs bg-acid-400 text-black font-bold rounded-lg px-3 py-1.5"
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNameEditingId(null)}
+                      className="text-xs text-gray-500"
+                    >
+                      Отмена
+                    </button>
+                  </div>
                 )}
                 {r.comment && (
                   <p className="text-xs text-gray-500">{r.comment}</p>
