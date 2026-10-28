@@ -14,7 +14,7 @@ const ALLOWED_ROLES = ["mop", "rop", "mentor", "trainee"];
 const kzt = (n) => `${(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
 const noon = (key) => `${key}T12:00:00+05:00`;
 
-function Record({ icon, title, rec, value, when }) {
+function Record({ icon, title, rec, value, when, note }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-dark-800 border border-dark-700 p-4">
       <span className="flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-acid-400/10 text-acid-400">
@@ -27,6 +27,7 @@ function Record({ icon, title, rec, value, when }) {
           {rec.name}
           {" · "}{when}
         </p>
+        {note && <p className="text-xs text-gray-500 truncate">{note}</p>}
       </div>
     </div>
   );
@@ -164,6 +165,7 @@ export default async function HallPage() {
           rec={hall.mostDeals}
           value={`${hall.mostDeals.value} ${plural(hall.mostDeals.value, "оплата", "оплаты", "оплат")}`}
           when={formatPaymentDay(noon(hall.mostDeals.when))}
+          note="без мастер-классов и предоплат"
         />
       )}
       {SHOW_COUNT_RECORDS && hall.mostPayMonth && (
@@ -173,6 +175,7 @@ export default async function HallPage() {
           rec={hall.mostPayMonth}
           value={`${hall.mostPayMonth.value} ${plural(hall.mostPayMonth.value, "оплата", "оплаты", "оплат")}`}
           when={monthRangeAlmaty(hall.mostPayMonth.when).label}
+          note="без мастер-классов и предоплат"
         />
       )}
       {hall.fastest && (
