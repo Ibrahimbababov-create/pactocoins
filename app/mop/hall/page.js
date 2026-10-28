@@ -24,7 +24,8 @@ function Record({ icon, title, rec, value, when }) {
         <p className="text-xs text-gray-500">{title}</p>
         <p className="font-display font-bold text-lg truncate">{value}</p>
         <p className="text-sm text-gray-400 truncate">
-          {rec.name} · {when}
+          {rec.name}
+          {rec.inactive && <span className="text-xs text-gray-600"> (уволен)</span>} · {when}
         </p>
       </div>
     </div>
@@ -117,13 +118,13 @@ export default async function HallPage() {
             </div>
             <p className="mt-2 text-sm text-gray-300">
               {gap > 0
-                ? `До рекорда компании ${kzt(gap)}. Его поставил(а) ${record.name}`
+                ? `До рекорда компании ${kzt(gap)}. Его поставил(а) ${record.name}${record.inactive ? " (уволен)" : ""}`
                 : "Рекорд месяца побит! Это новый лучший месяц компании"}
             </p>
           </>
         ) : (
           <p className="mt-2 text-gray-300">
-            В этом месяце подтверждённых оплат пока нет. Рекорд для атаки: {kzt(record.value)}, его поставил(а) {record.name}.
+            В этом месяце подтверждённых оплат пока нет. Рекорд для атаки: {kzt(record.value)}, его поставил(а) {record.name}{record.inactive ? " (уволен)" : ""}.
           </p>
         )}
       </div>
