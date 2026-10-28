@@ -25,8 +25,7 @@ function nowInfo(top, recordValue, fmt) {
   if (lead.value > recordValue) main = `Рекорд сейчас бьёт: ${lead.name}, ${fmt(lead.value)}`;
   else if (lead.value === recordValue) main = `Повторяет рекорд: ${lead.name}, ${fmt(lead.value)}`;
   else {
-    const pct = Math.floor((lead.value / recordValue) * 100);
-    main = `Сейчас ближе всего: ${lead.name}, ${fmt(lead.value)} из ${fmt(recordValue)} (${pct}%)`;
+    main = `Сейчас ближе всего: ${lead.name}, ${fmt(lead.value)}`;
   }
   return { main, rest: others.length ? `Следом: ${others.join(", ")}` : null };
 }
@@ -211,7 +210,7 @@ export default async function HallPage() {
           rec={hall.mostDeals}
           value={`${hall.mostDeals.value} ${plural(hall.mostDeals.value, "оплата", "оплаты", "оплат")}`}
           when={formatPaymentDay(noon(hall.mostDeals.when))}
-          note="без мастер-классов и предоплат"
+          note="без мастер-классов, от 30 000 ₸"
           ties={tieNames(hall.mostDeals, dayWhen)}
           now={nowInfo(cur?.dayCount, hall.mostDeals.value, cnt)}
         />
@@ -223,7 +222,7 @@ export default async function HallPage() {
           rec={hall.mostPayMonth}
           value={`${hall.mostPayMonth.value} ${plural(hall.mostPayMonth.value, "оплата", "оплаты", "оплат")}`}
           when={monthRangeAlmaty(hall.mostPayMonth.when).label}
-          note="без мастер-классов и предоплат"
+          note="без мастер-классов, от 30 000 ₸"
           ties={tieNames(hall.mostPayMonth, monthWhen)}
           now={nowInfo(cur?.monthCount, hall.mostPayMonth.value, cnt)}
         />
