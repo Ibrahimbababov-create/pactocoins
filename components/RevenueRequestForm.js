@@ -9,17 +9,20 @@ import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
 import Icon from "@/components/Icon";
 import { haptic } from "@/lib/haptics";
-import { recentDaysAlmaty, PAYMENT_DATE_MAX_DAYS_BACK } from "@/lib/timezone";
+import { recentDaysAlmaty, earliestAllowedPaymentDay, PAYMENT_DATE_MAX_DAYS_BACK } from "@/lib/timezone";
 
 // Сегодня первым, дальше назад по дням: «Сегодня, 05.10», «Вчера, 04.10», «сб, 03.10»…
 function paymentDayOptions() {
+  const earliest = earliestAllowedPaymentDay().day;
   return recentDaysAlmaty(PAYMENT_DATE_MAX_DAYS_BACK + 1)
     .reverse()
     .map((d, i) => ({
       key: d.key,
       label:
         i === 0 ? `Сегодня, ${d.label}` : i === 1 ? `Вчера, ${d.label}` : `${d.weekday}, ${d.label}`,
-    }));
+    }))
+    // Закрытые неделя и месяц в список не попадают.
+    .filter((d) => d.key >= earliest);
 }
 
 export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1, monthKzt = 0 }) {
@@ -369,7 +372,7 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
       </button>
 
       <p className="text-xs text-gray-500">
-        Итоги недели подводим в понедельник в 10:00: оплаты, внесённые и подтверждённые до этого времени, попадают в прошедшую неделю.
+        Оплаты за прошедшую неделю можно внести до 10:00 понедельника, их подтверждает админ. Оплата с датой понедельника и позже идёт уже в новую неделю.
       </p>
     </form>
     </div>,
