@@ -5,7 +5,7 @@ import EmptyState from "@/components/EmptyState";
 import RatingHallTabs from "@/components/RatingHallTabs";
 import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
-import { getHallOfFame, SHOW_COUNT_RECORDS } from "@/lib/hallOfFame";
+import { getHallOfFame, SHOW_COUNT_RECORDS, HISTORICAL_BEST_MONTH } from "@/lib/hallOfFame";
 import { formatPaymentDay, monthRangeAlmaty } from "@/lib/timezone";
 import { plural } from "@/lib/plural";
 
@@ -97,7 +97,7 @@ export default async function HallPage() {
 
   const medals = ["1", "2", "3"];
   const company = hall.companyMonth;
-  const companyGap = company ? company.value - (hall.companyNow ?? 0) : 0;
+  const historicalPct = Math.floor(((hall.companyNow ?? 0) / HISTORICAL_BEST_MONTH.amountKzt) * 100);
 
   return (
     <div className="space-y-4">
@@ -204,16 +204,23 @@ export default async function HallPage() {
 
       {company && (
         <div className="rounded-2xl bg-dark-800 border border-dark-700 p-4">
-          <p className="text-xs text-gray-500">Рекорд компании за месяц, все вместе</p>
-          <p className="font-display font-bold text-lg">{kzt(company.value)}</p>
-          <p className="text-sm text-gray-400">{monthRangeAlmaty(company.when).label}</p>
-          <p className="mt-2 text-sm text-gray-300">
-            {company.when === hall.monthKey
-              ? "Это идёт текущий месяц, и он сейчас лучший в истории"
-              : companyGap > 0
-                ? `В этом месяце уже ${kzt(hall.companyNow)}, до рекорда ${kzt(companyGap)}`
-                : "Рекорд побит в этом месяце!"}
-          </p>
+          <p className="text-xs text-gray-500">Лучший месяц за всю историю компании</p>
+          <p className="font-display font-bold text-lg">{kzt(HISTORICAL_BEST_MONTH.amountKzt)}</p>
+          <p className="text-sm text-gray-400">{HISTORICAL_BEST_MONTH.label} (по данным таблицы)</p>
+          <div className="mt-3 pt-3 border-t border-dark-700">
+            <p className="text-sm text-gray-300">
+              Сейчас идёт: {monthLabel}, {kzt(hall.companyNow ?? 0)}, это {historicalPct}% от рекорда
+            </p>
+            <div className="mt-2 h-2 rounded-full bg-dark-700 overflow-hidden">
+              <div className="h-full rounded-full bg-acid-400" style={{ width: `${Math.min(100, historicalPct)}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Сумма в PactoCoins считается по подтверждённым оплатам, а оборот клиентов в таблице может считаться иначе.
+            </p>
+            <p className="mt-2 text-sm text-gray-400">
+              Рекорд в PactoCoins: {monthRangeAlmaty(company.when).label}, {kzt(company.value)}
+            </p>
+          </div>
           {hall.monthTop?.length > 0 && (
             <ul className="mt-3 pt-3 border-t border-dark-700 space-y-1.5">
               {hall.monthTop.map((p, i) => (
