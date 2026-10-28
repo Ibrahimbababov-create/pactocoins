@@ -70,7 +70,8 @@ const GROUPS = [
   {
     match: ["/admin/budget", "/admin/funds"],
     items: [
-      { href: "/admin/budget", label: "Бюджет" },
+      { href: "/admin/budget", label: "Бюджет", exact: true },
+      { href: "/admin/budget/purchases", label: "Покупки" },
       { href: "/admin/funds", label: "Копилки" },
     ],
   },
@@ -84,7 +85,7 @@ export default function AdminSubNav({ counts = {} }) {
   return (
     <div className="flex gap-1 overflow-x-auto no-scrollbar -mt-1 mb-4">
       {group.items.map((item) => {
-        const active = pathname.startsWith(item.href);
+        const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         const badge = item.badgeKey ? counts[item.badgeKey] ?? 0 : 0;
 
         return (
