@@ -5,7 +5,7 @@ import EmptyState from "@/components/EmptyState";
 import RatingHallTabs from "@/components/RatingHallTabs";
 import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
-import { getHallOfFame } from "@/lib/hallOfFame";
+import { getHallOfFame, SHOW_COUNT_RECORDS } from "@/lib/hallOfFame";
 import { formatPaymentDay, monthRangeAlmaty } from "@/lib/timezone";
 import { plural } from "@/lib/plural";
 
@@ -25,7 +25,7 @@ function Record({ icon, title, rec, value, when }) {
         <p className="font-display font-bold text-lg truncate">{value}</p>
         <p className="text-sm text-gray-400 truncate">
           {rec.name}
-          {rec.inactive && <span className="text-xs text-gray-600"> (уволен)</span>} · {when}
+          {" · "}{when}
         </p>
       </div>
     </div>
@@ -118,13 +118,13 @@ export default async function HallPage() {
             </div>
             <p className="mt-2 text-sm text-gray-300">
               {gap > 0
-                ? `До рекорда компании ${kzt(gap)}. Его поставил(а) ${record.name}${record.inactive ? " (уволен)" : ""}`
+                ? `До рекорда компании ${kzt(gap)}. Его поставил(а) ${record.name}`
                 : "Рекорд месяца побит! Это новый лучший месяц компании"}
             </p>
           </>
         ) : (
           <p className="mt-2 text-gray-300">
-            В этом месяце подтверждённых оплат пока нет. Рекорд для атаки: {kzt(record.value)}, его поставил(а) {record.name}{record.inactive ? " (уволен)" : ""}.
+            В этом месяце подтверждённых оплат пока нет. Рекорд для атаки: {kzt(record.value)}, его поставил(а) {record.name}.
           </p>
         )}
       </div>
@@ -157,30 +157,22 @@ export default async function HallPage() {
         value={kzt(hall.bestPayment.value)}
         when={formatPaymentDay(hall.bestPayment.at)}
       />
-      <Record
-        icon="receipt"
-        title="Больше всего оплат за день"
-        rec={hall.mostDeals}
-        value={`${hall.mostDeals.value} ${plural(hall.mostDeals.value, "оплата", "оплаты", "оплат")}`}
-        when={formatPaymentDay(noon(hall.mostDeals.when))}
-      />
-
-      {hall.mostPayMonth && (
+      {SHOW_COUNT_RECORDS && hall.mostDeals && (
+        <Record
+          icon="receipt"
+          title="Больше всего оплат за день"
+          rec={hall.mostDeals}
+          value={`${hall.mostDeals.value} ${plural(hall.mostDeals.value, "оплата", "оплаты", "оплат")}`}
+          when={formatPaymentDay(noon(hall.mostDeals.when))}
+        />
+      )}
+      {SHOW_COUNT_RECORDS && hall.mostPayMonth && (
         <Record
           icon="receipt"
           title="Больше всего оплат за месяц"
           rec={hall.mostPayMonth}
           value={`${hall.mostPayMonth.value} ${plural(hall.mostPayMonth.value, "оплата", "оплаты", "оплат")}`}
           when={monthRangeAlmaty(hall.mostPayMonth.when).label}
-        />
-      )}
-      {hall.bestIntensive && (
-        <Record
-          icon="sparkle"
-          title="Самая большая оплата по интенсивам и МК"
-          rec={hall.bestIntensive}
-          value={kzt(hall.bestIntensive.value)}
-          when={formatPaymentDay(hall.bestIntensive.at)}
         />
       )}
       {hall.fastest && (
