@@ -7,7 +7,7 @@ import { sendTelegramMessage } from "@/lib/telegramBot";
 import { escapeHtml } from "@/lib/notifyUser";
 import { calculateRevenueCoins } from "@/lib/coinRate";
 import { logRevenueChange, pickRevenueFields } from "@/lib/revenueAudit";
-import { paymentDateToIso, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
+import { paymentDateToIso, closedPaymentDayMessage, formatPaymentDay, almatyDayKey } from "@/lib/timezone";
 import {
   validateClientName,
   clientKey,
@@ -52,6 +52,8 @@ export async function submitRevenueRequest(
 
   // Дату оплаты МОП выбирает сам (забыл отправить вчера — ставит вчера).
   // Не выбрал — сегодня. Дальше 14 дней назад и в будущее нельзя.
+  const closedMessage = closedPaymentDayMessage(paymentDay);
+  if (closedMessage) return { error: closedMessage };
   const earnedAt = paymentDateToIso(paymentDay);
   if (!earnedAt) {
     return { error: "Дату оплаты можно выбрать только за последние 14 дней" };
