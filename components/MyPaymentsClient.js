@@ -249,7 +249,7 @@ export default function MyPaymentsClient({
             const meta = STATUS[r.status] ?? STATUS.pending;
             const history = editsByRequest.get(r.id) ?? [];
             const hasPendingEdit = history.some((e) => e.status === "pending");
-            const canEdit = editsEnabled && !hasPendingEdit;
+            const canEdit = editsEnabled && !hasPendingEdit && r.status !== "rejected";
             return (
               <div
                 key={r.id}

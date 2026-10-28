@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { submitRevenueEdit } from "@/app/mop/payments/actions";
 import { haptic } from "@/lib/haptics";
-import { revenueKindText } from "@/lib/revenueKinds";
+import { revenueKindText, clientNameHasBadChars, CLIENT_NAME_HINT } from "@/lib/revenueKinds";
 import { formatPaymentDay } from "@/lib/timezone";
 import { EDIT_REASON_MAX, editDateBounds, paymentDayKey } from "@/lib/revenueEdits";
 
@@ -150,7 +150,7 @@ export default function PaymentEditSheet({ row, onClose }) {
           <input
             type="text"
             required
-            maxLength={80}
+            maxLength={60}
             name="client-fio-no-memory"
             autoComplete="off"
             autoCorrect="off"
@@ -161,6 +161,9 @@ export default function PaymentEditSheet({ row, onClose }) {
             className={inputCls}
             placeholder="Фамилия Имя"
           />
+          {clientNameHasBadChars(clientName) && (
+            <p className="text-xs text-red-400 mt-1">{CLIENT_NAME_HINT}</p>
+          )}
         </div>
 
         <div>

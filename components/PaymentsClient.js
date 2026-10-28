@@ -205,6 +205,7 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
   }
 
   const [editingId, setEditingId] = useState(null);
+  const [payKindDraft, setPayKindDraft] = useState("");
   const [cancelingId, setCancelingId] = useState(null);
   const [message, setMessage] = useState(null);
 
@@ -320,9 +321,21 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
     const reason = form.get("reason") || "";
 
     startTransition(async () => {
-      const res = await adjustPayment(row.id, { amountKzt: amount, earnedAt, reason });
+      const res = await adjustPayment(row.id, {
+        amountKzt: amount,
+        earnedAt,
+        reason,
+        clientName: String(form.get("client_name") ?? ""),
+        productKind: String(form.get("product_kind") ?? ""),
+        payKind: payKindDraft,
+        isFinalPart: form.get("is_final_part") === "on",
+      });
       if (res?.error) return say(res.error, "error");
-      say(`Исправлено: ${money(row.amount_kzt)} → ${money(amount)} ₸`);
+      say(
+        amount === Number(row.amount_kzt)
+          ? "Данные оплаты исправлены"
+          : `Исправлено: ${money(row.amount_kzt)} → ${money(amount)} ₸`
+      );
       setEditingId(null);
 
       // Поиск по сумме сбрасываем: искали «100000», исправили на «10000» —
@@ -370,6 +383,7 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
                 type="button"
                 onClick={() => {
                   setEditingId(editingId === r.id ? null : r.id);
+                  setPayKindDraft(r.pay_kind ?? "");
                   setCancelingId(null);
                 }}
                 className="text-xs border border-dark-600 rounded-lg px-3 py-1.5 text-gray-300"
@@ -442,6 +456,50 @@ export default function PaymentsClient({ employees, initialRows, initialFrom = "
                 />
               </label>
               <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs text-gray-500">ФИО клиента</span>
+                <input
+                  name="client_name"
+                  maxLength={60}
+                  defaultValue={r.client_name ?? ""}
+                  autoComplete="off"
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-gray-500">Продукт</span>
+                <select
+                  name="product_kind"
+                  defaultValue={r.product_kind ?? ""}
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm"
+                >
+                  {!r.product_kind && <option value="">не указан</option>}
+                  <option value="course">Курс</option>
+                  <option value="intensive">Интенсив / МК</option>
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-gray-500">Оплата</span>
+                <select
+                  value={payKindDraft}
+                  onChange={(e) => setPayKindDraft(e.target.value)}
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm"
+                >
+                  {!r.pay_kind && <option value="">не указана</option>}
+                  <option value="full">Целиком</option>
+                  <option value="part">Часть</option>
+                </select>
+              </label>
+              {payKindDraft === "part" && (
+                <label className="flex items-center gap-2 text-sm text-gray-300 sm:col-span-4">
+                  <input
+                    type="checkbox"
+                    name="is_final_part"
+                    defaultChecked={r.is_final_part === true}
+                  />
+                  Последняя часть
+                </label>
+              )}
+              <label className="space-y-1 sm:col-span-4">
                 <span className="text-xs text-gray-500">
                   Что написать сотруднику
                 </span>

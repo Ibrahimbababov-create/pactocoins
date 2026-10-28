@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { submitRevenueRequest } from "@/app/mop/revenue/actions";
 import Icon from "@/components/Icon";
 import { haptic } from "@/lib/haptics";
+import { clientNameHasBadChars, CLIENT_NAME_HINT, COMMENT_MAX } from "@/lib/revenueKinds";
 import { recentDaysAlmaty, earliestAllowedPaymentDay, PAYMENT_DATE_MAX_DAYS_BACK } from "@/lib/timezone";
 
 // Сегодня первым, дальше назад по дням: «Сегодня, 05.10», «Вчера, 04.10», «сб, 03.10»…
@@ -120,8 +121,8 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
       return;
     }
 
-    if (clientName.trim().length < 2) {
-      setError("Укажи ФИО клиента");
+    if (clientName.trim().length < 2 || clientNameHasBadChars(clientName)) {
+      setError(clientName.trim().length < 2 ? "Укажи ФИО клиента" : CLIENT_NAME_HINT);
       haptic.error();
       return;
     }
@@ -220,7 +221,7 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
         <input
           type="text"
           required
-          maxLength={80}
+          maxLength={60}
           name="client-fio-no-memory"
           autoComplete="off"
           autoCorrect="off"
@@ -232,9 +233,13 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
           className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
           placeholder="Фамилия Имя"
         />
-        <p className="text-xs text-gray-500 mt-1">
-          Достаточно имени, фамилия желательна. Без телефонов.
-        </p>
+        {clientNameHasBadChars(clientName) ? (
+          <p className="text-xs text-red-400 mt-1">{CLIENT_NAME_HINT}</p>
+        ) : (
+          <p className="text-xs text-gray-500 mt-1">
+            Достаточно имени, фамилия желательна. Только буквы, без телефонов.
+          </p>
+        )}
       </div>
 
       <div>
@@ -346,7 +351,11 @@ export default function RevenueRequestForm({ open, onOpenChange, multiplier = 1,
           rows={2}
           className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-acid-400"
           placeholder="Номер сделки и т.д."
+          maxLength={COMMENT_MAX}
         />
+        <p className="text-xs text-gray-500 mt-1">
+          Не пиши телефон и почту клиента: мы их не храним.
+        </p>
       </div>
 
       <label className="flex items-start gap-3 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 cursor-pointer">
