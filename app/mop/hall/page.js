@@ -5,7 +5,7 @@ import EmptyState from "@/components/EmptyState";
 import RatingHallTabs from "@/components/RatingHallTabs";
 import Icon from "@/components/Icon";
 import { effectiveRole, resolveViewer } from "@/lib/viewAs";
-import { getHallOfFame, SHOW_COUNT_RECORDS, HISTORICAL_BEST_MONTH } from "@/lib/hallOfFame";
+import { getHallOfFame, getHallNow, SHOW_COUNT_RECORDS, HISTORICAL_BEST_MONTH } from "@/lib/hallOfFame";
 import { formatPaymentDay, monthRangeAlmaty } from "@/lib/timezone";
 import { plural } from "@/lib/plural";
 
@@ -14,7 +14,24 @@ const ALLOWED_ROLES = ["mop", "rop", "mentor", "trainee"];
 const kzt = (n) => `${(Number(n) || 0).toLocaleString("ru-RU")} ₸`;
 const noon = (key) => `${key}T12:00:00+05:00`;
 
-function Record({ icon, title, rec, value, when, note }) {
+// Строка «Сейчас ближе всего» по текущему периоду. top: до трёх человек с
+// ненулевым значением, по убыванию. Пусто, если никого нет.
+function nowInfo(top, recordValue, fmt) {
+  if (!top?.length || !(recordValue > 0)) return null;
+  const [lead, ...rest] = top;
+  if (!(lead.value > 0)) return null;
+  const others = rest.slice(0, 2).map((p) => `${p.name} ${fmt(p.value)}`);
+  let main;
+  if (lead.value > recordValue) main = `Рекорд сейчас бьёт: ${lead.name}, ${fmt(lead.value)}`;
+  else if (lead.value === recordValue) main = `Повторяет рекорд: ${lead.name}, ${fmt(lead.value)}`;
+  else {
+    const pct = Math.floor((lead.value / recordValue) * 100);
+    main = `Сейчас ближе всего: ${lead.name}, ${fmt(lead.value)} из ${fmt(recordValue)} (${pct}%)`;
+  }
+  return { main, rest: others.length ? `Следом: ${others.join(", ")}` : null };
+}
+
+function Record({ icon, title, rec, value, when, note, ties, now }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-dark-800 border border-dark-700 p-4">
       <span className="flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-acid-400/10 text-acid-400">
@@ -28,6 +45,15 @@ function Record({ icon, title, rec, value, when, note }) {
           {" · "}{when}
         </p>
         {note && <p className="text-xs text-gray-500 truncate">{note}</p>}
+        {ties?.length > 0 && (
+          <p className="text-xs text-gray-500">Столько же: {ties.join(", ")}</p>
+        )}
+        {now && (
+          <div className="mt-2 pt-2 border-t border-dark-700">
+            <p className="text-xs text-acid-400">{now.main}</p>
+            {now.rest && <p className="text-xs text-gray-500">{now.rest}</p>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -90,6 +116,19 @@ export default async function HallPage() {
     );
   }
 
+  let cur = null;
+  try {
+    cur = await getHallNow();
+  } catch (e) {
+    console.error("[hall-now]", e);
+  }
+  const money = (n) => kzt(n);
+  const cnt = (n) => `${n} ${plural(n, "оплата", "оплаты", "оплат")}`;
+  const tieNames = (rec, fmtWhen) =>
+    (rec.ties ?? []).map((t) => `${t.name}, ${fmtWhen(t)}`);
+  const dayWhen = (t) => formatPaymentDay(noon(t.when));
+  const monthWhen = (t) => monthRangeAlmaty(t.when).label;
+
   const leader = hall.leader;
   const record = hall.bestMonth;
   const gap = leader ? record.value - leader.value : null;
@@ -136,6 +175,8 @@ export default async function HallPage() {
         rec={hall.bestDay}
         value={kzt(hall.bestDay.value)}
         when={formatPaymentDay(noon(hall.bestDay.when))}
+        ties={tieNames(hall.bestDay, dayWhen)}
+        now={nowInfo(cur?.day, hall.bestDay.value, money)}
       />
       <Record
         icon="chart"
@@ -143,6 +184,8 @@ export default async function HallPage() {
         rec={hall.bestWeek}
         value={kzt(hall.bestWeek.value)}
         when={`с ${formatPaymentDay(noon(hall.bestWeek.when))} по ${formatPaymentDay(noon(hall.bestWeek.weekEnd))}`}
+        ties={tieNames(hall.bestWeek, (t) => `неделя с ${formatPaymentDay(noon(t.when))}`)}
+        now={nowInfo(cur?.week, hall.bestWeek.value, money)}
       />
       <Record
         icon="award"
@@ -150,6 +193,8 @@ export default async function HallPage() {
         rec={hall.bestMonth}
         value={kzt(hall.bestMonth.value)}
         when={hall.bestMonth.manual ? hall.bestMonth.label : monthRangeAlmaty(hall.bestMonth.when).label}
+        ties={tieNames(hall.bestMonth, monthWhen)}
+        now={nowInfo(cur?.month, hall.bestMonth.value, money)}
       />
       <Record
         icon="coin"
@@ -157,6 +202,7 @@ export default async function HallPage() {
         rec={hall.bestPayment}
         value={kzt(hall.bestPayment.value)}
         when={formatPaymentDay(hall.bestPayment.at)}
+        ties={tieNames(hall.bestPayment, (t) => formatPaymentDay(t.at))}
       />
       {SHOW_COUNT_RECORDS && hall.mostDeals && (
         <Record
@@ -166,6 +212,8 @@ export default async function HallPage() {
           value={`${hall.mostDeals.value} ${plural(hall.mostDeals.value, "оплата", "оплаты", "оплат")}`}
           when={formatPaymentDay(noon(hall.mostDeals.when))}
           note="без мастер-классов и предоплат"
+          ties={tieNames(hall.mostDeals, dayWhen)}
+          now={nowInfo(cur?.dayCount, hall.mostDeals.value, cnt)}
         />
       )}
       {SHOW_COUNT_RECORDS && hall.mostPayMonth && (
@@ -176,6 +224,8 @@ export default async function HallPage() {
           value={`${hall.mostPayMonth.value} ${plural(hall.mostPayMonth.value, "оплата", "оплаты", "оплат")}`}
           when={monthRangeAlmaty(hall.mostPayMonth.when).label}
           note="без мастер-классов и предоплат"
+          ties={tieNames(hall.mostPayMonth, monthWhen)}
+          now={nowInfo(cur?.monthCount, hall.mostPayMonth.value, cnt)}
         />
       )}
       {hall.fastest && (
