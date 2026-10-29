@@ -41,6 +41,7 @@ export default async function ShopPage() {
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const newIds = (rewards ?? [])
     .filter((r) => r.created_at && new Date(r.created_at).getTime() >= weekAgo)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .map((r) => r.id);
 
   const grouped = groupRewards(categories, rewards, variantsByReward);
