@@ -13,16 +13,38 @@ export const dynamic = "force-dynamic";
 //
 // GET /api/finance/mentors            все месяцы
 // GET /api/finance/mentors?month=2026-10   один месяц (по Алматы)
+//
+// Для Google-таблицы (формула IMPORTDATA не умеет заголовки): тот же пароль
+// в адресе, ?key=..., и ?format=csv отдаёт оплаты плоской таблицей.
+function csvCell(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function csvResponse(rows) {
+  const head = "date,project,trainee,mentor,amount_kzt,coins,released";
+  const lines = rows.map((r) =>
+    [r.date, r.project, r.trainee, r.mentor, r.amount_kzt, r.coins, r.released ? 1 : 0]
+      .map(csvCell)
+      .join(",")
+  );
+  return new Response([head, ...lines].join("\n"), {
+    headers: { "content-type": "text/csv; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
 export async function GET(request) {
   const secret = process.env.FINANCE_SHEET_SECRET;
-  if (
-    !secret ||
-    request.headers.get("authorization") !== `Bearer ${secret}`
-  ) {
+  const url = new URL(request.url);
+  const given =
+    request.headers.get("authorization")?.replace(/^Bearer /, "") ??
+    url.searchParams.get("key");
+  if (!secret || given !== secret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const asCsv = url.searchParams.get("format") === "csv";
 
-  const onlyMonth = new URL(request.url).searchParams.get("month");
+  const onlyMonth = url.searchParams.get("month");
   if (onlyMonth && !/^\d{4}-\d{2}$/.test(onlyMonth)) {
     return NextResponse.json({ error: "month=YYYY-MM" }, { status: 400 });
   }
@@ -35,7 +57,9 @@ export async function GET(request) {
       .select("request_id, mentor_id, trainee_id, coins, created_at");
     if (error) throw error;
     if (!bonuses?.length) {
-      return NextResponse.json({ ok: true, rows: [], months: {} });
+      return asCsv
+        ? csvResponse([])
+        : NextResponse.json({ ok: true, rows: [], months: {} });
     }
 
     const requestIds = [...new Set(bonuses.map((b) => b.request_id))];
@@ -105,6 +129,7 @@ export async function GET(request) {
       else m.piggy_coins += r.coins;
     }
 
+    if (asCsv) return csvResponse(rows);
     return NextResponse.json({ ok: true, rows, months });
   } catch (err) {
     console.error("[finance/mentors] failed:", err?.message);
