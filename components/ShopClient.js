@@ -469,6 +469,9 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
           }
         })
       );
+      // Самые свежие сверху: newIds приходит уже от новых к старым
+      const rank = new Map(newIds.map((id, i) => [id, i]));
+      list.sort((x, y) => (rank.get(x.id) ?? 0) - (rank.get(y.id) ?? 0));
       return list.length > 0 ? [["Новинки недели", list]] : [];
     }
     if (activeCategory) {
@@ -477,7 +480,7 @@ export default function ShopClient({ grouped, categoryNames, balance, favoriteId
     // Награда показывается в каждой своей категории (основной и
     // дополнительных), по одной карточке в секции.
     return Object.entries(filteredGrouped).filter(([, items]) => items.length > 0);
-  }, [filteredGrouped, activeCategory, onlyNew, newSet]);
+  }, [filteredGrouped, activeCategory, onlyNew, newSet, newIds]);
 
   // Избранное: каждая награда один раз, даже если лежит в нескольких категориях
   const favoriteRewards = useMemo(() => {
