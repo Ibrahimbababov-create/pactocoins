@@ -6,6 +6,9 @@ import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
 import TraineeProjectPicker from "@/components/TraineeProjectPicker";
 import TraineeControls from "@/components/TraineeControls";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { getReleasedUpTo, nextReleaseLabel } from "@/lib/mentorPiggy";
+import { formatCoins } from "@/lib/plural";
 
 // Экран наставника: его стажёры и то, на каком они дне.
 export default async function TraineesPage() {
@@ -77,6 +80,24 @@ export default async function TraineesPage() {
     ((doneByUser[p.user_id] ||= {})[day] = (doneByUser[p.user_id][day] ?? 0) + 1);
   }
 
+  // Копилка: процент с оплат стажёров ждёт 5-го числа, потом падает на баланс.
+  // Читаем через сервис, своего id у mentor_bonuses для клиента нет в доступе.
+  let piggyCoins = 0;
+  let piggyPayments = 0;
+  try {
+    const admin = createAdminClient();
+    const upTo = await getReleasedUpTo(admin);
+    const { data: piggy } = await admin
+      .from("mentor_bonuses")
+      .select("coins")
+      .eq("mentor_id", mentorId)
+      .gte("created_at", upTo);
+    piggyPayments = piggy?.length ?? 0;
+    piggyCoins = (piggy ?? []).reduce((s, r) => s + (Number(r.coins) || 0), 0);
+  } catch {
+    // Без копилки экран остаётся рабочим.
+  }
+
   const days = Object.keys(totalByDay)
     .map(Number)
     .sort((a, b) => a - b);
@@ -88,6 +109,24 @@ export default async function TraineesPage() {
         <p className="text-sm text-gray-500 mt-1">
           Кого ты ведёшь и кто на каком дне обучения.
         </p>
+      </div>
+
+      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-4 flex items-center gap-3">
+        <span className="w-11 h-11 shrink-0 rounded-full bg-acid-400/10 border border-acid-400/40 flex items-center justify-center text-acid-400">
+          <Icon name="piggy" className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-gray-500">Копилка наставника</p>
+          <p className="font-display font-bold text-lg tabular-nums">
+            {formatCoins(piggyCoins)}
+          </p>
+          <p className="text-xs text-gray-500">
+            {piggyPayments > 0
+              ? `Оплат стажёров занесено: ${piggyPayments}. `
+              : "Пока пусто. "}
+            Откроется {nextReleaseLabel()}, коины упадут на баланс.
+          </p>
+        </div>
       </div>
 
       {learning.length === 0 && (

@@ -6,6 +6,7 @@ import { syncBotCommands } from "@/lib/botCommands";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { sweepTournaments } from "@/lib/tournament";
 import { announceHallRecords } from "@/lib/hallNotify";
+import { releaseMentorPiggies } from "@/lib/mentorPiggy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,6 +56,14 @@ export async function GET(request) {
     summary.hall = await announceHallRecords(createAdminClient());
   } catch (err) {
     console.error("[cron] hall of fame announce failed:", err);
+  }
+
+  // 5-го числа (Алматы) копилки наставников высыпаются на баланс. В остальные
+  // дни вызов ничего не делает, повторный запуск ничего не начисляет дважды.
+  try {
+    summary.mentorPiggy = await releaseMentorPiggies(createAdminClient());
+  } catch (err) {
+    console.error("[cron] mentor piggy release failed:", err);
   }
 
   try {

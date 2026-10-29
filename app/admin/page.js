@@ -406,12 +406,29 @@ function ProgramCostCard({ cost, monthKey, forecast }) {
 
       <ForecastBlock forecast={forecast} cost={cost} kzt={kzt} />
 
-      {cost.mentorCoins > 0 && (
-        <div className="mt-2 flex justify-between gap-3 text-xs text-gray-600">
-          <span>Наставникам, не в расходах: платится из ЗП стажёров (−1%)</span>
-          <span className="tabular-nums shrink-0">
-            {formatCoins(cost.mentorCoins)} · {kzt(cost.mentorKzt)}
-          </span>
+      {(cost.mentorCoins > 0 || cost.mentorAccrued > 0 || cost.mentorPending > 0) && (
+        <div className="mt-2 pt-2 border-t border-dark-700 space-y-1 text-xs text-gray-600">
+          <p className="text-gray-500">
+            Наставничество, не в расходах: платится из ЗП стажёров (−1%). Считаем по 2 ₸ за коин.
+          </p>
+          <div className="flex justify-between gap-3">
+            <span>Накоплено в копилках за месяц</span>
+            <span className="tabular-nums shrink-0">
+              {formatCoins(cost.mentorAccrued)} · {kzt(cost.mentorAccruedKzt)}
+            </span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span>Высыпано на балансы за месяц</span>
+            <span className="tabular-nums shrink-0">
+              {formatCoins(cost.mentorCoins)} · {kzt(cost.mentorKzt)}
+            </span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span>Лежит в копилках сейчас, ждёт 5-го числа</span>
+            <span className="tabular-nums shrink-0">
+              {formatCoins(cost.mentorPending)} · {kzt(cost.mentorPendingKzt)}
+            </span>
+          </div>
         </div>
       )}
 
