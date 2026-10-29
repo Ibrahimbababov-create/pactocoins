@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { spinWheel, buySpinsWithChips } from "@/app/mop/wheel/actions";
 import { segmentColor, segmentTextColor } from "@/lib/wheel";
+import { layoutWheelLabel } from "@/lib/wheelLabel";
 import { BONUS_CATEGORIES } from "@/lib/bonusCategories";
 import { PLACE_SPINS } from "@/lib/tournamentRounds";
 import { formatDateTimeAlmaty } from "@/lib/timezone";
@@ -52,7 +53,7 @@ function segmentFace(seg, isTop) {
   if (seg.prize_type === "coins") return { big: Number(seg.prize_amount).toLocaleString("ru-RU"), small: isTop ? "джекпот" : "коинов" };
   if (seg.prize_type === "spins") return { big: `+${seg.prize_amount}`, small: spinsNom(seg.prize_amount) };
   if (seg.prize_type === "chips") return { big: String(seg.prize_amount), small: chipsNom(seg.prize_amount) };
-  if (seg.prize_type === "custom") return { big: "приз", small: seg.label.slice(0, 12) };
+  if (seg.prize_type === "custom") return { big: "приз", small: seg.label.slice(0, 12), shortenable: true };
   return { big: "пусто", small: "" };
 }
 
@@ -436,8 +437,10 @@ export default function WheelClient({
                 const ink = segmentTextColor(fill);
                 const isTop = seg.prize_type === "coins" && seg.prize_amount === topCoins && topCoins > 0;
                 const face = segmentFace(seg, isTop);
-                const [bx, by] = polar(mid, R * 0.7);
-                const [sx, sy] = polar(mid, R * 0.5);
+                // Размер и место подписи подбираются под число знаков и ширину сектора.
+                const lay = layoutWheelLabel(face, slice);
+                const [bx, by] = polar(mid, lay.bigR);
+                const [sx, sy] = polar(mid, lay.smallR);
                 return (
                   <g key={seg.id}>
                     <path d={slicePath(start, start + slice)} fill={fill} />
@@ -453,7 +456,7 @@ export default function WheelClient({
                       x={bx}
                       y={by}
                       fill={ink}
-                      fontSize={face.big.length > 4 ? 15 : 19}
+                      fontSize={lay.bigSize}
                       fontWeight="800"
                       textAnchor="middle"
                       dominantBaseline="middle"
@@ -462,19 +465,19 @@ export default function WheelClient({
                     >
                       {face.big}
                     </text>
-                    {face.small && (
+                    {lay.small && (
                       <text
                         x={sx}
                         y={sy}
                         fill={ink}
                         fillOpacity="0.75"
-                        fontSize="8.5"
+                        fontSize={lay.smallSize}
                         fontWeight="600"
                         textAnchor="middle"
                         dominantBaseline="middle"
                         transform={`rotate(${mid}, ${sx}, ${sy})`}
                       >
-                        {face.small}
+                        {lay.small}
                       </text>
                     )}
                   </g>
