@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { almatyDayKey } from "@/lib/timezone";
+import { getReleasedUpTo, isReleased } from "@/lib/mentorPiggy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export async function GET(request) {
 
     const { data: bonuses, error } = await admin
       .from("mentor_bonuses")
-      .select("request_id, mentor_id, trainee_id, coins");
+      .select("request_id, mentor_id, trainee_id, coins, created_at");
     if (error) throw error;
     if (!bonuses?.length) {
       return NextResponse.json({ ok: true, rows: [], months: {} });
@@ -61,6 +62,9 @@ export async function GET(request) {
     const personById = new Map((people ?? []).map((p) => [p.id, p]));
     const projectById = new Map((projects ?? []).map((p) => [p.id, p.name]));
 
+    // Высыпана ли запись: старше отметки последнего «сундука» (5-е число).
+    const releasedUpTo = await getReleasedUpTo(admin);
+
     const rows = [];
     for (const b of bonuses) {
       const req = requestById.get(b.request_id);
@@ -78,17 +82,27 @@ export async function GET(request) {
         mentor: mentor?.name ?? "",
         amount_kzt: req.amount_kzt,
         coins: b.coins,
+        released: isReleased(b.created_at, releasedUpTo),
       });
     }
     rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
     // Итоги по месяцам: сколько оплат стажёров в окне и сколько коинов
     // получили наставники. Коин ≈ 2 ₸ (как в lib/mentorBonus.js).
+    // piggy_coins: ещё в копилке, released_coins: уже высыпано на баланс
+    // (coins = сумма обоих).
     const months = {};
     for (const r of rows) {
-      const m = (months[r.month] ??= { amount_kzt: 0, coins: 0 });
+      const m = (months[r.month] ??= {
+        amount_kzt: 0,
+        coins: 0,
+        piggy_coins: 0,
+        released_coins: 0,
+      });
       m.amount_kzt += r.amount_kzt;
       m.coins += r.coins;
+      if (r.released) m.released_coins += r.coins;
+      else m.piggy_coins += r.coins;
     }
 
     return NextResponse.json({ ok: true, rows, months });
